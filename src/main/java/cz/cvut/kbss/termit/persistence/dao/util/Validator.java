@@ -70,14 +70,7 @@ public class Validator {
         LOG.info("Validating {}",vocabularyIris);
         final com.github.sgov.server.Validator validator = new com.github.sgov.server.Validator();
         final Set<URL> rules = new HashSet<>();
-        rules.addAll(
-            validator.getGlossaryRules().stream().filter( r ->
-                // currently only using content rules, not OntoUml, as TermIt does not support adding
-                // OntoUml rules. Also filtering out m2.ttl, as it is not possible to assign more types
-                // to a term in TermIt
-                r.toString().contains("m1.ttl")
-            ).collect(Collectors.toList())
-        );
+        rules.addAll(validator.getGlossaryRules());
         rules.addAll(
             validator.getModelRules().stream().filter( r ->
                 // currently only using content rules, not OntoUml, as TermIt does not support adding
