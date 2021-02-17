@@ -2,7 +2,6 @@ package cz.cvut.kbss.termit.service.business;
 
 import cz.cvut.kbss.termit.dto.assignment.TermAssignments;
 import cz.cvut.kbss.termit.exception.NotFoundException;
-import cz.cvut.kbss.termit.exception.TermDefinitionSourceExistsException;
 import cz.cvut.kbss.termit.model.Term;
 import cz.cvut.kbss.termit.model.Vocabulary;
 import cz.cvut.kbss.termit.model.assignment.TermDefinitionSource;
@@ -347,13 +346,14 @@ public class TermService implements RudService<Term>, ChangeRecordProvider<Term>
      * @param term             Term whose definition source is being specified
      * @param definitionSource Definition source representation
      */
+    @Transactional
     public void setTermDefinitionSource(Term term, TermDefinitionSource definitionSource) {
         Objects.requireNonNull(term);
         Objects.requireNonNull(definitionSource);
         definitionSource.setTerm(term.getUri());
-        if (repositoryService.findRequired(term.getUri()).getDefinitionSource() != null) {
-            throw new TermDefinitionSourceExistsException(
-                    "Term " + term + " already has a definition source assigned.");
+        final Term existingTerm = repositoryService.findRequired(term.getUri());
+        if (existingTerm.getDefinitionSource() != null) {
+            termOccurrenceService.removeOccurrence(existingTerm.getDefinitionSource());
         }
         termOccurrenceService.persistOccurrence(definitionSource);
     }

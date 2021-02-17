@@ -50,4 +50,13 @@ public class UserRepositoryService {
     public UserAccount findRequired(URI uri) {
         return find(uri).orElseThrow(() -> NotFoundException.create(UserAccount.class.getSimpleName(), uri));
     }
+
+    /**
+     * Checks whether an admin account exists in the system.
+     *
+     * @return {@code true} when there is an admin account, {@code false} otherwise
+     */
+    public boolean doesAdminExist() {
+        return userAccountDao.doesAdminExist();
+    }
 }

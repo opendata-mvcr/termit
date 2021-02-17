@@ -141,13 +141,6 @@ public class RestExceptionHandler {
                 HttpStatus.CONFLICT);
     }
 
-    @ExceptionHandler(TermDefinitionSourceExistsException.class)
-    public ResponseEntity<ErrorInfo> termDefinitionExistsException(HttpServletRequest request,
-                                                                   TermDefinitionSourceExistsException e) {
-        logException(e);
-        return new ResponseEntity<>(errorInfo(request, e), HttpStatus.CONFLICT);
-    }
-
     @ExceptionHandler
     public ResponseEntity<ErrorInfo> unsupportedImportMediaTypeException(HttpServletRequest request,
                                                                          UnsupportedImportMediaTypeException e) {
@@ -184,7 +177,7 @@ public class RestExceptionHandler {
 
     @ExceptionHandler
     public ResponseEntity<ErrorInfo> invalidParameter(HttpServletRequest request,
-                                                          InvalidParameterException e) {
+                                                      InvalidParameterException e) {
         logException(e);
         return new ResponseEntity<>(errorInfo(request, e), HttpStatus.UNPROCESSABLE_ENTITY);
     }
