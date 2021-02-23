@@ -9,7 +9,6 @@ import cz.cvut.kbss.termit.dto.assignment.TermAssignments;
 import cz.cvut.kbss.termit.environment.Environment;
 import cz.cvut.kbss.termit.environment.Generator;
 import cz.cvut.kbss.termit.exception.NotFoundException;
-import cz.cvut.kbss.termit.exception.TermDefinitionSourceExistsException;
 import cz.cvut.kbss.termit.model.Term;
 import cz.cvut.kbss.termit.model.User;
 import cz.cvut.kbss.termit.model.assignment.FileOccurrenceTarget;
@@ -776,25 +775,6 @@ class TermControllerTest extends BaseControllerTestRunner {
     }
 
     @Test
-    void setTermDefinitionSourceReturnsConflictStatusWhenServiceThrowsDefinitionExistsException() throws Exception {
-        final URI termUri = URI.create(NAMESPACE + TERM_NAME);
-        final Term term = Generator.generateTerm();
-        term.setUri(termUri);
-        when(idResolverMock.resolveIdentifier(NAMESPACE, TERM_NAME)).thenReturn(termUri);
-        when(termServiceMock.getRequiredReference(termUri)).thenReturn(term);
-        final TermDefinitionSource source = new TermDefinitionSource();
-        final File file = Generator.generateFileWithId("test.html");
-        source.setTarget(new FileOccurrenceTarget(file));
-        doThrow(TermDefinitionSourceExistsException.class).when(termServiceMock)
-                                                          .setTermDefinitionSource(eq(term), any());
-
-        mockMvc.perform(put("/terms/" + TERM_NAME + "/definition-source")
-                .param(QueryParams.NAMESPACE, NAMESPACE)
-                .content(toJson(source)).contentType(MediaType.APPLICATION_JSON))
-               .andExpect(status().isConflict());
-    }
-
-    @Test
     void getHistoryReturnsListOfChangeRecordsForSpecifiedTerm() throws Exception {
         final URI termUri = initTermUriResolution();
         final Term term = Generator.generateTerm();
@@ -818,7 +798,7 @@ class TermControllerTest extends BaseControllerTestRunner {
             final UpdateChangeRecord record = new UpdateChangeRecord(term);
             record.setAuthor(author);
             record.setChangedAttribute(URI.create(SKOS.PREF_LABEL));
-            record.setTimestamp(Instant.ofEpochSecond(System.currentTimeMillis() + i * 1000));
+            record.setTimestamp(Instant.ofEpochSecond(System.currentTimeMillis() + i * 1000L));
             return record;
         }).collect(Collectors.toList());
     }
