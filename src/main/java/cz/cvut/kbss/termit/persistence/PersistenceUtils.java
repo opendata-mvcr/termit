@@ -29,8 +29,8 @@ public class PersistenceUtils {
      *
      * @return Current workspace IRI
      */
-    public URI getCurrentWorkspace() {
-        return workspaceMetadataProvider.getCurrentWorkspace().getUri();
+    public Workspace getCurrentWorkspace() {
+        return workspaceMetadataProvider.getCurrentWorkspace();
     }
 
     /**
