@@ -146,7 +146,12 @@ public enum ConfigParam {
     /**
      * Active Spring profiles.
      */
-    ACTIVE_PROFILES("spring.profiles.active");
+    ACTIVE_PROFILES("spring.profiles.active"),
+
+    /**
+     * Full authorization server URL.
+     */
+    AUTH_SERVER_URL("authServer.url");
 
     private final String parameter;
 

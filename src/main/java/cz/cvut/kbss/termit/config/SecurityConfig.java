@@ -14,7 +14,7 @@
  */
 package cz.cvut.kbss.termit.config;
 
-import cz.cvut.kbss.termit.security.Security;
+import cz.cvut.kbss.termit.config.keycloak.KeycloakSecurity;
 import cz.cvut.kbss.termit.util.ConfigParam;
 import org.keycloak.adapters.springsecurity.KeycloakConfiguration;
 import org.keycloak.adapters.springsecurity.config.KeycloakWebSecurityConfigurerAdapter;
@@ -38,7 +38,7 @@ import java.util.Arrays;
 import java.util.Collections;
 
 @Configuration
-@ComponentScan(basePackageClasses = Security.class)
+@ComponentScan(basePackageClasses = KeycloakSecurity.class)
 @EnableWebSecurity
 @EnableGlobalMethodSecurity(prePostEnabled = true)
 @KeycloakConfiguration

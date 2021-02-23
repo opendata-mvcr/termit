@@ -28,11 +28,11 @@ class YamlPropertySourceFactoryTest {
 
     @Test
     void supportsLoadingYamlConfiguration() {
-        assertTrue(environment.containsProperty("auth.name"));
-        final String authName = environment.getProperty("auth.name");
+        assertTrue(environment.containsProperty("authServer.name"));
+        final String authName = environment.getProperty("authServer.name");
         assertEquals("auth-service", authName);
-        assertTrue(environment.containsProperty("auth.url"));
-        final String authUrl = environment.getProperty("auth.url");
+        assertTrue(environment.containsProperty("authServer.url"));
+        final String authUrl = environment.getProperty("authServer.url");
         assertEquals("http://localhost:8080/auth/realms/kodi", authUrl);
     }
 }
