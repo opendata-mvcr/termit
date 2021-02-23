@@ -15,6 +15,7 @@
 package cz.cvut.kbss.termit.config;
 
 import cz.cvut.kbss.termit.aspect.Aspects;
+import cz.cvut.kbss.termit.util.spring.YamlPropertySourceFactory;
 import cz.cvut.kbss.termit.workspace.WorkspaceComponents;
 import cz.cvut.kbss.termit.workspace.WorkspaceStore;
 import org.springframework.context.annotation.*;
@@ -31,6 +32,7 @@ import javax.servlet.http.HttpSession;
 @ComponentScan(basePackageClasses = {Aspects.class, WorkspaceComponents.class})
 @Import({PersistenceConfig.class, ServiceConfig.class, WebAppConfig.class})
 @PropertySource("classpath:config.properties")
+@PropertySource(value = "classpath:components.yaml", factory = YamlPropertySourceFactory.class)
 public class AppConfig {
 
     @Bean

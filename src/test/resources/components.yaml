@@ -1,0 +1,3 @@
+authServer:
+  name: auth-service
+  url: http://localhost:8080/auth/realms/kodi
