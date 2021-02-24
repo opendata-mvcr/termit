@@ -37,7 +37,7 @@ public class CanonicalCacheContainerDao {
                 "?canonicalCache ?referencesContext ?ctx ." +
                 "FILTER NOT EXISTS {" +
                 "?workspace ?referencesContext ?wsCtx ." +
-                "?wsCtx ?versionOf ?ws ." +
+                "?wsCtx ?versionOf ?ctx ." +
                 "}}", URI.class)
                  .setParameter("canonicalCache", URI.create(config.get(ConfigParam.CANONICAL_CACHE_CONTAINER_IRI)))
                  .setParameter("referencesContext", URI.create(Vocabulary.s_p_odkazuje_na_kontext))
