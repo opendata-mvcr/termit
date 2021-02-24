@@ -8,7 +8,8 @@ import cz.cvut.kbss.termit.util.Vocabulary;
 import org.springframework.stereotype.Repository;
 
 import java.net.URI;
-import java.util.Collection;
+import java.util.Set;
+import java.util.stream.Collectors;
 
 @Repository
 public class CanonicalCacheContainerDao {
@@ -25,23 +26,21 @@ public class CanonicalCacheContainerDao {
     /**
      * Retrieves unique vocabulary contexts referenced by the canonical cache container.
      * <p>
-     * The vocabulary contexts are unique in the sense that their working versions are not referenced by the specified
-     * workspace.
+     * The vocabulary contexts are unique in the sense that their working versions are not referenced by the specified workspace.
      *
-     * @param workspace Workspace containing working versions of vocabularies which should be filtered out from the
-     *                  result.
+     * @param workspace Workspace containing working versions of vocabularies which should be filtered out from the result.
      * @return Set of vocabulary context identifiers
      */
-    public Collection<URI> findUniqueCanonicalCacheContexts(Workspace workspace) {
+    public Set<URI> findUniqueCanonicalCacheContexts(Workspace workspace) {
         return em.createNativeQuery("SELECT ?ctx WHERE {" +
                 "?canonicalCache ?referencesContext ?ctx ." +
                 "FILTER NOT EXISTS {" +
                 "?workspace ?referencesContext ?wsCtx ." +
                 "?wsCtx ?versionOf ?ctx ." +
                 "}}", URI.class)
-                 .setParameter("canonicalCache", URI.create(config.get(ConfigParam.CANONICAL_CACHE_CONTAINER_IRI)))
-                 .setParameter("referencesContext", URI.create(Vocabulary.s_p_odkazuje_na_kontext))
-                 .setParameter("workspace", workspace)
-                 .setParameter("versionOf", URI.create(Vocabulary.s_p_vychazi_z_verze)).getResultList();
+                .setParameter("canonicalCache", URI.create(config.get(ConfigParam.CANONICAL_CACHE_CONTAINER_IRI)))
+                .setParameter("referencesContext", URI.create(Vocabulary.s_p_odkazuje_na_kontext))
+                .setParameter("workspace", workspace)
+                .setParameter("versionOf", URI.create(Vocabulary.s_p_vychazi_z_verze)).getResultStream().collect(Collectors.toSet());
     }
 }

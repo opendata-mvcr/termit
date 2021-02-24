@@ -9,6 +9,7 @@ import cz.cvut.kbss.termit.util.ConfigParam;
 import cz.cvut.kbss.termit.util.Configuration;
 import cz.cvut.kbss.termit.util.Vocabulary;
 import org.eclipse.rdf4j.model.IRI;
+import org.eclipse.rdf4j.model.Statement;
 import org.eclipse.rdf4j.model.ValueFactory;
 import org.eclipse.rdf4j.repository.Repository;
 import org.eclipse.rdf4j.repository.RepositoryConnection;
@@ -20,10 +21,8 @@ import java.util.Collection;
 import java.util.HashSet;
 import java.util.Set;
 import java.util.stream.Collectors;
-import java.util.stream.IntStream;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertTrue;
 
 class CanonicalCacheContainerDaoTest extends BaseDaoTestRunner {
 
@@ -39,27 +38,21 @@ class CanonicalCacheContainerDaoTest extends BaseDaoTestRunner {
     @Test
     void findUniqueCanonicalCacheContextsRetrievesContextsReferencedByCanonicalCacheContainer() {
         final Set<URI> canonicalVocabularies = generateCanonicalContainer();
-        final Collection<URI> result = sut.findUniqueCanonicalCacheContexts(WorkspaceGenerator.generateWorkspace());
-        assertEquals(canonicalVocabularies.size(), result.size());
-        assertTrue(canonicalVocabularies.containsAll(result));
+        final Set<URI> result = sut.findUniqueCanonicalCacheContexts(WorkspaceGenerator.generateWorkspace());
+        assertEquals(canonicalVocabularies, result);
     }
 
     private Set<URI> generateCanonicalContainer() {
-        final Set<URI> canonicalVocabularies = IntStream.range(0, 10).mapToObj(i -> Generator.generateUri()).collect(
-                Collectors.toSet());
+        final Collection<Statement> statements = WorkspaceGenerator.generateCanonicalCacheContainer(config.get(ConfigParam.CANONICAL_CACHE_CONTAINER_IRI));
         transactional(() -> {
             final Repository repo = em.unwrap(Repository.class);
             try (final RepositoryConnection conn = repo.getConnection()) {
-                final ValueFactory vf = conn.getValueFactory();
                 conn.begin();
-                canonicalVocabularies.forEach(v -> conn
-                        .add(vf.createIRI(config.get(ConfigParam.CANONICAL_CACHE_CONTAINER_IRI)),
-                                vf.createIRI(Vocabulary.s_p_odkazuje_na_kontext), vf.createIRI(v.toString()),
-                                vf.createIRI(config.get(ConfigParam.CANONICAL_CACHE_CONTAINER_IRI))));
+                conn.add(statements);
                 conn.commit();
             }
         });
-        return canonicalVocabularies;
+        return statements.stream().map(s -> URI.create(s.getObject().stringValue())).collect(Collectors.toSet());
     }
 
     @Test
@@ -71,9 +64,8 @@ class CanonicalCacheContainerDaoTest extends BaseDaoTestRunner {
         final Set<URI> matching = new HashSet<>(canonicalVocabularies);
         matching.removeAll(withWorkingVersions);
 
-        final Collection<URI> result = sut.findUniqueCanonicalCacheContexts(ws);
-        assertEquals(matching.size(), result.size());
-        assertTrue(matching.containsAll(result));
+        final Set<URI> result = sut.findUniqueCanonicalCacheContexts(ws);
+        assertEquals(matching, result);
     }
 
     private void generateWorkspaceVersions(Set<URI> canonical, Workspace ws) {
