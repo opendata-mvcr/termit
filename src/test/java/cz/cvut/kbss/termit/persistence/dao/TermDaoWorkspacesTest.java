@@ -8,12 +8,16 @@ import cz.cvut.kbss.jopa.vocabulary.SKOS;
 import cz.cvut.kbss.termit.dto.workspace.VocabularyInfo;
 import cz.cvut.kbss.termit.dto.workspace.WorkspaceMetadata;
 import cz.cvut.kbss.termit.environment.Generator;
+import cz.cvut.kbss.termit.environment.WorkspaceGenerator;
 import cz.cvut.kbss.termit.model.Term;
 import cz.cvut.kbss.termit.model.Vocabulary;
 import cz.cvut.kbss.termit.persistence.DescriptorFactory;
 import cz.cvut.kbss.termit.persistence.dao.workspace.WorkspaceMetadataProvider;
+import cz.cvut.kbss.termit.util.ConfigParam;
+import cz.cvut.kbss.termit.util.Configuration;
 import cz.cvut.kbss.termit.util.Constants;
 import org.eclipse.rdf4j.model.IRI;
+import org.eclipse.rdf4j.model.Statement;
 import org.eclipse.rdf4j.model.ValueFactory;
 import org.eclipse.rdf4j.repository.Repository;
 import org.eclipse.rdf4j.repository.RepositoryConnection;
@@ -22,6 +26,7 @@ import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 
 import java.net.URI;
+import java.util.Collection;
 import java.util.Collections;
 import java.util.List;
 import java.util.Optional;
@@ -45,6 +50,9 @@ public class TermDaoWorkspacesTest extends BaseDaoTestRunner {
     private WorkspaceMetadataProvider wsMetadataCache;
 
     @Autowired
+    private Configuration config;
+
+    @Autowired
     private TermDao sut;
 
     private Vocabulary vocabulary;
@@ -58,9 +66,7 @@ public class TermDaoWorkspacesTest extends BaseDaoTestRunner {
     private void saveVocabulary(Vocabulary vocabulary) {
         final WorkspaceMetadata wsMetadata = wsMetadataCache.getCurrentWorkspaceMetadata();
         doReturn(new VocabularyInfo(vocabulary.getUri(), vocabulary.getUri(), vocabulary.getUri())).when(wsMetadata)
-                                                                                                   .getVocabularyInfo(
-                                                                                                           vocabulary
-                                                                                                                   .getUri());
+                .getVocabularyInfo(vocabulary.getUri());
         doReturn(Collections.singleton(vocabulary.getUri())).when(wsMetadata).getVocabularyContexts();
         transactional(() -> {
             em.persist(vocabulary, descriptorFactory.vocabularyDescriptor(vocabulary));
@@ -417,5 +423,113 @@ public class TermDaoWorkspacesTest extends BaseDaoTestRunner {
 
         final List<Term> result = sut.findAll(searchString);
         assertEquals(Collections.singletonList(term), result);
+    }
+
+    @Test
+    void persistSupportsTermWithParentInCanonicalContainer() {
+        final Term term = Generator.generateTermWithId();
+        final Term parent = Generator.generateTermWithId();
+        term.addParentTerm(parent);
+        persistTermIntoCanonicalContainer(parent);
+
+        transactional(() -> sut.persist(term, vocabulary));
+        final Term result = em.find(Term.class, term.getUri());
+        assertEquals(term, result);
+    }
+
+    private URI persistTermIntoCanonicalContainer(Term term) {
+        final Collection<Statement> canonical = WorkspaceGenerator.generateCanonicalCacheContainer(config.get(ConfigParam.CANONICAL_CACHE_CONTAINER_IRI));
+        final URI selectedVocabulary = URI.create(canonical.iterator().next().getObject().stringValue());
+        transactional(() -> {
+            em.persist(term, new EntityDescriptor(selectedVocabulary));
+            final Repository repo = em.unwrap(Repository.class);
+            try (final RepositoryConnection conn = repo.getConnection()) {
+                conn.add(canonical);
+            }
+        });
+        return selectedVocabulary;
+    }
+
+    @Test
+    void findSupportsTermWithParentInCanonicalContainer() {
+        final Term term = Generator.generateTermWithId();
+        final Term parent = Generator.generateTermWithId();
+        term.addParentTerm(parent);
+        persistTermIntoCanonicalContainer(parent);
+        final EntityDescriptor termDescriptor = new EntityDescriptor(vocabulary.getUri());
+        termDescriptor.addAttributeContext(em.getMetamodel().entity(Term.class).getAttribute("parentTerms"), null);
+        transactional(() -> {
+            em.persist(term, termDescriptor);
+            Generator.addTermInVocabularyRelationship(term, vocabulary.getUri(), em);
+        });
+        em.getEntityManagerFactory().getCache().evictAll();
+
+        final Optional<Term> result = sut.find(term.getUri());
+        assertTrue(result.isPresent());
+        assertEquals(term, result.get());
+        assertThat(result.get().getParentTerms(), hasItem(parent));
+    }
+
+    @Test
+    void updateSupportsTermWithParentInCanonicalContainer() {
+        final Term term = Generator.generateTermWithId();
+        final Term parent = Generator.generateTermWithId();
+        persistTermIntoCanonicalContainer(parent);
+        final EntityDescriptor termDescriptor = new EntityDescriptor(vocabulary.getUri());
+        termDescriptor.addAttributeContext(em.getMetamodel().entity(Term.class).getAttribute("parentTerms"), null);
+        transactional(() -> {
+            em.persist(term, termDescriptor);
+            Generator.addTermInVocabularyRelationship(term, vocabulary.getUri(), em);
+        });
+
+        term.addParentTerm(parent);
+        // This is normally inferred
+        term.setVocabulary(vocabulary.getUri());
+        transactional(() -> sut.update(term));
+        final Term result = em.find(Term.class, term.getUri());
+        assertEquals(term, result);
+        assertEquals(term, result);
+        assertThat(result.getParentTerms(), hasItem(parent));
+    }
+
+    @Test
+    void findSupportsTermWithParentInCanonicalContainerAndWorkingVersionInCurrentWorkspace() {
+        final Term term = Generator.generateTermWithId();
+        final Term parent = Generator.generateTermWithId();
+        final Term parentCopy = new Term();
+        parentCopy.setUri(parent.getUri());
+        parentCopy.setLabel(MultilingualString.create("different parent label", Constants.DEFAULT_LANGUAGE));
+        parentCopy.setDefinition(parent.getDefinition());
+        parentCopy.setDescription(parent.getDescription());
+        term.addParentTerm(parentCopy);
+        final URI canonicalVocabularyUri = persistTermIntoCanonicalContainer(parent);
+        final Vocabulary wsVocabulary = Generator.generateVocabularyWithId();
+        saveVocabulary(wsVocabulary);
+        transactional(() -> {
+            final EntityDescriptor parentDescriptor = new EntityDescriptor(wsVocabulary.getUri());
+            parentDescriptor.addAttributeContext(em.getMetamodel().entity(Term.class).getAttribute("parentTerms"), null);
+            em.persist(parentCopy, parentDescriptor);
+            connectWorkspaceVocabularyWithCanonicalOne(wsVocabulary.getUri(), canonicalVocabularyUri);
+            Generator.addTermInVocabularyRelationship(parentCopy, wsVocabulary.getUri(), em);
+            final EntityDescriptor termDescriptor = new EntityDescriptor(vocabulary.getUri());
+            termDescriptor.addAttributeContext(em.getMetamodel().entity(Term.class).getAttribute("parentTerms"), null);
+            em.persist(term, termDescriptor);
+            Generator.addTermInVocabularyRelationship(term, vocabulary.getUri(), em);
+        });
+
+        final Optional<Term> result = sut.find(term.getUri());
+        assertTrue(result.isPresent());
+        assertNotNull(result.get().getParentTerms());
+        assertEquals(1, result.get().getParentTerms().size());
+        assertThat(result.get().getParentTerms(), hasItem(parentCopy));
+        assertEquals(parentCopy.getLabel(), result.get().getParentTerms().iterator().next().getLabel());
+    }
+
+    private void connectWorkspaceVocabularyWithCanonicalOne(URI wsVocabulary, URI canonicalVocabulary) {
+        final Repository repo = em.unwrap(Repository.class);
+        try (final RepositoryConnection conn = repo.getConnection()) {
+            final ValueFactory vf = conn.getValueFactory();
+            conn.add(vf.createIRI(wsVocabulary.toString()), vf.createIRI(cz.cvut.kbss.termit.util.Vocabulary.s_p_vychazi_z_verze), vf.createIRI(canonicalVocabulary.toString()), vf.createIRI(wsVocabulary.toString()));
+        }
     }
 }
