@@ -143,6 +143,10 @@ public class TermDao extends WorkspaceBasedAssetDao<Term> {
     public List<Term> findAllRoots(Pageable pageSpec) {
         Objects.requireNonNull(pageSpec);
         final Set<URI> vocContexts = persistenceUtils.getCurrentWorkspaceVocabularyContexts();
+        return findAllRootsFrom(vocContexts, pageSpec);
+    }
+
+    private List<Term> findAllRootsFrom(Set<URI> contexts, Pageable pageSpec) {
         try {
             TypedQuery<Term> query = em.createNativeQuery("SELECT DISTINCT ?term WHERE {" +
                     "GRAPH ?g {" +
@@ -153,17 +157,33 @@ public class TermDao extends WorkspaceBasedAssetDao<Term> {
                     "}" +
                     "FILTER (?g IN (?graphs))" +
                     "} ORDER BY ?label", Term.class)
-                                       .setParameter("graphs", vocContexts)
+                                       .setParameter("graphs", contexts)
                                        .setParameter("labelLang", config.get(ConfigParam.LANGUAGE));
             query = setCommonFindAllRootsQueryParams(query);
             query.setMaxResults(pageSpec.getPageSize()).setFirstResult((int) pageSpec.getOffset());
             final Descriptor descriptor = descriptorFactory.termDescriptor((URI) null);
-            vocContexts.forEach(descriptor::addContext);
+            contexts.forEach(descriptor::addContext);
             query.setDescriptor(descriptor);
             return executeQueryAndLoadSubTerms(query);
         } catch (RuntimeException e) {
             throw new PersistenceException(e);
         }
+    }
+
+    /**
+     * Gets a page of all root terms in the current workspace and from the canonical container.
+     * <p>
+     * This method prioritizes workspace versions of terms whose vocabularies are both in the canonical container
+     * and in the current workspace.
+     *
+     * @param pageSpec Page specification
+     * @return Content of the matching page of root terms sorted by label
+     */
+    public List<Term> findAllRootsIncludingCanonical(Pageable pageSpec) {
+        Objects.requireNonNull(pageSpec);
+        final Set<URI> contexts = persistenceUtils.getCanonicalContainerContexts();
+        contexts.addAll(persistenceUtils.getCurrentWorkspaceVocabularyContexts());
+        return findAllRootsFrom(contexts, pageSpec);
     }
 
     /**
@@ -177,6 +197,10 @@ public class TermDao extends WorkspaceBasedAssetDao<Term> {
     public List<Term> findAll(Pageable pageSpec) {
         Objects.requireNonNull(pageSpec);
         final Set<URI> vocContexts = persistenceUtils.getCurrentWorkspaceVocabularyContexts();
+        return findAllFrom(vocContexts, pageSpec);
+    }
+
+    private List<Term> findAllFrom(Set<URI> contexts, Pageable pageSpec) {
         try {
             TypedQuery<Term> query = em.createNativeQuery("SELECT DISTINCT ?term WHERE {" +
                     "GRAPH ?g {" +
@@ -188,16 +212,33 @@ public class TermDao extends WorkspaceBasedAssetDao<Term> {
                     "} ORDER BY ?label", Term.class)
                                        .setParameter("type", typeUri)
                                        .setParameter("hasLabel", LABEL_PROP)
-                                       .setParameter("graphs", vocContexts)
+                                       .setParameter("graphs", contexts)
                                        .setParameter("labelLang", config.get(ConfigParam.LANGUAGE));
             query.setMaxResults(pageSpec.getPageSize()).setFirstResult((int) pageSpec.getOffset());
             final Descriptor descriptor = descriptorFactory.termDescriptor((URI) null);
-            vocContexts.forEach(descriptor::addContext);
+            contexts.forEach(descriptor::addContext);
             query.setDescriptor(descriptor);
             return executeQueryAndLoadSubTerms(query);
         } catch (RuntimeException e) {
             throw new PersistenceException(e);
         }
+    }
+
+    /**
+     * Gets all terms in the current workspace and from the canonical container.
+     * <p>
+     * No differences are made between root terms and terms with parents.
+     * <p>
+     * This method prioritizes workspace versions of terms whose vocabularies are both in the canonical container
+     * and in the current workspace.
+     *
+     * @param pageSpec Page specification
+     * @return List of matching terms, ordered by label
+     */
+    public List<Term> findAllIncludingCanonical(Pageable pageSpec) {
+        final Set<URI> contexts = persistenceUtils.getCanonicalContainerContexts();
+        contexts.addAll(persistenceUtils.getCurrentWorkspaceVocabularyContexts());
+        return findAllFrom(contexts, pageSpec);
     }
 
     /**
@@ -245,6 +286,10 @@ public class TermDao extends WorkspaceBasedAssetDao<Term> {
     public List<Term> findAll(String searchString) {
         Objects.requireNonNull(searchString);
         final Set<URI> vocContexts = persistenceUtils.getCurrentWorkspaceVocabularyContexts();
+        return findAllFrom(vocContexts, searchString);
+    }
+
+    private List<Term> findAllFrom(Set<URI> contexts, String searchString) {
         try {
             TypedQuery<Term> query = em.createNativeQuery("SELECT DISTINCT ?term WHERE {" +
                     "GRAPH ?g {" +
@@ -256,15 +301,29 @@ public class TermDao extends WorkspaceBasedAssetDao<Term> {
                     "} ORDER BY ?label", Term.class)
                                        .setParameter("type", typeUri)
                                        .setParameter("hasLabel", LABEL_PROP)
-                                       .setParameter("graphs", vocContexts)
+                                       .setParameter("graphs", contexts)
                                        .setParameter("searchString", searchString, config.get(ConfigParam.LANGUAGE));
             final Descriptor descriptor = descriptorFactory.termDescriptor((URI) null);
-            vocContexts.forEach(descriptor::addContext);
+            contexts.forEach(descriptor::addContext);
             query.setDescriptor(descriptor);
             return executeQueryAndLoadSubTerms(query);
         } catch (RuntimeException e) {
             throw new PersistenceException(e);
         }
+    }
+
+    /**
+     * Finds terms whose label contains the specified search string.
+     * <p>
+     * This method searches in the current workspace and in the canonical container.
+     *
+     * @param searchString String the search term labels by
+     * @return List of matching terms
+     */
+    public List<Term> findAllIncludingCanonical(String searchString) {
+        final Set<URI> contexts = persistenceUtils.getCanonicalContainerContexts();
+        contexts.addAll(persistenceUtils.getCurrentWorkspaceVocabularyContexts());
+        return findAllFrom(contexts, searchString);
     }
 
     /**

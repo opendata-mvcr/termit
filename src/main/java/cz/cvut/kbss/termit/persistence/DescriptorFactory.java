@@ -244,7 +244,7 @@ public class DescriptorFactory {
         parentDescriptor.addAttributeDescriptor(fieldSpec(Term.class, "vocabulary"),
                 new FieldDescriptor((URI) null, fieldSpec(Term.class, "vocabulary")));
         persistenceUtils.getCurrentWorkspaceVocabularyContexts().forEach(parentDescriptor::addContext);
-        persistenceUtils.getCanonicalCacheContainerContexts().forEach(parentDescriptor::addContext);
+        persistenceUtils.getCanonicalContainerContexts().forEach(parentDescriptor::addContext);
         // Allow indefinite length of the ancestor chain
         parentDescriptor.addAttributeDescriptor(fieldSpec(Term.class, "parentTerms"), parentDescriptor);
         descriptor.addAttributeDescriptor(fieldSpec(Term.class, "parentTerms"), parentDescriptor);
