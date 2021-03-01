@@ -379,7 +379,7 @@ public class TermDao extends WorkspaceBasedAssetDao<Term> {
                                    .setParameter("inVocabulary",
                                            URI.create(cz.cvut.kbss.termit.util.Vocabulary.s_p_je_pojmem_ze_slovniku))
                                    .setParameter("imports",
-                                           URI.create(cz.cvut.kbss.termit.util.Vocabulary.s_p_importuje_slovnik))
+                                           URI.create(cz.cvut.kbss.termit.util.Vocabulary.s_p_pouziva_pojmy_ze_slovniku))
                                    .setParameter("vocabulary", vocabulary)
                                    .setParameter("labelLang", config.get(ConfigParam.LANGUAGE));
         return executeQueryAndLoadSubTerms(query);
