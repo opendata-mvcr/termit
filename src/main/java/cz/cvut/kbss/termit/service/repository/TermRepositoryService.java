@@ -157,6 +157,18 @@ public class TermRepositoryService extends BaseAssetRepositoryService<Term> {
     }
 
     /**
+     * Gets a page of all roots terms available in the current workspace and in the canonical container.
+     * <p>
+     * In case of terms existing both in the current workspace and in the canonical container, the workspace version takes precedence.
+     *
+     * @param pageSpec Page specification
+     * @return Content of matching page of root terms
+     */
+    public List<Term> findAllRootsIncludingCanonical(Pageable pageSpec) {
+        return termDao.findAllRootsIncludingCanonical(pageSpec);
+    }
+
+    /**
      * Gets a page of all terms available in the current workspace, regardless of their position in the SKOS hierarchy.
      *
      * @param pageSpec Page specification
@@ -167,6 +179,18 @@ public class TermRepositoryService extends BaseAssetRepositoryService<Term> {
     }
 
     /**
+     * Gets a page of all terms available in the current workspace and the canonical container, regardless of their position in the SKOS hierarchy.
+     * <p>
+     * In case of terms existing both in the current workspace and in the canonical container, the workspace version takes precedence.
+     *
+     * @param pageSpec Page specification
+     * @return Content of matching page of terms
+     */
+    public List<Term> findAllIncludingCanonical(Pageable pageSpec) {
+        return termDao.findAllIncludingCanonical(pageSpec);
+    }
+
+    /**
      * Finds all terms which match the specified search string in the current workspace.
      *
      * @param searchString Search string
@@ -174,6 +198,18 @@ public class TermRepositoryService extends BaseAssetRepositoryService<Term> {
      */
     public List<Term> findAll(String searchString) {
         return termDao.findAll(searchString);
+    }
+
+    /**
+     * Finds all terms which match the specified search string in the current workspace and in the canonical container.
+     * <p>
+     * In case of terms existing both in the current workspace and in the canonical container, the workspace version takes precedence.
+     *
+     * @param searchString Search string
+     * @return Matching terms
+     */
+    public List<Term> findAllIncludingCanonical(String searchString) {
+        return termDao.findAllIncludingCanonical(searchString);
     }
 
     /**
