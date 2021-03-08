@@ -159,7 +159,8 @@ public class TermRepositoryService extends BaseAssetRepositoryService<Term> {
     /**
      * Gets a page of all roots terms available in the current workspace and in the canonical container.
      * <p>
-     * In case of terms existing both in the current workspace and in the canonical container, the workspace version takes precedence.
+     * In case of terms existing both in the current workspace and in the canonical container, the workspace version
+     * takes precedence.
      *
      * @param pageSpec Page specification
      * @return Content of matching page of root terms
@@ -179,9 +180,11 @@ public class TermRepositoryService extends BaseAssetRepositoryService<Term> {
     }
 
     /**
-     * Gets a page of all terms available in the current workspace and the canonical container, regardless of their position in the SKOS hierarchy.
+     * Gets a page of all terms available in the current workspace and the canonical container, regardless of their
+     * position in the SKOS hierarchy.
      * <p>
-     * In case of terms existing both in the current workspace and in the canonical container, the workspace version takes precedence.
+     * In case of terms existing both in the current workspace and in the canonical container, the workspace version
+     * takes precedence.
      *
      * @param pageSpec Page specification
      * @return Content of matching page of terms
@@ -203,7 +206,8 @@ public class TermRepositoryService extends BaseAssetRepositoryService<Term> {
     /**
      * Finds all terms which match the specified search string in the current workspace and in the canonical container.
      * <p>
-     * In case of terms existing both in the current workspace and in the canonical container, the workspace version takes precedence.
+     * In case of terms existing both in the current workspace and in the canonical container, the workspace version
+     * takes precedence.
      *
      * @param searchString Search string
      * @return Matching terms
@@ -299,6 +303,17 @@ public class TermRepositoryService extends BaseAssetRepositoryService<Term> {
      */
     public List<Term> findAllIncludingImported(String searchString, Vocabulary vocabulary) {
         return termDao.findAllIncludingImported(searchString, vocabulary);
+    }
+
+    /**
+     * Gets child terms of the specified parent term.
+     *
+     * @param parent Parent term whose children should be loaded
+     * @return List of child terms
+     */
+
+    public List<Term> findSubTerms(Term parent) {
+        return termDao.findAllSubTerms(parent);
     }
 
     /**

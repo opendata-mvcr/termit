@@ -619,7 +619,7 @@ class TermControllerTest extends BaseControllerTestRunner {
         final Term term = Generator.generateTerm();
         term.setUri(termUri);
         when(idResolverMock.resolveIdentifier(NAMESPACE, TERM_NAME)).thenReturn(termUri);
-        when(termServiceMock.findRequired(term.getUri())).thenReturn(term);
+        when(termServiceMock.getRequiredReference(term.getUri())).thenReturn(term);
         final List<Term> children = Generator.generateTermsWithIds(3);
         when(termServiceMock.findSubTerms(term)).thenReturn(children);
 

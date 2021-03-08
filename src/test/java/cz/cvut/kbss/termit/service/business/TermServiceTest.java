@@ -164,6 +164,7 @@ class TermServiceTest extends BaseServiceTestRunner {
     @Test
     void findSubTermsReturnsEmptyCollectionForTermWithoutSubTerms() {
         final Term term = generateTermWithId();
+        when(termRepositoryService.findSubTerms(any())).thenReturn(Collections.emptyList());
         final List<Term> result = sut.findSubTerms(term);
         assertTrue(result.isEmpty());
     }
@@ -171,16 +172,15 @@ class TermServiceTest extends BaseServiceTestRunner {
     @Test
     void findSubTermsLoadsChildTermsOfTermUsingRepositoryService() {
         final Term parent = generateTermWithId();
-        final List<Term> children = IntStream.range(0, 5).mapToObj(i -> {
-            final Term child = generateTermWithId();
-            when(termRepositoryService.find(child.getUri())).thenReturn(Optional.of(child));
-            return child;
-        }).collect(Collectors.toList());
+        final List<Term> children = IntStream.range(0, 5).mapToObj(i -> generateTermWithId())
+                                             .collect(Collectors.toList());
         parent.setSubTerms(children.stream().map(TermInfo::new).collect(Collectors.toSet()));
+        when(termRepositoryService.findSubTerms(parent)).thenReturn(children);
 
         final List<Term> result = sut.findSubTerms(parent);
         assertEquals(children.size(), result.size());
         assertTrue(children.containsAll(result));
+        verify(termRepositoryService).findSubTerms(parent);
     }
 
     @Test

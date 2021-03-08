@@ -107,7 +107,8 @@ public class TermService implements RudService<Term>, ChangeRecordProvider<Term>
     }
 
     /**
-     * Gets a page of all terms available in the current workspace and in the canonical container, regardless of their position in the SKOS hierarchy.
+     * Gets a page of all terms available in the current workspace and in the canonical container, regardless of their
+     * position in the SKOS hierarchy.
      *
      * @param pageSpec Page specification
      * @return Content of matching page of terms
@@ -298,11 +299,7 @@ public class TermService implements RudService<Term>, ChangeRecordProvider<Term>
      */
     public List<Term> findSubTerms(Term parent) {
         Objects.requireNonNull(parent);
-        return parent.getSubTerms() == null ? Collections.emptyList() :
-                parent.getSubTerms().stream().map(u -> repositoryService.find(u.getUri()).orElseThrow(
-                        () -> new NotFoundException(
-                                "Child of term " + parent + " with id " + u.getUri() + " not found!")))
-                      .collect(Collectors.toList());
+        return repositoryService.findSubTerms(parent);
     }
 
     /**
