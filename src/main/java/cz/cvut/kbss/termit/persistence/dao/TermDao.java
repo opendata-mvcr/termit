@@ -62,7 +62,7 @@ public class TermDao extends WorkspaceBasedAssetDao<Term> {
             final URI vocabularyIri = resolveVocabularyIri(id);
             final Optional<Term> result = Optional.ofNullable(
                     em.find(Term.class, id, descriptorFactory.termDescriptor(vocabularyIri)));
-            result.ifPresent(t -> loadSubTerms(t,
+            result.ifPresent(t -> loadSubTermInfo(t,
                     Collections.singleton(persistenceUtils.resolveVocabularyContext(vocabularyIri))));
             return result;
         } catch (RuntimeException e) {
@@ -358,7 +358,7 @@ public class TermDao extends WorkspaceBasedAssetDao<Term> {
 
     private List<Term> executeQueryAndLoadSubTerms(TypedQuery<Term> query, Set<URI> contexts) {
         final List<Term> terms = query.getResultList();
-        terms.forEach(t -> loadSubTerms(t, contexts));
+        terms.forEach(t -> loadSubTermInfo(t, contexts));
         return terms;
     }
 
@@ -397,7 +397,7 @@ public class TermDao extends WorkspaceBasedAssetDao<Term> {
      *
      * @param parent Parent term
      */
-    private void loadSubTerms(Term parent, Set<URI> graphs) {
+    private void loadSubTermInfo(Term parent, Set<URI> graphs) {
         final Stream<TermInfo> subTermsStream = em.createNativeQuery("SELECT ?entity ?label ?vocabulary WHERE {" +
                 "GRAPH ?g { ?entity ?broader ?parent ;" +
                 "a ?type ;" +
@@ -545,7 +545,7 @@ public class TermDao extends WorkspaceBasedAssetDao<Term> {
     }
 
     private void loadParentSubTerms(Term parent, URI vocabularyCtx) {
-        loadSubTerms(parent, Collections.singleton(vocabularyCtx));
+        loadSubTermInfo(parent, Collections.singleton(vocabularyCtx));
         if (parent.getParentTerms() != null) {
             parent.getParentTerms().forEach(t -> loadParentSubTerms(t, vocabularyCtx));
         }

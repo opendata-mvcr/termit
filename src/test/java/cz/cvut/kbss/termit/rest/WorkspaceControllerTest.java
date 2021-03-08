@@ -1,5 +1,6 @@
 package cz.cvut.kbss.termit.rest;
 
+import cz.cvut.kbss.termit.dto.workspace.WorkspaceDto;
 import cz.cvut.kbss.termit.environment.WorkspaceGenerator;
 import cz.cvut.kbss.termit.exception.NotFoundException;
 import cz.cvut.kbss.termit.exception.workspace.WorkspaceNotSetException;
@@ -83,17 +84,18 @@ class WorkspaceControllerTest extends BaseControllerTestRunner {
     @Test
     void getCurrentReturnsCurrentlyLoadedWorkspace() throws Exception {
         final Workspace workspace = WorkspaceGenerator.generateWorkspace();
-        when(workspaceService.getCurrentWorkspace()).thenReturn(workspace);
+        final WorkspaceDto dto = new WorkspaceDto(workspace);
+        when(workspaceService.getCurrentWorkspaceWithMetadata()).thenReturn(dto);
         final MvcResult mvcResult = mockMvc.perform(get(PATH + "current")).andExpect(status().isOk()).andReturn();
         final Workspace result = readValue(mvcResult, Workspace.class);
         assertEquals(workspace, result);
-        verify(workspaceService).getCurrentWorkspace();
+        verify(workspaceService).getCurrentWorkspaceWithMetadata();
     }
 
     @Test
     void getCurrentReturnsConflictWhenNoWorkspaceIsSet() throws Exception {
-        when(workspaceService.getCurrentWorkspace()).thenThrow(WorkspaceNotSetException.class);
+        when(workspaceService.getCurrentWorkspaceWithMetadata()).thenThrow(WorkspaceNotSetException.class);
         mockMvc.perform(get(PATH + "current")).andExpect(status().isConflict());
-        verify(workspaceService).getCurrentWorkspace();
+        verify(workspaceService).getCurrentWorkspaceWithMetadata();
     }
 }
