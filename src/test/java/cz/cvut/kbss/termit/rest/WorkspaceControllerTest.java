@@ -45,14 +45,14 @@ class WorkspaceControllerTest extends BaseControllerTestRunner {
 
     @BeforeEach
     void setUp() {
-        MockitoAnnotations.initMocks(this);
+        MockitoAnnotations.openMocks(this);
         setUp(sut);
     }
 
     @Test
     void loadWorkspaceUsesServiceToGetWorkspaceByIdentifier() throws Exception {
         when(idResolver.resolveIdentifier(anyString(), anyString())).thenReturn(WORKSPACE_URI);
-        final Workspace workspace = WorkspaceGenerator.generateWorkspace();
+        final WorkspaceDto workspace = new WorkspaceDto(WorkspaceGenerator.generateWorkspace());
         workspace.setUri(WORKSPACE_URI);
         when(workspaceService.loadWorkspace(any())).thenReturn(workspace);
         mockMvc.perform(put(PATH + FRAGMENT).param(Constants.QueryParams.NAMESPACE, NAMESPACE))
@@ -64,7 +64,7 @@ class WorkspaceControllerTest extends BaseControllerTestRunner {
     @Test
     void loadWorkspaceReturnsLoadedWorkspace() throws Exception {
         when(idResolver.resolveIdentifier(anyString(), anyString())).thenReturn(WORKSPACE_URI);
-        final Workspace workspace = WorkspaceGenerator.generateWorkspace();
+        final WorkspaceDto workspace = new WorkspaceDto(WorkspaceGenerator.generateWorkspace());
         workspace.setUri(WORKSPACE_URI);
         when(workspaceService.loadWorkspace(any())).thenReturn(workspace);
         final MvcResult mvcResult = mockMvc

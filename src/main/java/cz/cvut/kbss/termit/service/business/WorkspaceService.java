@@ -12,8 +12,9 @@ public interface WorkspaceService {
      * Loads workspace with the specified identifier and stores it is the user's session.
      *
      * @param id Workspace identifier
+     * @return The loaded workspace with vocabulary metadata
      */
-    Workspace loadWorkspace(URI id);
+    WorkspaceDto loadWorkspace(URI id);
 
     /**
      * Gets the current user's loaded workspace.

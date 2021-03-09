@@ -36,14 +36,17 @@ public class WorkspaceRepositoryService implements WorkspaceService {
     }
 
     @Override
-    public Workspace loadWorkspace(URI id) {
+    public WorkspaceDto loadWorkspace(URI id) {
         LOG.trace("Loading workspace {}.", id);
         final Workspace ws = workspaceDao.find(id).orElseThrow(
                 () -> NotFoundException.create(Workspace.class.getSimpleName(), id));
         LOG.trace("Storing workspace ID in session.");
         workspaceStore.setCurrentWorkspace(id);
         workspaceMetadataProvider.loadWorkspace(ws);
-        return ws;
+        final WorkspaceDto result = new WorkspaceDto(ws);
+        final WorkspaceMetadata metadata = workspaceMetadataProvider.getCurrentWorkspaceMetadata();
+        result.setVocabularies(new HashSet<>(metadata.getVocabularies().keySet()));
+        return result;
     }
 
     @Override
