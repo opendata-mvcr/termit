@@ -1,5 +1,6 @@
 package cz.cvut.kbss.termit.dto.workspace;
 
+import cz.cvut.kbss.jopa.model.annotations.OWLClass;
 import cz.cvut.kbss.jopa.model.annotations.OWLObjectProperty;
 import cz.cvut.kbss.termit.model.Workspace;
 import cz.cvut.kbss.termit.util.Vocabulary;
@@ -11,6 +12,7 @@ import java.util.Set;
 /**
  * DTO for transferring basic metadata about workspaces to clients.
  */
+@OWLClass(iri = Vocabulary.s_c_metadatovy_kontext)  // Have OWLClass here to force serialization into JSON-LD
 public class WorkspaceDto extends Workspace {
 
     /**
