@@ -6,7 +6,7 @@ This guide provides information on how to build and deploy TermIt.
 
 ### System Requirements
 
-* JDK 8 (newer or older versions are not supported at the moment)
+* JDK 8 or newer (tested up to JDK 11 LTS)
 * Apache Maven 3.5.x or newer
 
 
@@ -24,9 +24,12 @@ In addition, full text search in TermIt supports three modes:
 Options 2. and 3. have their respective Maven profiles - `rdf4j` and `graphdb`. Select one of them
 or let the system use the default one.
 
+Moreover, TermIt can be packaged either as an executable JAR (using Spring Boot) or as a WAR that can be deployed in any Servlet API 4-compatible application server.
+Maven profiles `standalone` (active by default) and `war` can be used to activate them respectively.
+
 #### Application Configuration
 
-The rest of the configuration is done in the `config.properties` file in `src/main/resources`.
+The rest of the configuration is done in the `application.yml` file in `src/main/resources`.
 
 Most of the parameters there should be self-explanatory or have documentation in the `ConfigParam` class.
 
@@ -36,8 +39,8 @@ by the application:
 * `admin-registration-only` - decides whether new users can be registered only by application admin, or whether anyone can register.
 * `no-cache` - indicates that caches should not be used by the application. These caches include JOPA second-level cache and workspace metadata cache.
 
-The `lucene` Spring profile is activated automatically by the `rdf4j` and `graphdb` Maven profiles. `admin-registration-only` and `no-cache` have
-to be added either in `config.properties` directly, or one can pass the parameters to Maven build, e.g.:
+The `lucene` Spring profile is activated automatically by the `rdf4j` and `graphdb` Maven profiles. `admin-registration-only` has to be added
+either in `application.yml` directly, or one can pass the parameter to Maven build, e.g.:
 
 * `mvn clean package -P graphdb "-Dspring.profiles.active=lucene,admin-registration-only"`
 
@@ -45,7 +48,7 @@ to be added either in `config.properties` directly, or one can pass the paramete
 #### Example
 
 * `mvn clean package -B -P production,graphdb "-Ddeployment=DEV"`
-* `clean package -B -P production,rdf4j "-Ddeployment=STAGE"`
+* `clean package -B -P production,rdf4j,war "-Ddeployment=STAGE"`
 
 The `deployment` parameter is used to parameterize log messages and JMX beans and is important in case multiple deployments
 of TermIt are running in the same Tomcat.
@@ -64,11 +67,11 @@ This configuration can be done, for example, via the `MAVEN_OPTS` environmental 
 or configure it permanently by setting the `MAVEN_OPTS` variable in System Settings.
 
 
-## Deployment
+## Deployment (WAR)
 
 ### System Requirements
 
-* JDK 8 (newer or older versions are not supported at the moment)
+* JDK or later (tested with JDK 11)
 * Apache Tomcat 8.5 or later (9.x is recommended) or any Servlet API 4-compatible application server
 
 ### Setup

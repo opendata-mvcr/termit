@@ -14,12 +14,12 @@
  */
 package cz.cvut.kbss.termit.config;
 
-import cz.cvut.kbss.termit.aspect.Aspects;
-import cz.cvut.kbss.termit.util.spring.YamlPropertySourceFactory;
-import cz.cvut.kbss.termit.workspace.WorkspaceComponents;
-import cz.cvut.kbss.termit.workspace.WorkspaceStore;
-import org.springframework.context.annotation.*;
+import org.springframework.context.annotation.Bean;
+import org.springframework.context.annotation.Configuration;
+import org.springframework.context.annotation.EnableAspectJAutoProxy;
+import org.springframework.context.annotation.EnableMBeanExport;
 import org.springframework.context.annotation.aspectj.EnableSpringConfigured;
+import cz.cvut.kbss.termit.workspace.WorkspaceStore;
 import org.springframework.core.env.Environment;
 import org.springframework.web.context.annotation.SessionScope;
 
@@ -29,10 +29,6 @@ import javax.servlet.http.HttpSession;
 @EnableMBeanExport
 @EnableSpringConfigured
 @EnableAspectJAutoProxy(proxyTargetClass = true)
-@ComponentScan(basePackageClasses = {Aspects.class, WorkspaceComponents.class})
-@Import({PersistenceConfig.class, ServiceConfig.class, WebAppConfig.class})
-@PropertySource("classpath:config.properties")
-@PropertySource(value = "classpath:components.yaml", factory = YamlPropertySourceFactory.class)
 public class AppConfig {
 
     @Bean

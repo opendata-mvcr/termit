@@ -14,7 +14,6 @@
  */
 package cz.cvut.kbss.termit.config;
 
-import cz.cvut.kbss.termit.config.keycloak.KeycloakSecurity;
 import cz.cvut.kbss.termit.util.ConfigParam;
 import org.keycloak.adapters.springsecurity.KeycloakConfiguration;
 import org.keycloak.adapters.springsecurity.config.KeycloakWebSecurityConfigurerAdapter;
@@ -38,8 +37,8 @@ import java.util.Arrays;
 import java.util.Collections;
 
 @Configuration
-@ComponentScan(basePackageClasses = KeycloakSecurity.class)
 @EnableWebSecurity
+@KeycloakConfiguration
 @EnableGlobalMethodSecurity(prePostEnabled = true)
 @KeycloakConfiguration
 public class SecurityConfig extends KeycloakWebSecurityConfigurerAdapter {
@@ -66,13 +65,12 @@ public class SecurityConfig extends KeycloakWebSecurityConfigurerAdapter {
     protected void configure(HttpSecurity http) throws Exception {
         super.configure(http);
         http.authorizeRequests().antMatchers("/rest/query").permitAll()
-            .and().cors()
+            .and().cors().configurationSource(corsConfigurationSource())
             .and().csrf().disable()
             .authorizeRequests().antMatchers("/**").permitAll();
     }
 
-    @Bean
-    CorsConfigurationSource corsConfigurationSource() {
+    private CorsConfigurationSource corsConfigurationSource() {
         // We're allowing all methods from all origins so that the application API is usable also by other clients
         // than just the UI.
         // This behavior can be restricted later.

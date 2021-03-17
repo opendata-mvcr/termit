@@ -1,23 +1,27 @@
 package cz.cvut.kbss.termit.model.comment;
 
-import cz.cvut.kbss.jopa.model.annotations.*;
+import cz.cvut.kbss.jopa.model.annotations.OWLClass;
+import cz.cvut.kbss.jopa.model.annotations.OWLObjectProperty;
+import cz.cvut.kbss.jopa.model.annotations.ParticipationConstraints;
+import cz.cvut.kbss.jopa.model.annotations.Types;
 import cz.cvut.kbss.termit.model.AbstractEntity;
 import cz.cvut.kbss.termit.model.User;
 import cz.cvut.kbss.termit.model.util.HasTypes;
+import cz.cvut.kbss.termit.util.Vocabulary;
 
 import java.net.URI;
 import java.util.Objects;
 import java.util.Set;
 
-@OWLClass(iri = "http://onto.fel.cvut.cz/ontologies/application/termit/pojem/reakce")
+@OWLClass(iri = Vocabulary.s_c_reakce)
 public class CommentReaction extends AbstractEntity implements HasTypes {
 
     @ParticipationConstraints(nonEmpty = true)
-    @OWLObjectProperty(iri = "https://www.w3.org/ns/activitystreams#actor")
+    @OWLObjectProperty(iri = Vocabulary.s_p_actor)
     private URI actor;
 
     @ParticipationConstraints(nonEmpty = true)
-    @OWLObjectProperty(iri = "https://www.w3.org/ns/activitystreams#object")
+    @OWLObjectProperty(iri = Vocabulary.s_p_object)
     private URI object;
 
     @ParticipationConstraints(nonEmpty = true)

@@ -30,10 +30,12 @@ import org.apache.poi.xssf.usermodel.XSSFSheet;
 import org.apache.poi.xssf.usermodel.XSSFWorkbook;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.ArgumentCaptor;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.MockitoAnnotations;
+import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
 import org.springframework.http.HttpHeaders;
@@ -58,6 +60,7 @@ import static org.mockito.Mockito.*;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.*;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
+@ExtendWith(MockitoExtension.class)
 class TermControllerTest extends BaseControllerTestRunner {
 
     private static final String PATH = "/vocabularies/";
@@ -65,6 +68,7 @@ class TermControllerTest extends BaseControllerTestRunner {
     private static final String TERM_NAME = "locality";
     private static final String VOCABULARY_URI = Environment.BASE_URI + "/" + VOCABULARY_NAME;
     private static final String NAMESPACE = VOCABULARY_URI + Constants.DEFAULT_TERM_NAMESPACE_SEPARATOR + "/";
+    private static final String TERM_URI = NAMESPACE + TERM_NAME;
 
     @Mock
     private IdentifierResolver idResolverMock;
@@ -82,11 +86,8 @@ class TermControllerTest extends BaseControllerTestRunner {
 
     @BeforeEach
     void setUp() {
-        MockitoAnnotations.initMocks(this);
         super.setUp(sut);
         this.vocabulary = Generator.generateVocabulary();
-        when(configMock.get(ConfigParam.NAMESPACE_VOCABULARY)).thenReturn(Environment.BASE_URI + "/");
-        when(configMock.get(ConfigParam.TERM_NAMESPACE_SEPARATOR)).thenReturn(DEFAULT_TERM_NAMESPACE_SEPARATOR);
         vocabulary.setLabel(VOCABULARY_NAME);
         vocabulary.setUri(URI.create(VOCABULARY_URI));
     }
@@ -105,7 +106,7 @@ class TermControllerTest extends BaseControllerTestRunner {
                         .param(QueryParams.NAMESPACE, namespace)
                         .param("prefLabel", name)
                         .param("language", language))
-               .andExpect(status().isOk()).andReturn();
+                .andExpect(status().isOk()).andReturn();
         verify(termServiceMock).existsInVocabulary(name, vocabulary, language);
     }
 
@@ -123,7 +124,7 @@ class TermControllerTest extends BaseControllerTestRunner {
                         .param(QueryParams.NAMESPACE, namespace)
                         .param("prefLabel", name)
                         .param("language", language))
-               .andExpect(status().is4xxClientError()).andReturn();
+                .andExpect(status().is4xxClientError()).andReturn();
         verify(termServiceMock).existsInVocabulary(name, vocabulary, language);
     }
 
@@ -134,7 +135,7 @@ class TermControllerTest extends BaseControllerTestRunner {
         term.setUri(termUri);
         when(termServiceMock.findRequired(termUri)).thenReturn(term);
         final MvcResult mvcResult = mockMvc.perform(get(PATH + VOCABULARY_NAME + "/terms/" + TERM_NAME))
-                                           .andExpect(status().isOk()).andReturn();
+                .andExpect(status().isOk()).andReturn();
         final Term result = readValue(mvcResult, Term.class);
         assertEquals(term, result);
     }
@@ -224,7 +225,6 @@ class TermControllerTest extends BaseControllerTestRunner {
     void getAllReturnsAllTermsFromVocabulary() throws Exception {
         when(idResolverMock.resolveIdentifier(Environment.BASE_URI, VOCABULARY_NAME))
                 .thenReturn(URI.create(VOCABULARY_URI));
-        when(idResolverMock.buildNamespace(eq(VOCABULARY_URI), any())).thenReturn(NAMESPACE);
         final List<Term> terms = Generator.generateTermsWithIds(5);
         when(termServiceMock.findVocabularyRequired(vocabulary.getUri())).thenReturn(vocabulary);
         when(termServiceMock.findAll(eq(vocabulary))).thenReturn(terms);
@@ -232,7 +232,7 @@ class TermControllerTest extends BaseControllerTestRunner {
         final MvcResult mvcResult = mockMvc.perform(
                 get(PATH + VOCABULARY_NAME + "/terms")
                         .param(QueryParams.NAMESPACE, Environment.BASE_URI))
-                                           .andExpect(status().isOk()).andReturn();
+                .andExpect(status().isOk()).andReturn();
         final List<Term> result = readValue(mvcResult, new TypeReference<List<Term>>() {
         });
         assertEquals(terms, result);
@@ -243,7 +243,6 @@ class TermControllerTest extends BaseControllerTestRunner {
     void getAllReturnsAllTermsFromVocabularyChainWhenIncludeImportedIsSpecified() throws Exception {
         when(idResolverMock.resolveIdentifier(Environment.BASE_URI, VOCABULARY_NAME))
                 .thenReturn(URI.create(VOCABULARY_URI));
-        when(idResolverMock.buildNamespace(eq(VOCABULARY_URI), any())).thenReturn(NAMESPACE);
         final List<Term> terms = Generator.generateTermsWithIds(5);
         when(termServiceMock.findVocabularyRequired(vocabulary.getUri())).thenReturn(vocabulary);
         when(termServiceMock.findAllIncludingImported(eq(vocabulary))).thenReturn(terms);
@@ -252,7 +251,7 @@ class TermControllerTest extends BaseControllerTestRunner {
                 get(PATH + VOCABULARY_NAME + "/terms")
                         .param(QueryParams.NAMESPACE, Environment.BASE_URI)
                         .param("includeImported", Boolean.TRUE.toString()))
-                                           .andExpect(status().isOk()).andReturn();
+                .andExpect(status().isOk()).andReturn();
         final List<Term> result = readValue(mvcResult, new TypeReference<List<Term>>() {
         });
         assertEquals(terms, result);
@@ -263,7 +262,6 @@ class TermControllerTest extends BaseControllerTestRunner {
     void getAllUsesSearchStringToFindMatchingTerms() throws Exception {
         when(idResolverMock.resolveIdentifier(Environment.BASE_URI, VOCABULARY_NAME))
                 .thenReturn(URI.create(VOCABULARY_URI));
-        when(idResolverMock.buildNamespace(eq(VOCABULARY_URI), any())).thenReturn(NAMESPACE);
         when(termServiceMock.findVocabularyRequired(vocabulary.getUri())).thenReturn(vocabulary);
         final List<Term> terms = Generator.generateTermsWithIds(5);
         when(termServiceMock.findAll(anyString(), any())).thenReturn(terms);
@@ -283,6 +281,7 @@ class TermControllerTest extends BaseControllerTestRunner {
         when(idResolverMock.resolveIdentifier(ConfigParam.NAMESPACE_VOCABULARY, VOCABULARY_NAME))
                 .thenReturn(URI.create(VOCABULARY_URI));
         final Term parent = Generator.generateTermWithId();
+        when(configMock.get(ConfigParam.TERM_NAMESPACE_SEPARATOR)).thenReturn(DEFAULT_TERM_NAMESPACE_SEPARATOR);
         when(idResolverMock.buildNamespace(VOCABULARY_URI, Constants.DEFAULT_TERM_NAMESPACE_SEPARATOR))
                 .thenReturn(VOCABULARY_URI);
         when(idResolverMock.resolveIdentifier(VOCABULARY_URI, parent.getLabel().get())).thenReturn(parent.getUri());
@@ -306,6 +305,7 @@ class TermControllerTest extends BaseControllerTestRunner {
     void getAssignmentInfoGetsTermAssignmentInfoFromService() throws Exception {
         final Term term = Generator.generateTermWithId();
         term.setLabel(MultilingualString.create(TERM_NAME, Constants.DEFAULT_LANGUAGE));
+        when(configMock.get(ConfigParam.TERM_NAMESPACE_SEPARATOR)).thenReturn(DEFAULT_TERM_NAMESPACE_SEPARATOR);
         when(idResolverMock.resolveIdentifier(ConfigParam.NAMESPACE_VOCABULARY, VOCABULARY_NAME))
                 .thenReturn(URI.create(VOCABULARY_URI));
         when(idResolverMock.buildNamespace(VOCABULARY_URI, Constants.DEFAULT_TERM_NAMESPACE_SEPARATOR))
@@ -328,7 +328,6 @@ class TermControllerTest extends BaseControllerTestRunner {
     void getAllExportsTermsToCsvWhenAcceptMediaTypeIsSetToCsv() throws Exception {
         when(idResolverMock.resolveIdentifier(ConfigParam.NAMESPACE_VOCABULARY, VOCABULARY_NAME))
                 .thenReturn(URI.create(VOCABULARY_URI));
-        when(idResolverMock.buildNamespace(eq(VOCABULARY_URI), any())).thenReturn(NAMESPACE);
         final cz.cvut.kbss.termit.model.Vocabulary vocabulary = Generator.generateVocabulary();
         vocabulary.setUri(URI.create(VOCABULARY_URI));
         when(termServiceMock.findVocabularyRequired(vocabulary.getUri())).thenReturn(vocabulary);
@@ -347,7 +346,6 @@ class TermControllerTest extends BaseControllerTestRunner {
     void getAllReturnsCsvAsAttachmentWhenAcceptMediaTypeIsCsv() throws Exception {
         when(idResolverMock.resolveIdentifier(ConfigParam.NAMESPACE_VOCABULARY, VOCABULARY_NAME))
                 .thenReturn(URI.create(VOCABULARY_URI));
-        when(idResolverMock.buildNamespace(eq(VOCABULARY_URI), any())).thenReturn(NAMESPACE);
         final cz.cvut.kbss.termit.model.Vocabulary vocabulary = Generator.generateVocabulary();
         vocabulary.setUri(URI.create(VOCABULARY_URI));
         when(termServiceMock.findVocabularyRequired(vocabulary.getUri())).thenReturn(vocabulary);
@@ -405,7 +403,6 @@ class TermControllerTest extends BaseControllerTestRunner {
     }
 
     private void initNamespaceAndIdentifierResolution() {
-        when(idResolverMock.buildNamespace(eq(VOCABULARY_URI), any())).thenReturn(NAMESPACE);
         when(idResolverMock.resolveIdentifier(ConfigParam.NAMESPACE_VOCABULARY, VOCABULARY_NAME))
                 .thenReturn(URI.create(VOCABULARY_URI));
     }
@@ -417,7 +414,7 @@ class TermControllerTest extends BaseControllerTestRunner {
         when(termServiceMock.findVocabularyRequired(vocabulary.getUri())).thenReturn(vocabulary);
         when(termServiceMock.findAllRoots(eq(vocabulary), any(Pageable.class), anyCollection())).thenReturn(terms);
         mockMvc.perform(get(PATH + VOCABULARY_NAME + "/terms/roots").param(PAGE, "5").param(PAGE_SIZE, "100"))
-               .andExpect(status().isOk());
+                .andExpect(status().isOk());
 
         final ArgumentCaptor<Pageable> captor = ArgumentCaptor.forClass(Pageable.class);
         verify(termServiceMock).findAllRoots(eq(vocabulary), captor.capture(), anyCollection());
@@ -444,8 +441,8 @@ class TermControllerTest extends BaseControllerTestRunner {
         final Term newTerm = Generator.generateTermWithId();
         when(termServiceMock.findVocabularyRequired(vocabulary.getUri())).thenReturn(vocabulary);
         mockMvc.perform(post(PATH + VOCABULARY_NAME + "/terms").content(toJson(newTerm))
-                                                               .contentType(MediaType.APPLICATION_JSON))
-               .andExpect(status().isCreated());
+                .contentType(MediaType.APPLICATION_JSON))
+                .andExpect(status().isCreated());
         verify(termServiceMock).persistRoot(newTerm, vocabulary);
     }
 
@@ -459,7 +456,7 @@ class TermControllerTest extends BaseControllerTestRunner {
         when(termServiceMock.findVocabularyRequired(vocabulary.getUri())).thenReturn(vocabulary);
         final MvcResult mvcResult = mockMvc
                 .perform(post(PATH + VOCABULARY_NAME + "/terms").content(toJson(newTerm))
-                                                                .contentType(MediaType.APPLICATION_JSON))
+                        .contentType(MediaType.APPLICATION_JSON))
                 .andExpect(status().isCreated()).andReturn();
         verifyLocationEquals(PATH + VOCABULARY_NAME + "/terms/" + TERM_NAME, mvcResult);
     }
@@ -470,18 +467,18 @@ class TermControllerTest extends BaseControllerTestRunner {
 
         final Term parent = Generator.generateTerm();
         parent.setUri(URI.create(NAMESPACE + TERM_NAME));
+        when(configMock.get(ConfigParam.TERM_NAMESPACE_SEPARATOR)).thenReturn(DEFAULT_TERM_NAMESPACE_SEPARATOR);
         when(idResolverMock.buildNamespace(VOCABULARY_URI, Constants.DEFAULT_TERM_NAMESPACE_SEPARATOR))
                 .thenReturn(VOCABULARY_URI + DEFAULT_TERM_NAMESPACE_SEPARATOR);
         when(idResolverMock.resolveIdentifier(VOCABULARY_URI + Constants.DEFAULT_TERM_NAMESPACE_SEPARATOR, TERM_NAME))
                 .thenReturn(parent.getUri());
         when(termServiceMock.findRequired(parent.getUri())).thenReturn(parent);
         final Term newTerm = Generator.generateTermWithId();
-        when(termServiceMock.findVocabularyRequired(vocabulary.getUri())).thenReturn(vocabulary);
         mockMvc.perform(
                 post(PATH + VOCABULARY_NAME + "/terms/" + TERM_NAME + "/subterms").content(toJson(newTerm))
-                                                                                  .contentType(
-                                                                                          MediaType.APPLICATION_JSON))
-               .andExpect(status().isCreated());
+                        .contentType(
+                                MediaType.APPLICATION_JSON))
+                .andExpect(status().isCreated());
         verify(termServiceMock).persistChild(newTerm, parent);
     }
 
@@ -491,6 +488,7 @@ class TermControllerTest extends BaseControllerTestRunner {
 
         final Term parent = Generator.generateTerm();
         parent.setUri(URI.create(NAMESPACE + TERM_NAME));
+        when(configMock.get(ConfigParam.TERM_NAMESPACE_SEPARATOR)).thenReturn(DEFAULT_TERM_NAMESPACE_SEPARATOR);
         when(idResolverMock.buildNamespace(VOCABULARY_URI, Constants.DEFAULT_TERM_NAMESPACE_SEPARATOR))
                 .thenReturn(VOCABULARY_URI + DEFAULT_TERM_NAMESPACE_SEPARATOR);
         when(idResolverMock.resolveIdentifier(VOCABULARY_URI + Constants.DEFAULT_TERM_NAMESPACE_SEPARATOR, TERM_NAME))
@@ -501,9 +499,9 @@ class TermControllerTest extends BaseControllerTestRunner {
         newTerm.setUri(URI.create(NAMESPACE + name));
         final MvcResult mvcResult = mockMvc.perform(
                 post(PATH + VOCABULARY_NAME + "/terms/" + TERM_NAME + "/subterms").content(toJson(newTerm))
-                                                                                  .contentType(
-                                                                                          MediaType.APPLICATION_JSON))
-                                           .andExpect(status().isCreated()).andReturn();
+                        .contentType(
+                                MediaType.APPLICATION_JSON))
+                .andExpect(status().isCreated()).andReturn();
         verifyLocationEquals(PATH + VOCABULARY_NAME + "/terms/" + name, mvcResult);
     }
 
@@ -559,7 +557,7 @@ class TermControllerTest extends BaseControllerTestRunner {
         term.setUri(termUri);
         when(termServiceMock.findRequired(termUri)).thenReturn(term);
         final MvcResult mvcResult = mockMvc.perform(get("/terms/" + TERM_NAME).param(QueryParams.NAMESPACE, NAMESPACE))
-                                           .andExpect(status().isOk()).andReturn();
+                .andExpect(status().isOk()).andReturn();
         final Term result = readValue(mvcResult, Term.class);
         assertEquals(term, result);
         verify(idResolverMock).resolveIdentifier(NAMESPACE, TERM_NAME);
@@ -572,6 +570,7 @@ class TermControllerTest extends BaseControllerTestRunner {
         final Term term = Generator.generateTerm();
         final URI termUri = URI.create(NAMESPACE + TERM_NAME);
         term.setUri(termUri);
+        when(configMock.get(ConfigParam.TERM_NAMESPACE_SEPARATOR)).thenReturn(DEFAULT_TERM_NAMESPACE_SEPARATOR);
         when(idResolverMock.resolveIdentifier(NAMESPACE, TERM_NAME)).thenReturn(termUri);
         when(idResolverMock.resolveIdentifier(Environment.BASE_URI, VOCABULARY_NAME))
                 .thenReturn(URI.create(VOCABULARY_URI));
@@ -579,7 +578,7 @@ class TermControllerTest extends BaseControllerTestRunner {
         when(termServiceMock.findRequired(termUri)).thenReturn(term);
         mockMvc.perform(delete("/vocabularies/" + VOCABULARY_NAME + "/terms/" + TERM_NAME)
                 .param(QueryParams.NAMESPACE, Environment.BASE_URI))
-               .andExpect(status().isNoContent());
+                .andExpect(status().isNoContent());
     }
 
     @Test
@@ -589,6 +588,7 @@ class TermControllerTest extends BaseControllerTestRunner {
         final Term term = Generator.generateTerm();
         final URI termUri = URI.create(NAMESPACE + TERM_NAME);
         term.setUri(termUri);
+        when(configMock.get(ConfigParam.TERM_NAMESPACE_SEPARATOR)).thenReturn(DEFAULT_TERM_NAMESPACE_SEPARATOR);
         when(idResolverMock.resolveIdentifier(NAMESPACE, TERM_NAME)).thenReturn(termUri);
         when(idResolverMock.resolveIdentifier(Environment.BASE_URI, VOCABULARY_NAME))
                 .thenReturn(URI.create(VOCABULARY_URI));
@@ -596,7 +596,7 @@ class TermControllerTest extends BaseControllerTestRunner {
         when(termServiceMock.findRequired(termUri)).thenThrow(NotFoundException.class);
         mockMvc.perform(delete("/vocabularies/" + VOCABULARY_NAME + "/terms/" + TERM_NAME)
                 .param(QueryParams.NAMESPACE, Environment.BASE_URI))
-               .andExpect(status().isNotFound());
+                .andExpect(status().isNotFound());
         verify(termServiceMock, never()).remove(term);
     }
 
@@ -643,11 +643,10 @@ class TermControllerTest extends BaseControllerTestRunner {
         when(termServiceMock.findRequired(term.getUri())).thenReturn(term);
 
         final Term newTerm = Generator.generateTermWithId();
-        when(termServiceMock.findVocabularyRequired(vocabulary.getUri())).thenReturn(vocabulary);
         mockMvc.perform(post("/terms/" + TERM_NAME + "/subterms").param(QueryParams.NAMESPACE, NAMESPACE)
-                                                                 .content(toJson(newTerm))
-                                                                 .contentType(MediaType.APPLICATION_JSON))
-               .andExpect(status().isCreated());
+                .content(toJson(newTerm))
+                .contentType(MediaType.APPLICATION_JSON))
+                .andExpect(status().isCreated());
         verify(termServiceMock).persistChild(newTerm, term);
     }
 
@@ -662,11 +661,10 @@ class TermControllerTest extends BaseControllerTestRunner {
         final Term newTerm = Generator.generateTerm();
         final String name = "child-term";
         newTerm.setUri(URI.create(NAMESPACE + name));
-        when(termServiceMock.findVocabularyRequired(vocabulary.getUri())).thenReturn(vocabulary);
         final MvcResult mvcResult = mockMvc
                 .perform(post("/terms/" + TERM_NAME + "/subterms").param(QueryParams.NAMESPACE, NAMESPACE)
-                                                                  .content(toJson(newTerm))
-                                                                  .contentType(MediaType.APPLICATION_JSON))
+                        .content(toJson(newTerm))
+                        .contentType(MediaType.APPLICATION_JSON))
                 .andExpect(status().isCreated()).andReturn();
         verifyLocationEquals("/terms/" + name, mvcResult);
     }
@@ -683,7 +681,7 @@ class TermControllerTest extends BaseControllerTestRunner {
 
         final MvcResult mvcResult =
                 mockMvc.perform(get("/terms/" + TERM_NAME + "/assignments").param(QueryParams.NAMESPACE, NAMESPACE))
-                       .andExpect(status().isOk()).andReturn();
+                        .andExpect(status().isOk()).andReturn();
         final List<TermAssignments> result = readValue(mvcResult, new TypeReference<List<TermAssignments>>() {
         });
         assertNotNull(result);
@@ -702,7 +700,7 @@ class TermControllerTest extends BaseControllerTestRunner {
 
         mockMvc.perform(
                 get(PATH + VOCABULARY_NAME + "/terms/roots").param("includeImported", Boolean.TRUE.toString()))
-               .andExpect(status().isOk());
+                .andExpect(status().isOk());
         verify(termServiceMock).findAllRootsIncludingImported(vocabulary, DEFAULT_PAGE_SPEC, Collections.emptyList());
     }
 
@@ -716,7 +714,7 @@ class TermControllerTest extends BaseControllerTestRunner {
                 get(PATH + VOCABULARY_NAME + "/terms")
                         .param("includeImported", Boolean.TRUE.toString())
                         .param("searchString", searchString))
-               .andExpect(status().isOk());
+                .andExpect(status().isOk());
         verify(termServiceMock).findAllIncludingImported(searchString, vocabulary);
     }
 
@@ -725,6 +723,7 @@ class TermControllerTest extends BaseControllerTestRunner {
         final URI termUri = URI.create(NAMESPACE + TERM_NAME);
         final Term toRemove = Generator.generateTerm();
         toRemove.setUri(termUri);
+        when(configMock.get(ConfigParam.TERM_NAMESPACE_SEPARATOR)).thenReturn(DEFAULT_TERM_NAMESPACE_SEPARATOR);
         when(idResolverMock.resolveIdentifier(ConfigParam.NAMESPACE_VOCABULARY, VOCABULARY_NAME))
                 .thenReturn(URI.create(VOCABULARY_URI));
         when(idResolverMock.buildNamespace(VOCABULARY_URI, Constants.DEFAULT_TERM_NAMESPACE_SEPARATOR))
@@ -734,13 +733,14 @@ class TermControllerTest extends BaseControllerTestRunner {
 
         mockMvc.perform(
                 delete(PATH + VOCABULARY_NAME + "/terms/" + TERM_NAME))
-               .andExpect(status().isNoContent());
+                .andExpect(status().isNoContent());
         verify(termServiceMock).remove(toRemove);
     }
 
     @Test
     void removeThrowsNotFoundWhenTermToRemoveDoesNotExist() throws Exception {
         final URI termUri = URI.create(NAMESPACE + TERM_NAME);
+        when(configMock.get(ConfigParam.TERM_NAMESPACE_SEPARATOR)).thenReturn(DEFAULT_TERM_NAMESPACE_SEPARATOR);
         when(idResolverMock.resolveIdentifier(ConfigParam.NAMESPACE_VOCABULARY, VOCABULARY_NAME))
                 .thenReturn(URI.create(VOCABULARY_URI));
         when(idResolverMock.buildNamespace(VOCABULARY_URI, Constants.DEFAULT_TERM_NAMESPACE_SEPARATOR))
@@ -750,7 +750,7 @@ class TermControllerTest extends BaseControllerTestRunner {
 
         mockMvc.perform(
                 delete(PATH + VOCABULARY_NAME + "/terms/" + TERM_NAME))
-               .andExpect(status().isNotFound());
+                .andExpect(status().isNotFound());
         verify(termServiceMock, never()).remove(any());
     }
 
@@ -768,7 +768,7 @@ class TermControllerTest extends BaseControllerTestRunner {
         mockMvc.perform(put("/terms/" + TERM_NAME + "/definition-source")
                 .param(QueryParams.NAMESPACE, NAMESPACE)
                 .content(toJson(source)).contentType(MediaType.APPLICATION_JSON))
-               .andExpect(status().isNoContent());
+                .andExpect(status().isNoContent());
         final ArgumentCaptor<TermDefinitionSource> captor = ArgumentCaptor.forClass(TermDefinitionSource.class);
         verify(termServiceMock).setTermDefinitionSource(eq(term), captor.capture());
         assertEquals(file.getUri(), captor.getValue().getTarget().getSource());
@@ -832,8 +832,8 @@ class TermControllerTest extends BaseControllerTestRunner {
         final List<URI> toInclude = Arrays.asList(Generator.generateUri(), Generator.generateUri());
         mockMvc.perform(get(PATH + VOCABULARY_NAME + "/terms/roots").param("includeTerms",
                 toInclude.stream().map(URI::toString)
-                         .toArray(String[]::new)))
-               .andExpect(status().isOk());
+                        .toArray(String[]::new)))
+                .andExpect(status().isOk());
 
         verify(termServiceMock).findAllRoots(eq(vocabulary), any(Pageable.class), eq(toInclude));
     }
@@ -848,11 +848,20 @@ class TermControllerTest extends BaseControllerTestRunner {
         when(termServiceMock.getComments(term)).thenReturn(comments);
 
         final MvcResult mvcResult = mockMvc.perform(get(PATH + VOCABULARY_NAME + "/terms/" + TERM_NAME + "/comments"))
-                                           .andExpect(status().isOk()).andReturn();
+                .andExpect(status().isOk()).andReturn();
         final List<Comment> result = readValue(mvcResult, new TypeReference<List<Comment>>() {
         });
         assertEquals(comments, result);
         verify(termServiceMock).getComments(term);
+    }
+
+    private URI initTermUriResolutionForStandalone() {
+        when(configMock.get(ConfigParam.TERM_NAMESPACE_SEPARATOR)).thenReturn(DEFAULT_TERM_NAMESPACE_SEPARATOR);
+        when(idResolverMock.resolveIdentifier(ConfigParam.NAMESPACE_VOCABULARY, VOCABULARY_NAME)).thenReturn(URI.create(VOCABULARY_URI));
+        when(idResolverMock.buildNamespace(VOCABULARY_URI, DEFAULT_TERM_NAMESPACE_SEPARATOR)).thenReturn(NAMESPACE);
+        final URI termUri = URI.create(TERM_URI);
+        when(idResolverMock.resolveIdentifier(NAMESPACE, TERM_NAME)).thenReturn(termUri);
+        return termUri;
     }
 
     private static List<Comment> generateComments(Term term) {
@@ -871,9 +880,10 @@ class TermControllerTest extends BaseControllerTestRunner {
 
     @Test
     void getCommentsStandaloneRetrievesCommentsForSpecifiedTerm() throws Exception {
-        final URI termUri = initTermUriResolution();
+        final URI termUri = URI.create(TERM_URI);
         final Term term = Generator.generateTerm();
         term.setUri(termUri);
+        when(idResolverMock.resolveIdentifier(NAMESPACE, TERM_NAME)).thenReturn(termUri);
         when(termServiceMock.getRequiredReference(term.getUri())).thenReturn(term);
         final List<Comment> comments = generateComments(term);
         when(termServiceMock.getComments(term)).thenReturn(comments);
@@ -899,13 +909,13 @@ class TermControllerTest extends BaseControllerTestRunner {
         mockMvc.perform(post("/vocabularies/" + VOCABULARY_NAME + "/terms/" + TERM_NAME + "/comments")
                 .content(toJson(comment))
                 .contentType(MediaType.APPLICATION_JSON))
-               .andExpect(status().isCreated());
+                .andExpect(status().isCreated());
         verify(termServiceMock).addComment(comment, term);
     }
 
     @Test
     void addCommentReturnsLocationHeaderWithGeneratedIdentifier() throws Exception {
-        final URI termUri = initTermUriResolution();
+        final URI termUri = initTermUriResolutionForStandalone();
         final Term term = Generator.generateTerm();
         term.setUri(termUri);
         when(termServiceMock.getRequiredReference(term.getUri())).thenReturn(term);
@@ -924,7 +934,8 @@ class TermControllerTest extends BaseControllerTestRunner {
 
     @Test
     void addCommentStandaloneAddsSpecifiedCommentToSpecifiedTerm() throws Exception {
-        final URI termUri = initTermUriResolution();
+        final URI termUri = URI.create(TERM_URI);
+        when(idResolverMock.resolveIdentifier(NAMESPACE, TERM_NAME)).thenReturn(termUri);
         final Term term = Generator.generateTerm();
         term.setUri(termUri);
         when(termServiceMock.getRequiredReference(term.getUri())).thenReturn(term);
@@ -935,13 +946,14 @@ class TermControllerTest extends BaseControllerTestRunner {
                 .queryParam(QueryParams.NAMESPACE, NAMESPACE)
                 .content(toJson(comment))
                 .contentType(MediaType.APPLICATION_JSON))
-               .andExpect(status().isCreated());
+                .andExpect(status().isCreated());
         verify(termServiceMock).addComment(comment, term);
     }
 
     @Test
     void addCommentStandaloneReturnsLocationHeaderWithGeneratedIdentifier() throws Exception {
-        final URI termUri = initTermUriResolution();
+        final URI termUri = URI.create(TERM_URI);
+        when(idResolverMock.resolveIdentifier(NAMESPACE, TERM_NAME)).thenReturn(termUri);
         final Term term = Generator.generateTerm();
         term.setUri(termUri);
         when(termServiceMock.getRequiredReference(term.getUri())).thenReturn(term);
@@ -959,6 +971,7 @@ class TermControllerTest extends BaseControllerTestRunner {
         verifyLocationEquals("/comments/" + name, mvcResult);
     }
 
+
     @Test
     void updateStatusSetsTermStatusToSpecifiedValue() throws Exception {
         final URI termUri = initTermUriResolution();
@@ -968,7 +981,7 @@ class TermControllerTest extends BaseControllerTestRunner {
 
         mockMvc.perform(put("/vocabularies/" + VOCABULARY_NAME + "/terms/" + TERM_NAME + "/status")
                 .content(TermStatus.CONFIRMED.toString()).contentType(MediaType.TEXT_PLAIN))
-               .andExpect(status().isNoContent());
+                .andExpect(status().isNoContent());
         verify(termServiceMock).getRequiredReference(termUri);
         verify(termServiceMock).setStatus(term, TermStatus.CONFIRMED);
     }
@@ -981,9 +994,9 @@ class TermControllerTest extends BaseControllerTestRunner {
         when(termServiceMock.getRequiredReference(term.getUri())).thenReturn(term);
 
         mockMvc.perform(put("/terms/" + TERM_NAME + "/status").queryParam(QueryParams.NAMESPACE, NAMESPACE)
-                                                              .content(TermStatus.DRAFT.toString())
-                                                              .contentType(MediaType.TEXT_PLAIN))
-               .andExpect(status().isNoContent());
+                .content(TermStatus.DRAFT.toString())
+                .contentType(MediaType.TEXT_PLAIN))
+                .andExpect(status().isNoContent());
         verify(termServiceMock).getRequiredReference(termUri);
         verify(termServiceMock).setStatus(term, TermStatus.DRAFT);
     }

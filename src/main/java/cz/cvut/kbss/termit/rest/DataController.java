@@ -58,7 +58,7 @@ public class DataController {
         return dataService.findAllProperties();
     }
 
-    @PreAuthorize("hasRole('" + SecurityConstants.ROLE_USER + "')")
+    @PreAuthorize("hasRole('" + SecurityConstants.ROLE_FULL_USER + "')")
     @RequestMapping(value = "/properties", method = RequestMethod.POST, consumes = {MediaType.APPLICATION_JSON_VALUE,
             JsonLd.MEDIA_TYPE})
     public ResponseEntity<Void> createProperty(@RequestBody RdfsResource property) {

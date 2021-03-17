@@ -56,12 +56,12 @@ public class CommentDao {
      * @param asset Asset whose comments to retrieve
      * @return List of comments, sorted by date of creation (from oldest to newest)
      */
-    public List<Comment> findAll(Asset asset) {
+    public List<Comment> findAll(Asset<?> asset) {
         Objects.requireNonNull(asset);
         try {
             return em.createQuery("SELECT c FROM Comment c WHERE c.asset = :asset ORDER BY c.created", Comment.class)
-                     .setParameter("asset", asset.getUri())
-                     .setDescriptor(loadingDescriptor).getResultList();
+                    .setParameter("asset", asset.getUri())
+                    .setDescriptor(loadingDescriptor).getResultList();
         } catch (RuntimeException e) {
             throw new PersistenceException(e);
         }

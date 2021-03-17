@@ -16,11 +16,10 @@ package cz.cvut.kbss.termit.environment.config;
 
 import cz.cvut.kbss.termit.aspect.ChangeTrackingAspect;
 import cz.cvut.kbss.termit.environment.Environment;
-import cz.cvut.kbss.termit.service.Services;
 import org.aspectj.lang.Aspects;
+import org.springframework.boot.test.context.TestConfiguration;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.ComponentScan;
-import org.springframework.context.annotation.Configuration;
 import org.springframework.context.annotation.Primary;
 import org.springframework.core.io.ClassPathResource;
 import org.springframework.http.converter.ResourceHttpMessageConverter;
@@ -36,8 +35,8 @@ import javax.servlet.http.HttpSession;
 import java.nio.charset.StandardCharsets;
 import java.util.Arrays;
 
-@Configuration
-@ComponentScan(basePackageClasses = {Services.class})
+@TestConfiguration
+@ComponentScan(basePackages = "cz.cvut.kbss.termit.service")
 public class TestServiceConfig {
 
     @Bean
