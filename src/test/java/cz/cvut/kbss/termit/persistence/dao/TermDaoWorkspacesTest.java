@@ -5,15 +5,20 @@ import cz.cvut.kbss.jopa.model.MultilingualString;
 import cz.cvut.kbss.jopa.model.descriptors.EntityDescriptor;
 import cz.cvut.kbss.jopa.model.descriptors.FieldDescriptor;
 import cz.cvut.kbss.jopa.vocabulary.SKOS;
+import cz.cvut.kbss.termit.dto.TermInfo;
 import cz.cvut.kbss.termit.dto.workspace.VocabularyInfo;
 import cz.cvut.kbss.termit.dto.workspace.WorkspaceMetadata;
 import cz.cvut.kbss.termit.environment.Generator;
+import cz.cvut.kbss.termit.environment.WorkspaceGenerator;
 import cz.cvut.kbss.termit.model.Term;
 import cz.cvut.kbss.termit.model.Vocabulary;
 import cz.cvut.kbss.termit.persistence.DescriptorFactory;
 import cz.cvut.kbss.termit.persistence.dao.workspace.WorkspaceMetadataProvider;
+import cz.cvut.kbss.termit.util.ConfigParam;
+import cz.cvut.kbss.termit.util.Configuration;
 import cz.cvut.kbss.termit.util.Constants;
 import org.eclipse.rdf4j.model.IRI;
+import org.eclipse.rdf4j.model.Statement;
 import org.eclipse.rdf4j.model.ValueFactory;
 import org.eclipse.rdf4j.repository.Repository;
 import org.eclipse.rdf4j.repository.RepositoryConnection;
@@ -22,9 +27,11 @@ import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 
 import java.net.URI;
+import java.util.Collection;
 import java.util.Collections;
 import java.util.List;
 import java.util.Optional;
+import java.util.stream.Collectors;
 
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.*;
@@ -43,6 +50,9 @@ public class TermDaoWorkspacesTest extends BaseDaoTestRunner {
 
     @Autowired
     private WorkspaceMetadataProvider wsMetadataCache;
+
+    @Autowired
+    private Configuration config;
 
     @Autowired
     private TermDao sut;
@@ -417,5 +427,227 @@ public class TermDaoWorkspacesTest extends BaseDaoTestRunner {
 
         final List<Term> result = sut.findAll(searchString);
         assertEquals(Collections.singletonList(term), result);
+    }
+
+    @Test
+    void persistSupportsTermWithParentInCanonicalContainer() {
+        final Term term = Generator.generateTermWithId();
+        final Term parent = Generator.generateTermWithId();
+        term.addParentTerm(parent);
+        persistTermIntoCanonicalContainer(parent);
+
+        transactional(() -> sut.persist(term, vocabulary));
+        final Term result = em.find(Term.class, term.getUri());
+        assertEquals(term, result);
+    }
+
+    private URI persistTermIntoCanonicalContainer(Term term) {
+        final Collection<Statement> canonical = WorkspaceGenerator
+                .generateCanonicalCacheContainer(config.get(ConfigParam.CANONICAL_CACHE_CONTAINER_IRI));
+        final List<String> ids = canonical.stream().map(s -> s.getObject().stringValue()).sorted()
+                                          .collect(Collectors.toList());
+        final URI selectedVocabulary = URI.create(ids.get(0));
+        transactional(() -> {
+            em.persist(term, new EntityDescriptor(selectedVocabulary));
+            Generator.addTermInVocabularyRelationship(term, selectedVocabulary, em);
+            final URI glossary = Generator.generateUri();
+            final Repository repo = em.unwrap(Repository.class);
+            try (final RepositoryConnection conn = repo.getConnection()) {
+                final ValueFactory vf = conn.getValueFactory();
+                conn.begin();
+                conn.add(canonical);
+                conn.add(vf.createIRI(selectedVocabulary.toString()),
+                        vf.createIRI(cz.cvut.kbss.termit.util.Vocabulary.s_p_ma_glosar),
+                        vf.createIRI(glossary.toString()), vf.createIRI(selectedVocabulary.toString()));
+                conn.add(vf.createIRI(glossary.toString()), vf.createIRI(SKOS.HAS_TOP_CONCEPT),
+                        vf.createIRI(term.getUri().toString()), vf.createIRI(selectedVocabulary.toString()));
+                conn.commit();
+            }
+        });
+        return selectedVocabulary;
+    }
+
+    @Test
+    void findSupportsTermWithParentInCanonicalContainer() {
+        final Term term = Generator.generateTermWithId();
+        final Term parent = Generator.generateTermWithId();
+        term.addParentTerm(parent);
+        persistTermIntoCanonicalContainer(parent);
+        final EntityDescriptor termDescriptor = new EntityDescriptor(vocabulary.getUri());
+        termDescriptor.addAttributeContext(em.getMetamodel().entity(Term.class).getAttribute("parentTerms"), null);
+        transactional(() -> {
+            em.persist(term, termDescriptor);
+            Generator.addTermInVocabularyRelationship(term, vocabulary.getUri(), em);
+        });
+        em.getEntityManagerFactory().getCache().evictAll();
+
+        final Optional<Term> result = sut.find(term.getUri());
+        assertTrue(result.isPresent());
+        assertEquals(term, result.get());
+        assertThat(result.get().getParentTerms(), hasItem(parent));
+    }
+
+    @Test
+    void updateSupportsTermWithParentInCanonicalContainer() {
+        final Term term = Generator.generateTermWithId();
+        final Term parent = Generator.generateTermWithId();
+        persistTermIntoCanonicalContainer(parent);
+        final EntityDescriptor termDescriptor = new EntityDescriptor(vocabulary.getUri());
+        termDescriptor.addAttributeContext(em.getMetamodel().entity(Term.class).getAttribute("parentTerms"), null);
+        transactional(() -> {
+            em.persist(term, termDescriptor);
+            Generator.addTermInVocabularyRelationship(term, vocabulary.getUri(), em);
+        });
+
+        term.addParentTerm(parent);
+        // This is normally inferred
+        term.setVocabulary(vocabulary.getUri());
+        transactional(() -> sut.update(term));
+        final Term result = em.find(Term.class, term.getUri());
+        assertEquals(term, result);
+        assertEquals(term, result);
+        assertThat(result.getParentTerms(), hasItem(parent));
+    }
+
+    @Test
+    void findSupportsTermWithParentInCanonicalContainerAndWorkingVersionInCurrentWorkspace() {
+        final Term term = Generator.generateTermWithId();
+        final Term parent = Generator.generateTermWithId();
+        final Term parentCopy = new Term();
+        parentCopy.setUri(parent.getUri());
+        parentCopy.setLabel(MultilingualString.create("different parent label", Constants.DEFAULT_LANGUAGE));
+        parentCopy.setDefinition(parent.getDefinition());
+        parentCopy.setDescription(parent.getDescription());
+        term.addParentTerm(parentCopy);
+        final URI canonicalVocabularyUri = persistTermIntoCanonicalContainer(parent);
+        final Vocabulary wsVocabulary = Generator.generateVocabularyWithId();
+        saveVocabulary(wsVocabulary);
+        transactional(() -> {
+            final EntityDescriptor parentDescriptor = new EntityDescriptor(wsVocabulary.getUri());
+            parentDescriptor
+                    .addAttributeContext(em.getMetamodel().entity(Term.class).getAttribute("parentTerms"), null);
+            em.persist(parentCopy, parentDescriptor);
+            connectWorkspaceVocabularyWithCanonicalOne(wsVocabulary.getUri(), canonicalVocabularyUri);
+            Generator.addTermInVocabularyRelationship(parentCopy, canonicalVocabularyUri, em);
+            final EntityDescriptor termDescriptor = new EntityDescriptor(vocabulary.getUri());
+            termDescriptor.addAttributeContext(em.getMetamodel().entity(Term.class).getAttribute("parentTerms"), null);
+            em.persist(term, termDescriptor);
+            Generator.addTermInVocabularyRelationship(term, vocabulary.getUri(), em);
+        });
+
+        final Optional<Term> result = sut.find(term.getUri());
+        assertTrue(result.isPresent());
+        assertNotNull(result.get().getParentTerms());
+        assertEquals(1, result.get().getParentTerms().size());
+        assertThat(result.get().getParentTerms(), hasItem(parentCopy));
+        assertEquals(parentCopy.getLabel(), result.get().getParentTerms().iterator().next().getLabel());
+    }
+
+    private void connectWorkspaceVocabularyWithCanonicalOne(URI wsVocabulary, URI canonicalVocabulary) {
+        final Repository repo = em.unwrap(Repository.class);
+        try (final RepositoryConnection conn = repo.getConnection()) {
+            final ValueFactory vf = conn.getValueFactory();
+            conn.add(vf.createIRI(wsVocabulary.toString()),
+                    vf.createIRI(cz.cvut.kbss.termit.util.Vocabulary.s_p_vychazi_z_verze),
+                    vf.createIRI(canonicalVocabulary.toString()), vf.createIRI(wsVocabulary.toString()));
+        }
+    }
+
+    @Test
+    void findAllRootsIncludingCanonicalRetrievesRootTermsFromCurrentWorkspaceAndCanonicalContainer() {
+        final Term term = Generator.generateTermWithId();
+        final Term canonical = Generator.generateTermWithId();
+        persistTermIntoCanonicalContainer(canonical);
+        final EntityDescriptor termDescriptor = new EntityDescriptor(vocabulary.getUri());
+        transactional(() -> {
+            em.persist(term, termDescriptor);
+            vocabulary.getGlossary().addRootTerm(term);
+            em.merge(vocabulary.getGlossary(), descriptorFactory.glossaryDescriptor(vocabulary));
+            Generator.addTermInVocabularyRelationship(term, vocabulary.getUri(), em);
+        });
+
+        final List<Term> result = sut.findAllRootsIncludingCanonical(Constants.DEFAULT_PAGE_SPEC);
+        assertEquals(2, result.size());
+        assertThat(result, hasItems(term, canonical));
+    }
+
+    @Test
+    void findAllIncludingCanonicalRetrievesTermsFromCurrentWorkspaceAndCanonicalContainer() {
+        final Term term = Generator.generateTermWithId();
+        final Term parent = Generator.generateTermWithId();
+        term.addParentTerm(parent);
+        persistTermIntoCanonicalContainer(parent);
+        final EntityDescriptor termDescriptor = new EntityDescriptor(vocabulary.getUri());
+        termDescriptor.addAttributeContext(em.getMetamodel().entity(Term.class).getAttribute("parentTerms"), null);
+        transactional(() -> {
+            em.persist(term, termDescriptor);
+            vocabulary.getGlossary().addRootTerm(term);
+            em.merge(vocabulary.getGlossary(), descriptorFactory.glossaryDescriptor(vocabulary));
+            Generator.addTermInVocabularyRelationship(term, vocabulary.getUri(), em);
+        });
+
+        final List<Term> result = sut.findAllIncludingCanonical(Constants.DEFAULT_PAGE_SPEC);
+        assertEquals(2, result.size());
+        assertThat(result, hasItems(term, parent));
+        final Optional<Term> termResult = result.stream().filter(t -> t.getUri().equals(term.getUri())).findFirst();
+        assert termResult.isPresent();
+        assertThat(termResult.get().getParentTerms(), hasItem(parent));
+    }
+
+    @Test
+    void findAllBySearchStringIncludingCanonicalRetrievesMatchingTermsFromCurrentWorkspaceAndCanonicalContainer() {
+        final String searchString = "search";
+        final Term term = Generator.generateTermWithId();
+        term.getLabel().set(Constants.DEFAULT_LANGUAGE, searchString + " string label");
+        final Term canonical = Generator.generateTermWithId();
+        canonical.getLabel().set(Constants.DEFAULT_LANGUAGE, searchString + " canonical label");
+        persistTermIntoCanonicalContainer(canonical);
+        final Term anotherCanonical = Generator.generateTermWithId();
+        persistTermIntoCanonicalContainer(anotherCanonical);
+        final EntityDescriptor termDescriptor = new EntityDescriptor(vocabulary.getUri());
+        transactional(() -> {
+            em.persist(term, termDescriptor);
+            vocabulary.getGlossary().addRootTerm(term);
+            em.merge(vocabulary.getGlossary(), descriptorFactory.glossaryDescriptor(vocabulary));
+            Generator.addTermInVocabularyRelationship(term, vocabulary.getUri(), em);
+        });
+
+        final List<Term> result = sut.findAllIncludingCanonical(searchString);
+        assertEquals(2, result.size());
+        assertThat(result, hasItems(term, canonical));
+    }
+
+    @Test
+    void findAllRootsIncludingCanonicalLoadsSubTermsInCanonicalContainer() {
+        final Term canonical = Generator.generateTermWithId();
+        final URI canonicalVocUri = persistTermIntoCanonicalContainer(canonical);
+        final Term canonicalChild = Generator.generateTermWithId();
+        canonicalChild.addParentTerm(canonical);
+        transactional(() -> {
+            final EntityDescriptor termDescriptor = new EntityDescriptor(canonicalVocUri);
+            em.persist(canonicalChild, termDescriptor);
+            Generator.addTermInVocabularyRelationship(canonicalChild, canonicalVocUri, em);
+        });
+
+        final List<Term> result = sut.findAllRootsIncludingCanonical(Constants.DEFAULT_PAGE_SPEC);
+        assertEquals(1, result.size());
+        assertThat(result.get(0).getSubTerms(), hasItem(new TermInfo(canonicalChild)));
+    }
+
+    @Test
+    void findAllSubTermsLoadsSubTermsOfTermInCanonicalContainer() {
+        final Term canonical = Generator.generateTermWithId();
+        final URI canonicalVocUri = persistTermIntoCanonicalContainer(canonical);
+        canonical.setVocabulary(canonicalVocUri);
+        final Term canonicalChild = Generator.generateTermWithId();
+        canonicalChild.addParentTerm(canonical);
+        transactional(() -> {
+            final EntityDescriptor termDescriptor = new EntityDescriptor(canonicalVocUri);
+            em.persist(canonicalChild, termDescriptor);
+            Generator.addTermInVocabularyRelationship(canonicalChild, canonicalVocUri, em);
+        });
+
+        final List<Term> result = sut.findAllSubTerms(canonical);
+        assertEquals(Collections.singletonList(canonicalChild), result);
     }
 }

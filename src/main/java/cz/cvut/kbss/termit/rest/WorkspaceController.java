@@ -1,6 +1,7 @@
 package cz.cvut.kbss.termit.rest;
 
 import cz.cvut.kbss.jsonld.JsonLd;
+import cz.cvut.kbss.termit.dto.workspace.WorkspaceDto;
 import cz.cvut.kbss.termit.model.Workspace;
 import cz.cvut.kbss.termit.service.IdentifierResolver;
 import cz.cvut.kbss.termit.service.business.WorkspaceService;
@@ -31,8 +32,8 @@ public class WorkspaceController {
     }
 
     @GetMapping(value = "/current", produces = {MediaType.APPLICATION_JSON_VALUE, JsonLd.MEDIA_TYPE})
-    public Workspace getCurrent() {
-        return workspaceService.getCurrentWorkspace();
+    public WorkspaceDto getCurrent() {
+        return workspaceService.getCurrentWorkspaceWithMetadata();
     }
 
     @PutMapping(value = "/{fragment}", produces = {MediaType.APPLICATION_JSON_VALUE, JsonLd.MEDIA_TYPE})

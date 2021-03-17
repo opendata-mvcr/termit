@@ -8,9 +8,13 @@ import org.eclipse.rdf4j.model.ValueFactory;
 import org.eclipse.rdf4j.model.impl.SimpleValueFactory;
 import org.eclipse.rdf4j.model.vocabulary.RDF;
 
+import java.net.URI;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.List;
+import java.util.Set;
+import java.util.stream.Collectors;
+import java.util.stream.IntStream;
 
 /**
  * Generator of workspace-related test data.
@@ -46,5 +50,15 @@ public class WorkspaceGenerator {
         ws.setLabel("Workspace " + Generator.randomInt(0, 10000));
         ws.setDescription("Description of workspace " + ws.getLabel());
         return ws;
+    }
+
+    public static Collection<Statement> generateCanonicalCacheContainer(String containerIri) {
+        final ValueFactory vf = SimpleValueFactory.getInstance();
+        final Set<URI> canonicalVocabularies = IntStream.range(0, 10).mapToObj(i -> Generator.generateUri()).collect(
+                Collectors.toSet());
+        return canonicalVocabularies.stream().map(v -> vf.createStatement(
+                vf.createIRI(containerIri),
+                vf.createIRI(cz.cvut.kbss.termit.util.Vocabulary.s_p_odkazuje_na_kontext), vf.createIRI(v.toString()),
+                vf.createIRI(containerIri))).collect(Collectors.toList());
     }
 }

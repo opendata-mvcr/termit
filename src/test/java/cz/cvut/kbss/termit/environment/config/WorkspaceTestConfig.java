@@ -1,6 +1,5 @@
 package cz.cvut.kbss.termit.environment.config;
 
-import cz.cvut.kbss.termit.aspect.Aspects;
 import cz.cvut.kbss.termit.dto.workspace.VocabularyInfo;
 import cz.cvut.kbss.termit.dto.workspace.WorkspaceMetadata;
 import cz.cvut.kbss.termit.environment.Generator;
@@ -11,7 +10,9 @@ import cz.cvut.kbss.termit.persistence.dao.workspace.WorkspaceDao;
 import cz.cvut.kbss.termit.persistence.dao.workspace.WorkspaceMetadataProvider;
 import cz.cvut.kbss.termit.util.Constants;
 import cz.cvut.kbss.termit.workspace.WorkspaceStore;
-import org.springframework.context.annotation.*;
+import org.springframework.context.annotation.Bean;
+import org.springframework.context.annotation.Configuration;
+import org.springframework.context.annotation.Primary;
 import org.springframework.mock.web.MockHttpSession;
 
 import java.net.URI;

@@ -1,5 +1,6 @@
 package cz.cvut.kbss.termit.rest;
 
+import cz.cvut.kbss.termit.dto.workspace.WorkspaceDto;
 import cz.cvut.kbss.termit.environment.WorkspaceGenerator;
 import cz.cvut.kbss.termit.exception.NotFoundException;
 import cz.cvut.kbss.termit.exception.workspace.WorkspaceNotSetException;
@@ -44,14 +45,14 @@ class WorkspaceControllerTest extends BaseControllerTestRunner {
 
     @BeforeEach
     void setUp() {
-        MockitoAnnotations.initMocks(this);
+        MockitoAnnotations.openMocks(this);
         setUp(sut);
     }
 
     @Test
     void loadWorkspaceUsesServiceToGetWorkspaceByIdentifier() throws Exception {
         when(idResolver.resolveIdentifier(anyString(), anyString())).thenReturn(WORKSPACE_URI);
-        final Workspace workspace = WorkspaceGenerator.generateWorkspace();
+        final WorkspaceDto workspace = new WorkspaceDto(WorkspaceGenerator.generateWorkspace());
         workspace.setUri(WORKSPACE_URI);
         when(workspaceService.loadWorkspace(any())).thenReturn(workspace);
         mockMvc.perform(put(PATH + FRAGMENT).param(Constants.QueryParams.NAMESPACE, NAMESPACE))
@@ -63,7 +64,7 @@ class WorkspaceControllerTest extends BaseControllerTestRunner {
     @Test
     void loadWorkspaceReturnsLoadedWorkspace() throws Exception {
         when(idResolver.resolveIdentifier(anyString(), anyString())).thenReturn(WORKSPACE_URI);
-        final Workspace workspace = WorkspaceGenerator.generateWorkspace();
+        final WorkspaceDto workspace = new WorkspaceDto(WorkspaceGenerator.generateWorkspace());
         workspace.setUri(WORKSPACE_URI);
         when(workspaceService.loadWorkspace(any())).thenReturn(workspace);
         final MvcResult mvcResult = mockMvc
@@ -83,17 +84,18 @@ class WorkspaceControllerTest extends BaseControllerTestRunner {
     @Test
     void getCurrentReturnsCurrentlyLoadedWorkspace() throws Exception {
         final Workspace workspace = WorkspaceGenerator.generateWorkspace();
-        when(workspaceService.getCurrentWorkspace()).thenReturn(workspace);
+        final WorkspaceDto dto = new WorkspaceDto(workspace);
+        when(workspaceService.getCurrentWorkspaceWithMetadata()).thenReturn(dto);
         final MvcResult mvcResult = mockMvc.perform(get(PATH + "current")).andExpect(status().isOk()).andReturn();
         final Workspace result = readValue(mvcResult, Workspace.class);
         assertEquals(workspace, result);
-        verify(workspaceService).getCurrentWorkspace();
+        verify(workspaceService).getCurrentWorkspaceWithMetadata();
     }
 
     @Test
     void getCurrentReturnsConflictWhenNoWorkspaceIsSet() throws Exception {
-        when(workspaceService.getCurrentWorkspace()).thenThrow(WorkspaceNotSetException.class);
+        when(workspaceService.getCurrentWorkspaceWithMetadata()).thenThrow(WorkspaceNotSetException.class);
         mockMvc.perform(get(PATH + "current")).andExpect(status().isConflict());
-        verify(workspaceService).getCurrentWorkspace();
+        verify(workspaceService).getCurrentWorkspaceWithMetadata();
     }
 }

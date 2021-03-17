@@ -164,6 +164,7 @@ class TermServiceTest extends BaseServiceTestRunner {
     @Test
     void findSubTermsReturnsEmptyCollectionForTermWithoutSubTerms() {
         final Term term = generateTermWithId();
+        when(termRepositoryService.findSubTerms(any())).thenReturn(Collections.emptyList());
         final List<Term> result = sut.findSubTerms(term);
         assertTrue(result.isEmpty());
     }
@@ -171,16 +172,15 @@ class TermServiceTest extends BaseServiceTestRunner {
     @Test
     void findSubTermsLoadsChildTermsOfTermUsingRepositoryService() {
         final Term parent = generateTermWithId();
-        final List<Term> children = IntStream.range(0, 5).mapToObj(i -> {
-            final Term child = generateTermWithId();
-            when(termRepositoryService.find(child.getUri())).thenReturn(Optional.of(child));
-            return child;
-        }).collect(Collectors.toList());
+        final List<Term> children = IntStream.range(0, 5).mapToObj(i -> generateTermWithId())
+                                             .collect(Collectors.toList());
         parent.setSubTerms(children.stream().map(TermInfo::new).collect(Collectors.toSet()));
+        when(termRepositoryService.findSubTerms(parent)).thenReturn(children);
 
         final List<Term> result = sut.findSubTerms(parent);
         assertEquals(children.size(), result.size());
         assertTrue(children.containsAll(result));
+        verify(termRepositoryService).findSubTerms(parent);
     }
 
     @Test
@@ -368,5 +368,33 @@ class TermServiceTest extends BaseServiceTestRunner {
         final List<Term> result = sut.findAll(searchString);
         assertEquals(terms, result);
         verify(termRepositoryService).findAll(searchString);
+    }
+
+    @Test
+    void findAllRootsIncludingCanonicalRetrievesTermsFromRepositoryService() {
+        final List<Term> terms = Collections.singletonList(generateTermWithId());
+        when(termRepositoryService.findAllRootsIncludingCanonical(any())).thenReturn(terms);
+        final List<Term> result = sut.findAllRootsIncludingCanonical(Constants.DEFAULT_PAGE_SPEC);
+        assertEquals(terms, result);
+        verify(termRepositoryService).findAllRootsIncludingCanonical(Constants.DEFAULT_PAGE_SPEC);
+    }
+
+    @Test
+    void findAllIncludingCanonicalRetrievesTermsFromRepositoryService() {
+        final List<Term> terms = Collections.singletonList(generateTermWithId());
+        when(termRepositoryService.findAllIncludingCanonical(any(Pageable.class))).thenReturn(terms);
+        final List<Term> result = sut.findAllIncludingCanonical(Constants.DEFAULT_PAGE_SPEC);
+        assertEquals(terms, result);
+        verify(termRepositoryService).findAllIncludingCanonical(Constants.DEFAULT_PAGE_SPEC);
+    }
+
+    @Test
+    void findAllIncludingCanonicalWithSearchStringInWorkspaceRetrievesTermsFromRepositoryService() {
+        final List<Term> terms = Collections.singletonList(generateTermWithId());
+        when(termRepositoryService.findAllIncludingCanonical(anyString())).thenReturn(terms);
+        final String searchString = "search";
+        final List<Term> result = sut.findAllIncludingCanonical(searchString);
+        assertEquals(terms, result);
+        verify(termRepositoryService).findAllIncludingCanonical(searchString);
     }
 }

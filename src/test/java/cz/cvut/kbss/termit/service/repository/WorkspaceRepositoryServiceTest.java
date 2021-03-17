@@ -2,10 +2,12 @@ package cz.cvut.kbss.termit.service.repository;
 
 import cz.cvut.kbss.jopa.model.EntityManager;
 import cz.cvut.kbss.jopa.model.descriptors.EntityDescriptor;
+import cz.cvut.kbss.termit.dto.workspace.WorkspaceDto;
 import cz.cvut.kbss.termit.dto.workspace.WorkspaceMetadata;
 import cz.cvut.kbss.termit.environment.Generator;
 import cz.cvut.kbss.termit.environment.WorkspaceGenerator;
 import cz.cvut.kbss.termit.exception.NotFoundException;
+import cz.cvut.kbss.termit.model.Asset;
 import cz.cvut.kbss.termit.model.Vocabulary;
 import cz.cvut.kbss.termit.model.Workspace;
 import cz.cvut.kbss.termit.persistence.dao.workspace.WorkspaceMetadataProvider;
@@ -103,5 +105,21 @@ class WorkspaceRepositoryServiceTest extends BaseServiceTestRunner {
             conn.add(WorkspaceGenerator.generateWorkspaceReferences(vocabularies, workspace));
             conn.commit();
         }
+    }
+
+    @Test
+    void getCurrentWorkspaceWithMetadataRetrievesCurrentWorkspaceWithVocabularyMetadata() {
+        final Workspace workspace = generateWorkspace();
+        final List<Vocabulary> vocabularies = IntStream.range(0, 5).mapToObj(i -> Generator.generateVocabularyWithId())
+                                                       .collect(Collectors.toList());
+        transactional(() -> {
+            vocabularies.forEach(v -> em.persist(v, new EntityDescriptor(v.getUri())));
+            addWorkspaceReference(vocabularies, workspace);
+        });
+
+        sut.loadWorkspace(workspace.getUri());
+        final WorkspaceDto result = sut.getCurrentWorkspaceWithMetadata();
+        assertEquals(workspace, result);
+        assertEquals(vocabularies.stream().map(Asset::getUri).collect(Collectors.toSet()), result.getVocabularies());
     }
 }
