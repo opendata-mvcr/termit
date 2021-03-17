@@ -385,7 +385,7 @@ public class TermDao extends WorkspaceBasedAssetDao<Term> {
                 "?hasLabel ?label ." +
                 "?vocabulary ?hasGlossary/?hasTerm ?term ." +
                 "FILTER (lang(?label) = ?labelLang) ." +
-                "}} ORDER BY LCASE(?label) OFFSET ?offset LIMIT ?limit", Term.class);
+                "}} ORDER BY LCASE(?label)", Term.class);
         query = setCommonFindAllRootsQueryParams(query);
         query.setDescriptor(descriptorFactory.termDescriptor(vocabularyIri));
         try {

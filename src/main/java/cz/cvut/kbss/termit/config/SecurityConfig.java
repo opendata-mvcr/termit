@@ -21,6 +21,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.ComponentScan;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.context.annotation.Profile;
 import org.springframework.http.HttpHeaders;
 import org.springframework.security.config.annotation.authentication.builders.AuthenticationManagerBuilder;
 import org.springframework.security.config.annotation.method.configuration.EnableGlobalMethodSecurity;
@@ -40,7 +41,7 @@ import java.util.Collections;
 @EnableWebSecurity
 @KeycloakConfiguration
 @EnableGlobalMethodSecurity(prePostEnabled = true)
-@KeycloakConfiguration
+@Profile("!test")
 public class SecurityConfig extends KeycloakWebSecurityConfigurerAdapter {
 
     private final cz.cvut.kbss.termit.util.Configuration config;

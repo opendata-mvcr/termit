@@ -15,7 +15,7 @@ import org.springframework.web.bind.annotation.RestController;
 import java.net.URI;
 import java.util.List;
 
-@PreAuthorize("hasRole('" + SecurityConstants.ROLE_USER + "')")
+@PreAuthorize("isAuthenticated()")
 @RestController
 @RequestMapping("/statistics")
 public class StatisticsController {

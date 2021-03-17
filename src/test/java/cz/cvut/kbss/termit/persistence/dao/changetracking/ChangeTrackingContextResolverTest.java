@@ -14,6 +14,7 @@ import cz.cvut.kbss.termit.persistence.dao.workspace.WorkspaceMetadataProvider;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
+import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
@@ -44,15 +45,13 @@ class ChangeTrackingContextResolverTest {
 
     @BeforeEach
     void setUp() {
-        MockitoAnnotations.initMocks(this);
         final Workspace ws = WorkspaceGenerator.generateWorkspace();
         this.metadata = new WorkspaceMetadata(ws);
-        when(workspaceMetadataProvider.getCurrentWorkspace()).thenReturn(ws);
-        when(workspaceMetadataProvider.getCurrentWorkspaceMetadata()).thenReturn(metadata);
     }
 
     @Test
     void resolveChangeTrackingContextReturnsWorkspaceVocabularyChangeTrackingContextForVocabulary() {
+        when(workspaceMetadataProvider.getCurrentWorkspaceMetadata()).thenReturn(metadata);
         final Vocabulary vocabulary = Generator.generateVocabularyWithId();
         metadata.setVocabularies(Collections.singletonMap(vocabulary.getUri(),
                 new VocabularyInfo(vocabulary.getUri(), vocabulary.getUri(), CHANGE_TRACKING_CTX)));
@@ -63,6 +62,7 @@ class ChangeTrackingContextResolverTest {
 
     @Test
     void resolveChangeTrackingContextReturnsWorkspaceVocabularyChangeTrackingContextForTerm() {
+        when(workspaceMetadataProvider.getCurrentWorkspaceMetadata()).thenReturn(metadata);
         final Vocabulary vocabulary = Generator.generateVocabularyWithId();
         when(vocabularyDao.findVocabularyOfGlossary(vocabulary.getGlossary().getUri()))
                 .thenReturn(Optional.of(vocabulary));

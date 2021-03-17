@@ -811,6 +811,7 @@ class TermDaoTest extends BaseDaoTestRunner {
     @Test
     void subTermLoadingSortsThemByLabel() {
         final Term parent = Generator.generateTermWithId();
+        parent.setGlossary(vocabulary.getGlossary().getUri());
         final List<Term> children = IntStream.range(0, 5).mapToObj(i -> {
             final Term child = Generator.generateTermWithId();
             child.setParentTerms(Collections.singleton(parent));
