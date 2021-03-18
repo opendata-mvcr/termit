@@ -160,7 +160,7 @@ public class TermDao extends WorkspaceBasedAssetDao<Term> {
                     "FILTER (lang(?label) = ?labelLang)" +
                     "}" +
                     "FILTER (?g IN (?graphs))" +
-                    "} ORDER BY ?label", Term.class)
+                    "} ORDER BY LCASE(?label)", Term.class)
                                        .setParameter("graphs", contexts)
                                        .setParameter("labelLang", config.get(ConfigParam.LANGUAGE));
             query = setCommonFindAllRootsQueryParams(query);
@@ -217,7 +217,7 @@ public class TermDao extends WorkspaceBasedAssetDao<Term> {
                     "FILTER (lang(?label) = ?labelLang)" +
                     "}" +
                     "FILTER (?g IN (?graphs))" +
-                    "} ORDER BY ?label", Term.class)
+                    "} ORDER BY LCASE(?label)", Term.class)
                                        .setParameter("type", typeUri)
                                        .setParameter("hasLabel", LABEL_PROP)
                                        .setParameter("graphs", contexts)
@@ -265,7 +265,7 @@ public class TermDao extends WorkspaceBasedAssetDao<Term> {
                     "?hasLabel ?label ." +
                     "FILTER (lang(?label) = ?labelLang) ." +
                     "}" +
-                    "?term ?inVocabulary ?vocabulary. } ORDER BY ?label", Term.class)
+                    "?term ?inVocabulary ?vocabulary. } ORDER BY LCASE(?label)", Term.class)
                                              .setParameter("type", typeUri)
                                              .setParameter("vocabulary", vocabulary.getUri())
                                              .setParameter("g", vocabularyCtx)
@@ -304,7 +304,7 @@ public class TermDao extends WorkspaceBasedAssetDao<Term> {
                     "FILTER CONTAINS(LCASE(?label), LCASE(?searchString)) ." +
                     "}" +
                     "FILTER (?g IN (?graphs))" +
-                    "} ORDER BY ?label", Term.class)
+                    "} ORDER BY LCASE(?label)", Term.class)
                                        .setParameter("type", typeUri)
                                        .setParameter("hasLabel", LABEL_PROP)
                                        .setParameter("graphs", contexts)
@@ -378,7 +378,7 @@ public class TermDao extends WorkspaceBasedAssetDao<Term> {
                 "?inVocabulary ?parent ." +
                 "?vocabulary ?imports* ?parent ." +
                 "FILTER (lang(?label) = ?labelLang) ." +
-                "} ORDER BY ?label", Term.class).setParameter("type", typeUri)
+                "} ORDER BY LCASE(?label)", Term.class).setParameter("type", typeUri)
                                    .setParameter("hasLabel", LABEL_PROP)
                                    .setParameter("inVocabulary",
                                            URI.create(cz.cvut.kbss.termit.util.Vocabulary.s_p_je_pojmem_ze_slovniku))
@@ -405,7 +405,7 @@ public class TermDao extends WorkspaceBasedAssetDao<Term> {
                 "}" +
                 "?entity ?inVocabulary ?vocabulary ." +
                 "FILTER (?g in (?graphs))" +
-                "FILTER (lang(?label) = ?labelLang) . }", "TermInfo")
+                "FILTER (lang(?label) = ?labelLang) . } ORDER BY LCASE(?label)", "TermInfo")
                                                   .setParameter("type", typeUri)
                                                   .setParameter("broader", URI.create(SKOS.BROADER))
                                                   .setParameter("parent", parent)
@@ -416,7 +416,8 @@ public class TermDao extends WorkspaceBasedAssetDao<Term> {
                                                   .setParameter("graphs", graphs)
                                                   .setParameter("labelLang", config.get(ConfigParam.LANGUAGE))
                                                   .getResultStream();
-        parent.setSubTerms(subTermsStream.collect(Collectors.toSet()));
+        // Use LinkedHashSet to preserve term order
+        parent.setSubTerms(subTermsStream.collect(Collectors.toCollection(LinkedHashSet::new)));
     }
 
     /**
@@ -441,7 +442,7 @@ public class TermDao extends WorkspaceBasedAssetDao<Term> {
                 "?hasLabel ?label ." +
                 "?vocabulary ?hasGlossary/?hasTerm ?term ." +
                 "FILTER (lang(?label) = ?labelLang) ." +
-                "}} ORDER BY ?label OFFSET ?offset LIMIT ?limit", Term.class);
+                "}} ORDER BY LCASE(?label)", Term.class);
         query = setCommonFindAllRootsQueryParams(query);
         query.setDescriptor(descriptorFactory.termDescriptor(vocabularyIri));
         try {
@@ -450,11 +451,8 @@ public class TermDao extends WorkspaceBasedAssetDao<Term> {
                                                                        .setParameter("g", vocabularyCtx)
                                                                        .setParameter("labelLang",
                                                                                config.get(ConfigParam.LANGUAGE))
-                                                                       .setUntypedParameter("offset",
-                                                                               pageSpec.getOffset())
-                                                                       .setUntypedParameter("limit",
-                                                                               pageSpec.getPageSize()),
-                    Collections.singleton(vocabularyCtx));
+                                                                       .setMaxResults(pageSpec.getPageSize())
+                                                                       .setFirstResult((int) pageSpec.getOffset()),Collections.singleton(vocabularyCtx));
             result.addAll(loadIncludedTerms(includeTerms));
             return result;
         } catch (RuntimeException e) {
@@ -526,7 +524,7 @@ public class TermDao extends WorkspaceBasedAssetDao<Term> {
                     "FILTER CONTAINS(LCASE(?label), LCASE(?searchString)) ." +
                     "}" +
                     "?term ?inVocabulary ?vocabulary ." +
-                    "} ORDER BY ?label", Term.class)
+                    "} ORDER BY LCASE(?label)", Term.class)
                                              .setParameter("type", typeUri)
                                              .setParameter("hasLabel", LABEL_PROP)
                                              .setParameter("inVocabulary", URI.create(
@@ -622,7 +620,7 @@ public class TermDao extends WorkspaceBasedAssetDao<Term> {
                 "?hasLabel ?label . }" +
                 "FILTER (?g in (?graphs))" +
                 "FILTER (lang(?label) = ?labelLang) ." +
-                "} ORDER BY ?label", Term.class).setParameter("type", typeUri)
+                "} ORDER BY LCASE(?label)", Term.class).setParameter("type", typeUri)
                                          .setParameter("broader", URI.create(SKOS.BROADER))
                                          .setParameter("parent", parent)
                                          .setParameter("hasLabel", LABEL_PROP)
