@@ -1,16 +1,13 @@
 /**
  * TermIt Copyright (C) 2019 Czech Technical University in Prague
  * <p>
- * This program is free software: you can redistribute it and/or modify it under the terms of the GNU General Public
- * License as published by the Free Software Foundation, either version 3 of the License, or (at your option) any later
- * version.
+ * This program is free software: you can redistribute it and/or modify it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation, either version 3 of the License, or (at your option) any later version.
  * <p>
- * This program is distributed in the hope that it will be useful, but WITHOUT ANY WARRANTY; without even the implied
- * warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License for more
- * details.
+ * This program is distributed in the hope that it will be useful, but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License for more details.
  * <p>
- * You should have received a copy of the GNU General Public License along with this program.  If not, see
- * <https://www.gnu.org/licenses/>.
+ * You should have received a copy of the GNU General Public License along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
 package cz.cvut.kbss.termit.service.security;
 
@@ -65,15 +62,15 @@ public class SecurityUtils {
         account.setFirstName(keycloakToken.getGivenName());
         account.setLastName(keycloakToken.getFamilyName());
         account.setUsername(keycloakToken.getPreferredUsername());
-        context.getAuthentication().getAuthorities().stream().map(ga -> UserRole.fromRoleName(ga.getAuthority()))
-               .filter(r -> !r.getType().isEmpty()).forEach(r -> account.addType(r.getType()));
+        context.getAuthentication().getAuthorities().stream().filter(ga -> UserRole.doesRoleExist(ga.getAuthority()))
+                .map(ga -> UserRole.fromRoleName(ga.getAuthority()))
+                .filter(r -> !r.getType().isEmpty()).forEach(r -> account.addType(r.getType()));
         account.setUri(idResolver.generateIdentifier(ConfigParam.NAMESPACE_USER, keycloakToken.getSubject()));
         return account;
     }
 
     /**
-     * Checks if a user is currently authenticated, or if the current thread is processing a request from an anonymous
-     * user.
+     * Checks if a user is currently authenticated, or if the current thread is processing a request from an anonymous user.
      *
      * @return Whether a user is authenticated
      */

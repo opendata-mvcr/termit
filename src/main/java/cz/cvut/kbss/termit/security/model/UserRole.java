@@ -1,27 +1,23 @@
 /**
  * TermIt Copyright (C) 2019 Czech Technical University in Prague
  * <p>
- * This program is free software: you can redistribute it and/or modify it under the terms of the GNU General Public
- * License as published by the Free Software Foundation, either version 3 of the License, or (at your option) any later
- * version.
+ * This program is free software: you can redistribute it and/or modify it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation, either version 3 of the License, or (at your option) any later version.
  * <p>
- * This program is distributed in the hope that it will be useful, but WITHOUT ANY WARRANTY; without even the implied
- * warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License for more
- * details.
+ * This program is distributed in the hope that it will be useful, but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License for more details.
  * <p>
- * You should have received a copy of the GNU General Public License along with this program.  If not, see
- * <https://www.gnu.org/licenses/>.
+ * You should have received a copy of the GNU General Public License along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
 package cz.cvut.kbss.termit.security.model;
 
 import cz.cvut.kbss.termit.util.Vocabulary;
+
 import java.util.Arrays;
 import java.util.HashSet;
 import java.util.Set;
 
-import static cz.cvut.kbss.termit.security.SecurityConstants.ROLE_ADMIN;
-import static cz.cvut.kbss.termit.security.SecurityConstants.ROLE_FULL_USER;
-import static cz.cvut.kbss.termit.security.SecurityConstants.ROLE_RESTRICTED_USER;
+import static cz.cvut.kbss.termit.security.SecurityConstants.*;
 
 /**
  * Represents user roles in the system.
@@ -39,7 +35,7 @@ public enum UserRole {
 
     /**
      * Regular application user.
-     *
+     * <p>
      * Maps to {@link Vocabulary#s_c_plny_uzivatel_termitu}.
      * <p>
      * Does not map to any specific subclass of {@link Vocabulary#s_c_uzivatel_termitu}.
@@ -89,11 +85,27 @@ public enum UserRole {
     }
 
     /**
+     * Checks whether a role with the specifeid name exists.
+     *
+     * @param name Role name
+     * @return Role existence status
+     */
+    public static boolean doesRoleExist(String name) {
+        for (UserRole r : values()) {
+            if (r.name.equals(name)) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    /**
      * Gets role for the specified ontological type.
      *
      * @param type Type to get role for
      * @return Matching role
      * @throws IllegalArgumentException If no matching role exists
+     * @see #exists(String)
      */
     public static UserRole fromType(String type) {
         for (UserRole r : values()) {
@@ -110,6 +122,7 @@ public enum UserRole {
      * @param roleName Role name
      * @return Matching role
      * @throws IllegalArgumentException If no matching role exists
+     * @see #doesRoleExist(String)
      */
     public static UserRole fromRoleName(String roleName) {
         for (UserRole r : values()) {
