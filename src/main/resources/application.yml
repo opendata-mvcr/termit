@@ -12,6 +12,8 @@ spring:
       max-request-size: 20MB
       file-size-threshold: 0B
       location: ${java.io.tmpdir}
+  profiles:
+    active: @spring.profiles.active@
 
 keycloak:
   realm: kodi

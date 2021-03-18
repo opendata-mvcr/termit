@@ -38,6 +38,8 @@
         <!-- Default value for deployment type property which should otherwise specified on command line -->
         <deployment>DEV</deployment>
         <packaging>jar</packaging>
+        <!-- Do not activate any Spring profiles by default -->
+        <spring.profiles.active/>
     </properties>
 
     <dependencyManagement>
