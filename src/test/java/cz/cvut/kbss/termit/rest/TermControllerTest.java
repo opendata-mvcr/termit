@@ -988,7 +988,8 @@ class TermControllerTest extends BaseControllerTestRunner {
 
     @Test
     void updateStatusStandaloneSetsTermStatusToSpecifiedValue() throws Exception {
-        final URI termUri = initTermUriResolution();
+        final URI termUri = URI.create(TERM_URI);
+        when(idResolverMock.resolveIdentifier(NAMESPACE, TERM_NAME)).thenReturn(termUri);
         final Term term = Generator.generateTerm();
         term.setUri(termUri);
         when(termServiceMock.getRequiredReference(term.getUri())).thenReturn(term);

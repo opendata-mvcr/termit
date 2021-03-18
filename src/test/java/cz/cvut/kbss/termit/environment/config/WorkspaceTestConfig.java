@@ -10,8 +10,8 @@ import cz.cvut.kbss.termit.persistence.dao.workspace.WorkspaceDao;
 import cz.cvut.kbss.termit.persistence.dao.workspace.WorkspaceMetadataProvider;
 import cz.cvut.kbss.termit.util.Constants;
 import cz.cvut.kbss.termit.workspace.WorkspaceStore;
+import org.springframework.boot.test.context.TestConfiguration;
 import org.springframework.context.annotation.Bean;
-import org.springframework.context.annotation.Configuration;
 import org.springframework.context.annotation.Primary;
 import org.springframework.mock.web.MockHttpSession;
 
@@ -21,7 +21,7 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.doReturn;
 import static org.mockito.Mockito.spy;
 
-@Configuration
+@TestConfiguration
 public class WorkspaceTestConfig {
 
     public static URI DEFAULT_WORKSPACE = Generator.generateUri();

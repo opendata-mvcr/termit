@@ -3,18 +3,19 @@ package cz.cvut.kbss.termit.config.keycloak;
 import cz.cvut.kbss.termit.exception.ConfigurationException;
 import cz.cvut.kbss.termit.util.ConfigParam;
 import cz.cvut.kbss.termit.util.Configuration;
-import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.extension.ExtendWith;
 import org.keycloak.adapters.KeycloakDeployment;
 import org.keycloak.adapters.spi.HttpFacade;
 import org.mockito.Mock;
-import org.mockito.MockitoAnnotations;
+import org.mockito.junit.jupiter.MockitoExtension;
 
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.containsString;
 import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.Mockito.when;
 
+@ExtendWith(MockitoExtension.class)
 class CustomKeycloakConfigResolverTest {
 
     @Mock
@@ -22,11 +23,6 @@ class CustomKeycloakConfigResolverTest {
 
     @Mock
     private HttpFacade.Request facade;
-
-    @BeforeEach
-    void setUp() {
-        MockitoAnnotations.initMocks(this);
-    }
 
     @Test
     void resolvesBasicKeycloakConfigurationFromConfigFile() {
