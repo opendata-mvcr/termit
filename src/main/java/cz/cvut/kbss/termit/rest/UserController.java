@@ -47,8 +47,7 @@ public class UserController extends BaseController {
         return userService.findAll();
     }
 
-    @GetMapping(value = "/current", produces = {MediaType.APPLICATION_JSON_VALUE,
-            JsonLd.MEDIA_TYPE})
+    @GetMapping(value = "/current", produces = {MediaType.APPLICATION_JSON_VALUE, JsonLd.MEDIA_TYPE})
     public UserAccount getCurrent() {
         return userService.getCurrent();
     }

@@ -39,12 +39,6 @@ public class TermItUserDetails implements UserDetails {
 
     private final Set<GrantedAuthority> authorities;
 
-    public TermItUserDetails(UserAccount user) {
-        Objects.requireNonNull(user);
-        this.user = user;
-        this.authorities = resolveAuthorities(user);
-    }
-
     public TermItUserDetails(UserAccount user, Collection<GrantedAuthority> authorities) {
         Objects.requireNonNull(user);
         Objects.requireNonNull(authorities);
