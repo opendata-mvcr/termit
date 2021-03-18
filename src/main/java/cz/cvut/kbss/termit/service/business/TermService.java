@@ -14,8 +14,6 @@ import cz.cvut.kbss.termit.service.comment.CommentService;
 import cz.cvut.kbss.termit.service.export.VocabularyExporters;
 import cz.cvut.kbss.termit.service.repository.ChangeRecordService;
 import cz.cvut.kbss.termit.service.repository.TermRepositoryService;
-import cz.cvut.kbss.termit.util.ConfigParam;
-import cz.cvut.kbss.termit.util.Configuration;
 import cz.cvut.kbss.termit.util.TypeAwareResource;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.domain.Pageable;
@@ -44,20 +42,17 @@ public class TermService implements RudService<Term>, ChangeRecordProvider<Term>
 
     private final CommentService commentService;
 
-    private final Configuration config;
-
     @Autowired
     public TermService(VocabularyExporters exporters, VocabularyService vocabularyService,
                        TermRepositoryService repositoryService,
                        TermOccurrenceService termOccurrenceService, ChangeRecordService changeRecordService,
-                       CommentService commentService, Configuration config) {
+                       CommentService commentService) {
         this.exporters = exporters;
         this.vocabularyService = vocabularyService;
         this.repositoryService = repositoryService;
         this.termOccurrenceService = termOccurrenceService;
         this.changeRecordService = changeRecordService;
         this.commentService = commentService;
-        this.config = config;
     }
 
     /**
@@ -77,7 +72,7 @@ public class TermService implements RudService<Term>, ChangeRecordProvider<Term>
     /**
      * Gets a page of all root terms available in the current workspace.
      * <p>
-     * That is, terms without parent term
+     * That is, terms without a parent term.
      *
      * @param pageSpec Page specification
      * @return Content of matching page of root terms
@@ -85,6 +80,19 @@ public class TermService implements RudService<Term>, ChangeRecordProvider<Term>
     public List<Term> findAllRoots(Pageable pageSpec) {
         Objects.requireNonNull(pageSpec);
         return repositoryService.findAllRoots(pageSpec);
+    }
+
+    /**
+     * Gets a page of all root terms available in the current workspace and in the canonical container.
+     * <p>
+     * That is, terms without a parent term.
+     *
+     * @param pageSpec Page specification
+     * @return Content of matching page of root terms
+     */
+    public List<Term> findAllRootsIncludingCanonical(Pageable pageSpec) {
+        Objects.requireNonNull(pageSpec);
+        return repositoryService.findAllRootsIncludingCanonical(pageSpec);
     }
 
     /**
@@ -99,6 +107,18 @@ public class TermService implements RudService<Term>, ChangeRecordProvider<Term>
     }
 
     /**
+     * Gets a page of all terms available in the current workspace and in the canonical container, regardless of their
+     * position in the SKOS hierarchy.
+     *
+     * @param pageSpec Page specification
+     * @return Content of matching page of terms
+     */
+    public List<Term> findAllIncludingCanonical(Pageable pageSpec) {
+        Objects.requireNonNull(pageSpec);
+        return repositoryService.findAllIncludingCanonical(pageSpec);
+    }
+
+    /**
      * Finds all terms which match the specified search string in the current workspace.
      *
      * @param searchString Search string
@@ -107,6 +127,17 @@ public class TermService implements RudService<Term>, ChangeRecordProvider<Term>
     public List<Term> findAll(String searchString) {
         Objects.requireNonNull(searchString);
         return repositoryService.findAll(searchString);
+    }
+
+    /**
+     * Finds all terms which match the specified search string in the current workspace or in the canonical container.
+     *
+     * @param searchString Search string
+     * @return Matching terms
+     */
+    public List<Term> findAllIncludingCanonical(String searchString) {
+        Objects.requireNonNull(searchString);
+        return repositoryService.findAllIncludingCanonical(searchString);
     }
 
     /**
@@ -268,12 +299,7 @@ public class TermService implements RudService<Term>, ChangeRecordProvider<Term>
      */
     public List<Term> findSubTerms(Term parent) {
         Objects.requireNonNull(parent);
-        return parent.getSubTerms() == null ? Collections.emptyList() :
-               parent.getSubTerms().stream().map(u -> repositoryService.find(u.getUri()).orElseThrow(
-                       () -> new NotFoundException(
-                               "Child of term " + parent + " with id " + u.getUri() + " not found!")))
-                     .sorted(Comparator.comparing((Term t) -> t.getLabel().get(config.get(ConfigParam.LANGUAGE))))
-                     .collect(Collectors.toList());
+        return repositoryService.findSubTerms(parent);
     }
 
     /**

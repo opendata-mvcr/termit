@@ -1,5 +1,7 @@
 package cz.cvut.kbss.termit.service.repository;
 
+import cz.cvut.kbss.termit.dto.workspace.WorkspaceDto;
+import cz.cvut.kbss.termit.dto.workspace.WorkspaceMetadata;
 import cz.cvut.kbss.termit.exception.NotFoundException;
 import cz.cvut.kbss.termit.model.Workspace;
 import cz.cvut.kbss.termit.persistence.dao.workspace.WorkspaceDao;
@@ -12,6 +14,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
 import java.net.URI;
+import java.util.HashSet;
 
 @Service
 public class WorkspaceRepositoryService implements WorkspaceService {
@@ -33,24 +36,29 @@ public class WorkspaceRepositoryService implements WorkspaceService {
     }
 
     @Override
-    public Workspace loadWorkspace(URI id) {
+    public WorkspaceDto loadWorkspace(URI id) {
         LOG.trace("Loading workspace {}.", id);
         final Workspace ws = workspaceDao.find(id).orElseThrow(
                 () -> NotFoundException.create(Workspace.class.getSimpleName(), id));
         LOG.trace("Storing workspace ID in session.");
         workspaceStore.setCurrentWorkspace(id);
         workspaceMetadataProvider.loadWorkspace(ws);
-        return ws;
-    }
-
-    @Override
-    public Workspace loadCurrentWorkspace() {
-        // TODO
-        return null;
+        final WorkspaceDto result = new WorkspaceDto(ws);
+        final WorkspaceMetadata metadata = workspaceMetadataProvider.getCurrentWorkspaceMetadata();
+        result.setVocabularies(new HashSet<>(metadata.getVocabularies().keySet()));
+        return result;
     }
 
     @Override
     public Workspace getCurrentWorkspace() {
         return workspaceMetadataProvider.getCurrentWorkspace();
+    }
+
+    @Override
+    public WorkspaceDto getCurrentWorkspaceWithMetadata() {
+        final WorkspaceDto result = new WorkspaceDto(getCurrentWorkspace());
+        final WorkspaceMetadata metadata = workspaceMetadataProvider.getCurrentWorkspaceMetadata();
+        result.setVocabularies(new HashSet<>(metadata.getVocabularies().keySet()));
+        return result;
     }
 }

@@ -82,13 +82,13 @@ public enum ConfigParam {
     /**
      * Separator of File namespace from the parent Document identifier.
      * <p>
-     * Since File identifier is given by the identifier of the Document it belongs to and its own normalized label,
-     * this separator is used to (optionally) configure the File identifier namespace.
+     * Since File identifier is given by the identifier of the Document it belongs to and its own normalized label, this
+     * separator is used to (optionally) configure the File identifier namespace.
      * <p>
      * For example, if we have a Document with IRI {@code http://www.example.org/ontologies/resources/metropolitan-plan}
      * and a File with normalized label {@code main-file}, the resulting IRI will be {@code
-     * http://www.example.org/ontologies/resources/metropolitan-plan/SEPARATOR/main-file}, where 'SEPARATOR' is
-     * the value of this configuration parameter.
+     * http://www.example.org/ontologies/resources/metropolitan-plan/SEPARATOR/main-file}, where 'SEPARATOR' is the
+     * value of this configuration parameter.
      * <p>
      * Defaults to {@link Constants#DEFAULT_FILE_NAMESPACE_SEPARATOR}.
      */
@@ -135,6 +135,17 @@ public enum ConfigParam {
      * IRI of the repository context used to store comments (discussion to assets)
      */
     COMMENTS_CONTEXT("comments.context"),
+
+    /**
+     * Identifier of the container of the cache of canonical vocabularies
+     * <p>
+     * Terms are edited in a workspace, but there also exists a container of canonical versions of the vocabularies
+     * editable in TermIt. These canonical vocabularies are read-only, reviewed and published versions of the
+     * vocabularies edited in the workspaces. This container is also cached in the TermIt repository, allowing terms to
+     * reference these canonical versions of vocabularies and terms so that there is no need to import a vocabulary into
+     * a workspace just because one of its terms is to be referenced by one of the terms in the workspace.
+     */
+    CANONICAL_CACHE_CONTAINER_IRI("canonical.cache.container"),
 
     /**
      * Allowed origin for CORS configuration.

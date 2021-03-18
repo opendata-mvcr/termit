@@ -619,7 +619,7 @@ class TermControllerTest extends BaseControllerTestRunner {
         final Term term = Generator.generateTerm();
         term.setUri(termUri);
         when(idResolverMock.resolveIdentifier(NAMESPACE, TERM_NAME)).thenReturn(termUri);
-        when(termServiceMock.findRequired(term.getUri())).thenReturn(term);
+        when(termServiceMock.getRequiredReference(term.getUri())).thenReturn(term);
         final List<Term> children = Generator.generateTermsWithIds(3);
         when(termServiceMock.findSubTerms(term)).thenReturn(children);
 
@@ -1041,5 +1041,47 @@ class TermControllerTest extends BaseControllerTestRunner {
         });
         assertEquals(terms, result);
         verify(termServiceMock).findAll(searchString);
+    }
+
+    @Test
+    void getAllStandaloneRetrievesAllTermsIncludingCanonicalWhenIncludeCanonicalIsTrue() throws Exception {
+        final List<Term> terms = Generator.generateTermsWithIds(5);
+        when(termServiceMock.findAllIncludingCanonical(any(Pageable.class))).thenReturn(terms);
+        final MvcResult mvcResult = mockMvc.perform(get("/terms")
+                .queryParam("includeCanonical", Boolean.TRUE.toString())
+                .accept(MediaType.APPLICATION_JSON)).andExpect(status().isOk()).andReturn();
+        final List<Term> result = readValue(mvcResult, new TypeReference<List<Term>>() {
+        });
+        assertEquals(terms, result);
+        verify(termServiceMock).findAllIncludingCanonical(DEFAULT_PAGE_SPEC);
+    }
+
+    @Test
+    void getAllStandaloneWithSearchStringRetrievesAllTermsIncludingCanonicalWhenIncludeCanonicalIsTrue() throws Exception {
+        final List<Term> terms = Generator.generateTermsWithIds(5);
+        when(termServiceMock.findAllIncludingCanonical(anyString())).thenReturn(terms);
+        final String searchString = "search string";
+        final MvcResult mvcResult = mockMvc.perform(get("/terms")
+                .queryParam("searchString", searchString)
+                .queryParam("includeCanonical", Boolean.TRUE.toString())
+                .accept(MediaType.APPLICATION_JSON)).andExpect(status().isOk()).andReturn();
+        final List<Term> result = readValue(mvcResult, new TypeReference<List<Term>>() {
+        });
+        assertEquals(terms, result);
+        verify(termServiceMock).findAllIncludingCanonical(searchString);
+    }
+
+    @Test
+    void getAllStandaloneRetrievesAllRootTermsIncludingCanonicalWhenIncludeCanonicalIsTrue() throws Exception {
+        final List<Term> terms = Generator.generateTermsWithIds(5);
+        when(termServiceMock.findAllRootsIncludingCanonical(any(Pageable.class))).thenReturn(terms);
+        final MvcResult mvcResult = mockMvc.perform(get("/terms")
+                .queryParam("includeCanonical", Boolean.TRUE.toString())
+                .queryParam("rootsOnly", Boolean.TRUE.toString())
+                .accept(MediaType.APPLICATION_JSON)).andExpect(status().isOk()).andReturn();
+        final List<Term> result = readValue(mvcResult, new TypeReference<List<Term>>() {
+        });
+        assertEquals(terms, result);
+        verify(termServiceMock).findAllRootsIncludingCanonical(DEFAULT_PAGE_SPEC);
     }
 }

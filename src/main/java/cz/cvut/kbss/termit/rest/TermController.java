@@ -68,12 +68,18 @@ public class TermController extends BaseController {
     @GetMapping(value = "/terms", produces = {JsonLd.MEDIA_TYPE, MediaType.APPLICATION_JSON_VALUE})
     public List<Term> getAll(@RequestParam(required = false, defaultValue = "false") boolean rootsOnly,
                              @RequestParam(required = false) String searchString,
+                             @RequestParam(required = false, defaultValue = "false") boolean includeCanonical,
                              @RequestParam(name = QueryParams.PAGE_SIZE, required = false) Integer pageSize,
                              @RequestParam(name = QueryParams.PAGE, required = false) Integer pageNo) {
         if (searchString != null && !searchString.trim().isEmpty()) {
-            return termService.findAll(searchString);
+            return includeCanonical ? termService.findAllIncludingCanonical(searchString) :
+                   termService.findAll(searchString);
         }
         final Pageable pageSpec = createPageRequest(pageSize, pageNo);
+        if (includeCanonical) {
+            return rootsOnly ? termService.findAllRootsIncludingCanonical(pageSpec) :
+                   termService.findAllIncludingCanonical(pageSpec);
+        }
         return rootsOnly ? termService.findAllRoots(pageSpec) : termService.findAll(pageSpec);
     }
 
@@ -374,7 +380,8 @@ public class TermController extends BaseController {
             produces = {MediaType.APPLICATION_JSON_VALUE, JsonLd.MEDIA_TYPE})
     public List<Term> getSubTerms(@PathVariable("termIdFragment") String termIdFragment,
                                   @RequestParam(name = QueryParams.NAMESPACE) String namespace) {
-        final Term parent = getById(termIdFragment, namespace);
+        final URI termUri = idResolver.resolveIdentifier(namespace, termIdFragment);
+        final Term parent = termService.getRequiredReference(termUri);
         return termService.findSubTerms(parent);
     }
 

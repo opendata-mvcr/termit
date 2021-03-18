@@ -3,6 +3,7 @@ package cz.cvut.kbss.termit.persistence;
 import cz.cvut.kbss.jopa.model.EntityManagerFactory;
 import cz.cvut.kbss.jopa.model.metamodel.Metamodel;
 import cz.cvut.kbss.termit.model.Workspace;
+import cz.cvut.kbss.termit.persistence.dao.CanonicalCacheContainerDao;
 import cz.cvut.kbss.termit.persistence.dao.workspace.WorkspaceMetadataProvider;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
@@ -16,11 +17,15 @@ public class PersistenceUtils {
 
     private final WorkspaceMetadataProvider workspaceMetadataProvider;
 
+    private final CanonicalCacheContainerDao canonicalCacheContainerDao;
+
     private final EntityManagerFactory emf;
 
     @Autowired
-    public PersistenceUtils(WorkspaceMetadataProvider workspaceMetadataProvider, EntityManagerFactory emf) {
+    public PersistenceUtils(WorkspaceMetadataProvider workspaceMetadataProvider,
+                            CanonicalCacheContainerDao canonicalCacheContainerDao, EntityManagerFactory emf) {
         this.workspaceMetadataProvider = workspaceMetadataProvider;
+        this.canonicalCacheContainerDao = canonicalCacheContainerDao;
         this.emf = emf;
     }
 
@@ -29,13 +34,12 @@ public class PersistenceUtils {
      *
      * @return Current workspace IRI
      */
-    public URI getCurrentWorkspace() {
-        return workspaceMetadataProvider.getCurrentWorkspace().getUri();
+    public Workspace getCurrentWorkspace() {
+        return workspaceMetadataProvider.getCurrentWorkspace();
     }
 
     /**
-     * Determines the identifier of the repository context (named graph) in which vocabulary with the specified
-     * identifier is stored.
+     * Determines the identifier of the repository context (named graph) in which vocabulary with the specified identifier is stored.
      *
      * @param vocabularyUri Vocabulary identifier
      * @return Repository context identifier
@@ -46,8 +50,8 @@ public class PersistenceUtils {
     }
 
     /**
-     * Determines the identifier of the repository context (named graph) in which vocabulary with the specified
-     * identifier is stored in the specified workspace.
+     * Determines the identifier of the repository context (named graph) in which vocabulary with the specified identifier is stored in the
+     * specified workspace.
      *
      * @param workspace     Workspace containing the vocabulary
      * @param vocabularyUri Vocabulary identifier
@@ -86,6 +90,19 @@ public class PersistenceUtils {
      */
     public Set<URI> getCurrentWorkspaceChangeTrackingContexts() {
         return workspaceMetadataProvider.getCurrentWorkspaceMetadata().getChangeTrackingContexts();
+    }
+
+    /**
+     * Retrieves unique vocabulary contexts referenced by the canonical container.
+     * <p>
+     * The vocabulary contexts are unique in the sense that their working versions are not referenced by the current workspace. So the
+     * result is basically the set of canonical container vocabulary contexts minus those whose working versions exist in the current
+     * workspace.
+     *
+     * @return Set of canonical container vocabularies whose working versions are not in the current workspace
+     */
+    public Set<URI> getCanonicalContainerContexts() {
+        return canonicalCacheContainerDao.findUniqueCanonicalCacheContexts(getCurrentWorkspace());
     }
 
     /**
