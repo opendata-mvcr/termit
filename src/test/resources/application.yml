@@ -17,3 +17,6 @@ file:
   storage: /tmp/termit
 textAnalysis:
   url:
+canonical:
+  cache:
+    container: https://slovník.gov.cz

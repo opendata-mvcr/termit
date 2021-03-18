@@ -10,25 +10,27 @@ import cz.cvut.kbss.termit.model.assignment.FileOccurrenceTarget;
 import cz.cvut.kbss.termit.model.assignment.TermDefinitionSource;
 import cz.cvut.kbss.termit.model.comment.Comment;
 import cz.cvut.kbss.termit.model.util.TermStatus;
-import cz.cvut.kbss.termit.service.BaseServiceTestRunner;
 import cz.cvut.kbss.termit.service.comment.CommentService;
 import cz.cvut.kbss.termit.service.export.VocabularyExporters;
 import cz.cvut.kbss.termit.service.export.util.TypeAwareByteArrayResource;
 import cz.cvut.kbss.termit.service.repository.ChangeRecordService;
 import cz.cvut.kbss.termit.service.repository.TermRepositoryService;
-import cz.cvut.kbss.termit.util.*;
-import org.junit.jupiter.api.BeforeEach;
+import cz.cvut.kbss.termit.util.Constants;
+import cz.cvut.kbss.termit.util.CsvUtils;
+import cz.cvut.kbss.termit.util.TypeAwareResource;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
-import org.mockito.MockitoAnnotations;
+import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
-import org.mockito.junit.jupiter.MockitoExtension;
 
 import java.net.URI;
-import java.util.*;
+import java.util.Collections;
+import java.util.Date;
+import java.util.List;
+import java.util.Optional;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 
@@ -58,13 +60,10 @@ class TermServiceTest {
     @Mock
     private CommentService commentService;
 
-    @Mock
-    private Configuration configuration;
-
     @InjectMocks
     private TermService sut;
 
-    private Vocabulary vocabulary = Generator.generateVocabularyWithId();
+    private final Vocabulary vocabulary = Generator.generateVocabularyWithId();
 
     @Test
     void exportGlossaryGetsGlossaryExportForSpecifiedVocabularyFromExporters() {
@@ -166,7 +165,7 @@ class TermServiceTest {
     void findSubTermsLoadsChildTermsOfTermUsingRepositoryService() {
         final Term parent = generateTermWithId();
         final List<Term> children = IntStream.range(0, 5).mapToObj(i -> generateTermWithId())
-                                             .collect(Collectors.toList());
+                .collect(Collectors.toList());
         parent.setSubTerms(children.stream().map(TermInfo::new).collect(Collectors.toSet()));
         when(termRepositoryService.findSubTerms(parent)).thenReturn(children);
 
@@ -313,21 +312,6 @@ class TermServiceTest {
         comment.setContent("test comment");
         sut.addComment(comment, term);
         verify(commentService).addToAsset(comment, term);
-    }
-
-    @Test
-    void findSubTermsReturnsSubTermsSortedByLabel() {
-        final Term parent = generateTermWithId();
-        final List<Term> children = IntStream.range(0, 5).mapToObj(i -> {
-            final Term child = generateTermWithId();
-            when(termRepositoryService.find(child.getUri())).thenReturn(Optional.of(child));
-            return child;
-        }).collect(Collectors.toList());
-        parent.setSubTerms(children.stream().map(TermInfo::new).collect(Collectors.toSet()));
-
-        final List<Term> result = sut.findSubTerms(parent);
-        children.sort(Comparator.comparing((Term t) -> t.getLabel().get(Constants.DEFAULT_LANGUAGE)));
-        assertEquals(children, result);
     }
 
     @Test
