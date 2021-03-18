@@ -18,13 +18,9 @@ public class ConfigurationProvider {
 
     private final Configuration config;
 
-    private final UserRoleRepositoryService service;
-
     @Autowired
-    public ConfigurationProvider(Configuration config,
-                                 UserRoleRepositoryService service) {
+    public ConfigurationProvider(Configuration config) {
         this.config = config;
-        this.service = service;
     }
 
     /**
@@ -36,7 +32,6 @@ public class ConfigurationProvider {
         final ConfigurationDto result = new ConfigurationDto();
         result.setId(URI.create(Vocabulary.s_c_konfigurace + "/default"));
         result.setLanguage(config.get(ConfigParam.LANGUAGE));
-        result.setRoles(new HashSet<>(service.findAll()));
         return result;
     }
 }

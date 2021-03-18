@@ -26,11 +26,7 @@ public class ConfigurationController {
     }
 
     @GetMapping(produces = {MediaType.APPLICATION_JSON_VALUE, JsonLd.MEDIA_TYPE})
-    public ConfigurationDto getConfiguration(Authentication auth) {
-        final ConfigurationDto result = configProvider.getConfiguration();
-        if (auth == null || !auth.isAuthenticated()) {
-            result.setRoles(null);
-        }
-        return result;
+    public ConfigurationDto getConfiguration() {
+        return configProvider.getConfiguration();
     }
 }
