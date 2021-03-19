@@ -15,12 +15,12 @@
 package cz.cvut.kbss.termit.persistence.dao;
 
 import cz.cvut.kbss.jopa.model.EntityManager;
-import cz.cvut.kbss.jopa.model.query.Query;
-import cz.cvut.kbss.jopa.model.query.TypedQuery;
+import cz.cvut.kbss.termit.dto.RecentlyCommentedAsset;
 import cz.cvut.kbss.termit.dto.RecentlyModifiedAsset;
 import cz.cvut.kbss.termit.exception.PersistenceException;
 import cz.cvut.kbss.termit.model.Asset;
 import cz.cvut.kbss.termit.model.User;
+import cz.cvut.kbss.termit.model.comment.Comment;
 import cz.cvut.kbss.termit.persistence.DescriptorFactory;
 import cz.cvut.kbss.termit.util.ConfigParam;
 import cz.cvut.kbss.termit.util.Configuration;
@@ -28,6 +28,7 @@ import cz.cvut.kbss.termit.util.Vocabulary;
 
 import java.net.URI;
 import java.util.List;
+import java.util.Objects;
 import java.util.stream.Collectors;
 
 /**
@@ -54,7 +55,55 @@ public abstract class AssetDao<T extends Asset<?>> extends BaseDao<T> {
      * @return List of recently added/edited assets
      */
     public List<RecentlyModifiedAsset> findLastEdited(int limit) {
-        return findLastEditedBy(null, limit);
+        try {
+            final List<URI> recentlyModifiedUniqueAssets = findUniqueLastModifiedEntities(limit);
+            final List<RecentlyModifiedAsset> modified = recentlyModifiedUniqueAssets.stream().map(asset -> {
+                        return (RecentlyModifiedAsset) em
+                                .createNativeQuery(
+                                        "SELECT DISTINCT ?entity ?label ?modified ?modifiedBy ?vocabulary ?type ?changeType WHERE {" +
+                                                "?x a ?change ;" +
+                                                "   a ?chType ;" +
+                                                "?hasModifiedEntity ?ent ;" +
+                                                "?hasEditor ?modifiedBy ;" +
+                                                "?hasModificationDate ?modified ." +
+                                                "?ent ?hasLabel ?label ." +
+                                                "OPTIONAL { ?ent ?isFromVocabulary ?vocabulary . }" +
+                                                "BIND (?cls as ?type)" +
+                                                "BIND (?ent as ?entity)" +
+                                                "FILTER (?chType != ?change)" +
+                                                "BIND (IF(?chType = ?persist, ?persist, ?update) as ?changeType)" +
+                                                "FILTER (lang(?label) = ?language)" +
+                                                "} ORDER BY DESC(?modified)", "RecentlyModifiedAsset")
+                                .setParameter("cls", typeUri)
+                                .setParameter("ent", asset)
+                                .setParameter("change", URI.create(Vocabulary.s_c_zmena))
+                                .setParameter("hasLabel", labelProperty())
+                                .setParameter("hasModifiedEntity", URI.create(Vocabulary.s_p_ma_zmenenou_entitu))
+                                .setParameter("hasEditor", URI.create(Vocabulary.s_p_ma_editora))
+                                .setParameter("hasModificationDate", URI.create(Vocabulary.s_p_ma_datum_a_cas_modifikace))
+                                .setParameter("isFromVocabulary", URI.create(Vocabulary.s_p_je_pojmem_ze_slovniku))
+                                .setParameter("persist", URI.create(Vocabulary.s_c_vytvoreni_entity))
+                                .setParameter("update", URI.create(Vocabulary.s_c_uprava_entity))
+                                .setParameter("language", config.get(ConfigParam.LANGUAGE)).setMaxResults(1).getSingleResult();
+                    }
+            ).collect(Collectors.toList());
+            loadLastEditors(modified);
+            return modified;
+        } catch (RuntimeException e) {
+            throw new PersistenceException(e);
+        }
+    }
+
+    List<URI> findUniqueLastModifiedEntities(int limit) {
+        return em.createNativeQuery("SELECT DISTINCT ?entity WHERE {" +
+                "?x a ?change ;" +
+                "?hasModificationDate ?modified ;" +
+                "?hasModifiedEntity ?entity ." +
+                "?entity a ?type ." +
+                "} ORDER BY DESC(?modified)", URI.class).setParameter("change", URI.create(Vocabulary.s_c_zmena))
+                 .setParameter("hasModificationDate", URI.create(Vocabulary.s_p_ma_datum_a_cas_modifikace))
+                 .setParameter("hasModifiedEntity", URI.create(Vocabulary.s_p_ma_zmenenou_entitu))
+                 .setParameter("type", typeUri).setMaxResults(limit).getResultList();
     }
 
     protected void loadLastEditors(List<RecentlyModifiedAsset> modified) {
@@ -69,66 +118,197 @@ public abstract class AssetDao<T extends Asset<?>> extends BaseDao<T> {
      * @return List of assets recently added/edited by the specified user
      */
     public List<RecentlyModifiedAsset> findLastEditedBy(User author, int limit) {
+        Objects.requireNonNull(author);
         try {
             final List<URI> recentlyModifiedUniqueAssets = findUniqueLastModifiedEntitiesBy(author, limit);
-            final List<RecentlyModifiedAsset> modified = recentlyModifiedUniqueAssets.stream().map(asset -> {
-                final Query q = em
-                        .createNativeQuery(
-                                "SELECT DISTINCT ?entity ?label ?modified ?modifiedBy ?vocabulary ?type ?changeType WHERE {" +
-                                        "?x a ?change ;" +
-                                        "   a ?chType ;" +
-                                        "?hasModifiedEntity ?ent ;" +
-                                        "?hasEditor ?author ;" +
-                                        "?hasModificationDate ?modified ." +
-                                        "?ent ?hasLabel ?label ." +
-                                        "OPTIONAL { ?ent ?isFromVocabulary ?vocabulary . }" +
-                                        "BIND (?cls as ?type)" +
-                                        "BIND (?ent as ?entity)" +
-                                        "BIND (?author as ?modifiedBy)" +
-                                        "FILTER (?chType != ?change)" +
-                                        "BIND (IF(?chType = ?persist, ?persist, ?update) as ?changeType)" +
-                                        "FILTER (lang(?label) = ?language)" +
-                                        "} ORDER BY DESC(?modified)", "RecentlyModifiedAsset")
-                        .setParameter("cls", typeUri)
-                        .setParameter("ent", asset)
-                        .setParameter("change", URI.create(Vocabulary.s_c_zmena))
-                        .setParameter("hasLabel", labelProperty())
-                        .setParameter("hasModifiedEntity", URI.create(Vocabulary.s_p_ma_zmenenou_entitu))
-                        .setParameter("hasEditor", URI.create(Vocabulary.s_p_ma_editora))
-                        .setParameter("hasModificationDate", URI.create(Vocabulary.s_p_ma_datum_a_cas_modifikace))
-                        .setParameter("isFromVocabulary", URI.create(Vocabulary.s_p_je_pojmem_ze_slovniku))
-                        .setParameter("persist", URI.create(Vocabulary.s_c_vytvoreni_entity))
-                        .setParameter("update", URI.create(Vocabulary.s_c_uprava_entity))
-                        .setParameter("language", config.get(ConfigParam.LANGUAGE)).setMaxResults(1);
-                if (author != null) {
-                    q.setParameter("author", author);
-                }
-                return (RecentlyModifiedAsset) q.getSingleResult();
-            }).collect(Collectors.toList());
-            loadLastEditors(modified);
-            return modified;
+            return recentlyModifiedUniqueAssets.stream().map(asset -> {
+                        final RecentlyModifiedAsset rec = (RecentlyModifiedAsset) em
+                                .createNativeQuery(
+                                        "SELECT DISTINCT ?entity ?label ?modified ?modifiedBy ?vocabulary ?type ?changeType WHERE {" +
+                                                "?x a ?change ;" +
+                                                "   a ?chType ;" +
+                                                "?hasModifiedEntity ?ent ;" +
+                                                "?hasEditor ?author ;" +
+                                                "?hasModificationDate ?modified ." +
+                                                "?ent ?hasLabel ?label ." +
+                                                "OPTIONAL { ?ent ?isFromVocabulary ?vocabulary . }" +
+                                                "BIND (?cls as ?type)" +
+                                                "BIND (?ent as ?entity)" +
+                                                "BIND (?author as ?modifiedBy)" +
+                                                "FILTER (?chType != ?change)" +
+                                                "BIND (IF(?chType = ?persist, ?persist, ?update) as ?changeType)" +
+                                                "FILTER (lang(?label) = ?language)" +
+                                                "} ORDER BY DESC(?modified)", "RecentlyModifiedAsset")
+                                .setParameter("cls", typeUri)
+                                .setParameter("ent", asset)
+                                .setParameter("change", URI.create(Vocabulary.s_c_zmena))
+                                .setParameter("hasLabel", labelProperty())
+                                .setParameter("hasModifiedEntity", URI.create(Vocabulary.s_p_ma_zmenenou_entitu))
+                                .setParameter("hasEditor", URI.create(Vocabulary.s_p_ma_editora))
+                                .setParameter("author", author)
+                                .setParameter("hasModificationDate", URI.create(Vocabulary.s_p_ma_datum_a_cas_modifikace))
+                                .setParameter("isFromVocabulary", URI.create(Vocabulary.s_p_je_pojmem_ze_slovniku))
+                                .setParameter("persist", URI.create(Vocabulary.s_c_vytvoreni_entity))
+                                .setParameter("update", URI.create(Vocabulary.s_c_uprava_entity))
+                                .setParameter("language", config.get(ConfigParam.LANGUAGE)).setMaxResults(1).getSingleResult();
+                        rec.setEditor(author);
+                        return rec;
+                    }
+            ).collect(Collectors.toList());
         } catch (RuntimeException e) {
             throw new PersistenceException(e);
         }
     }
 
     List<URI> findUniqueLastModifiedEntitiesBy(User author, int limit) {
-        final TypedQuery<URI> q = em.createNativeQuery("SELECT DISTINCT ?entity WHERE {" +
+        return em.createNativeQuery("SELECT DISTINCT ?entity WHERE {" +
                 "?x a ?change ;" +
                 "?hasModificationDate ?modified ;" +
                 "?hasEditor ?author ;" +
                 "?hasModifiedEntity ?entity ." +
                 "?entity a ?type ." +
                 "} ORDER BY DESC(?modified)", URI.class).setParameter("change", URI.create(Vocabulary.s_c_zmena))
-                                    .setParameter("hasModificationDate",
-                                            URI.create(Vocabulary.s_p_ma_datum_a_cas_modifikace))
-                                    .setParameter("hasEditor", URI.create(Vocabulary.s_p_ma_editora))
-                                    .setParameter("hasModifiedEntity", URI.create(Vocabulary.s_p_ma_zmenenou_entitu))
-                                    .setParameter("type", typeUri).setMaxResults(limit);
-        if (author != null) {
-            q.setParameter("author", author);
+                 .setParameter("hasModificationDate", URI.create(Vocabulary.s_p_ma_datum_a_cas_modifikace))
+                 .setParameter("hasEditor", URI.create(Vocabulary.s_p_ma_editora))
+                 .setParameter("author", author)
+                 .setParameter("hasModifiedEntity", URI.create(Vocabulary.s_p_ma_zmenenou_entitu))
+                 .setParameter("type", typeUri).setMaxResults(limit).getResultList();
+    }
+
+    /**
+     * Finds unique last commented assets.
+     *
+     * @param limit max number of entities
+     * @return list
+     */
+    public List<RecentlyCommentedAsset> findLastCommented(int limit) {
+        try {
+            return (List<RecentlyCommentedAsset>) em
+                .createNativeQuery("SELECT DISTINCT ?entity ?lastCommentUri ?type"
+                    + " WHERE { ?lastCommentUri a ?commentType ;"
+                    + "           ?hasEntity ?entity ."
+                    + "  OPTIONAL { ?lastCommentUri ?hasModifiedTime ?modified . }"
+                    + "  OPTIONAL { ?lastCommentUri ?hasCreatedTime ?created . }"
+                    + "  BIND(COALESCE(?modified,?created) AS ?lastCommented) "
+                    + "  BIND(?cls as ?type) "
+                    + "  { SELECT (MAX(?lastCommented2) AS ?max) {"
+                    + "           ?comment2 ?hasEntity ?entity ."
+                    + "           OPTIONAL { ?comment2 ?hasModifiedTime ?modified2 . }"
+                    + "           OPTIONAL { ?comment2 ?hasCreatedTime ?created2 . }"
+                    + "           BIND(COALESCE(?modified2,?created2) AS ?lastCommented2) "
+                    + "        } GROUP BY ?entity"
+                    + "  }"
+                    + "  FILTER (?lastCommented = ?max )"
+                    + "} ORDER BY DESC(?lastCommented) ", "RecentlyCommentedAsset")
+                .setParameter("cls", typeUri)
+                .setParameter("commentType", URI.create(Vocabulary.s_c_Comment))
+                .setParameter("hasEntity", URI.create(Vocabulary.s_p_topic))
+                .setParameter("hasModifiedTime",
+                    URI.create(Vocabulary.s_p_ma_datum_a_cas_posledni_modifikace))
+                .setParameter("hasCreatedTime",
+                    URI.create(Vocabulary.s_p_ma_datum_a_cas_vytvoreni))
+                .setMaxResults(limit).getResultStream()
+                .map(r -> {
+                        final RecentlyCommentedAsset a = (RecentlyCommentedAsset) r;
+                        return a.setLastComment(em.find(Comment.class, a.getLastCommentUri()));
+                    }
+                ).collect(Collectors.toList());
+        } catch (RuntimeException e) {
+            throw new PersistenceException(e);
         }
-        return q.getResultList();
+    }
+
+    /**
+     * Finds unique last commented entities.
+     * @param limit max number of entities
+     * @return list
+     */
+    public List<RecentlyCommentedAsset> findLastCommentedInReaction(User author, int limit) {
+        try {
+            return (List<RecentlyCommentedAsset>) em
+                .createNativeQuery("SELECT DISTINCT ?entity ?lastCommentUri ?type"
+                    + " WHERE { ?lastCommentUri a ?commentType ;"
+                    + "           ?hasEntity ?entity ."
+                    + "  FILTER EXISTS { ?comment3 ?hasEntity ?entity ;"
+                    + "                            ?hasAuthor ?author . }"
+                    + "  OPTIONAL { ?lastCommentUri ?hasModifiedTime ?modified . }"
+                    + "  OPTIONAL { ?lastCommentUri ?hasCreatedTime ?created . }"
+                    + "  BIND(COALESCE(?modified,?created) AS ?lastCommented) "
+                    + "  BIND(?cls as ?type) "
+                    + "  { SELECT (MAX(?lastCommented2) AS ?max) {"
+                    + "           ?comment2 ?hasEntity ?entity ."
+                    + "           OPTIONAL { ?comment2 ?hasModifiedTime ?modified2 . }"
+                    + "           OPTIONAL { ?comment2 ?hasCreatedTime ?created2 . }"
+                    + "           BIND(COALESCE(?modified2,?created2) AS ?lastCommented2) "
+                    + "        } GROUP BY ?entity"
+                    + "  }"
+                    + "  FILTER (?lastCommented = ?max )"
+                    + "} ORDER BY DESC(?lastCommented) ", "RecentlyCommentedAsset")
+                .setParameter("cls", typeUri)
+                .setParameter("commentType", URI.create(Vocabulary.s_c_Comment))
+                .setParameter("hasEntity", URI.create(Vocabulary.s_p_topic))
+                .setParameter("hasModifiedTime",
+                    URI.create(Vocabulary.s_p_ma_datum_a_cas_posledni_modifikace))
+                .setParameter("hasCreatedTime",
+                    URI.create(Vocabulary.s_p_ma_datum_a_cas_vytvoreni))
+                .setParameter("hasAuthor", URI.create(Vocabulary.s_p_has_creator))
+                .setParameter("author", author)
+                .setMaxResults(limit).getResultStream()
+                .map(r -> {
+                        final RecentlyCommentedAsset a = (RecentlyCommentedAsset) r;
+                        return a.setLastComment(em.find(Comment.class, a.getLastCommentUri()));
+                    }
+                ).collect(Collectors.toList());
+        } catch (RuntimeException e) {
+            throw new PersistenceException(e);
+        }
+    }
+
+    /**
+     * Finds unique last commented entities.
+     * @param limit max number of entities
+     * @return list
+     */
+    public List<RecentlyCommentedAsset> findMyLastCommented(User author, int limit) {
+        try {
+            return (List<RecentlyCommentedAsset>) em
+                .createNativeQuery("SELECT DISTINCT ?entity ?lastCommentUri ?type"
+                    + " WHERE { ?lastCommentUri a ?commentType ;"
+                    + "           ?hasEntity ?entity ."
+                    + "        FILTER EXISTS{ ?x ?hasModifiedEntity ?entity ;"
+                    + "           ?hasEditor ?author .}"
+                    + "  OPTIONAL { ?lastCommentUri ?hasModifiedTime ?modified . }"
+                    + "  OPTIONAL { ?lastCommentUri ?hasCreatedTime ?created . }"
+                    + "  BIND(COALESCE(?modified,?created) AS ?lastCommented) "
+                    + "  BIND(?cls as ?type) "
+                    + "  { SELECT (MAX(?lastCommented2) AS ?max) {"
+                    + "           ?comment2 ?hasEntity ?entity ."
+                    + "           OPTIONAL { ?comment2 ?hasModifiedTime ?modified2 . }"
+                    + "           OPTIONAL { ?comment2 ?hasCreatedTime ?created2 . }"
+                    + "           BIND(COALESCE(?modified2,?created2) AS ?lastCommented2) "
+                    + "        } GROUP BY ?entity"
+                    + "  }"
+                    + "  FILTER (?lastCommented = ?max )"
+                    + "} ORDER BY DESC(?lastCommented) ", "RecentlyCommentedAsset")
+                .setParameter("cls", typeUri)
+                .setParameter("commentType", URI.create(Vocabulary.s_c_Comment))
+                .setParameter("hasEntity", URI.create(Vocabulary.s_p_topic))
+                .setParameter("hasEditor", URI.create(Vocabulary.s_p_ma_editora))
+                .setParameter("hasModifiedEntity", URI.create(Vocabulary.s_p_ma_zmenenou_entitu))
+                .setParameter("author", author)
+                .setParameter("hasModifiedTime",
+                    URI.create(Vocabulary.s_p_ma_datum_a_cas_posledni_modifikace))
+                .setParameter("hasCreatedTime",
+                    URI.create(Vocabulary.s_p_ma_datum_a_cas_vytvoreni))
+                .setMaxResults(limit).getResultStream()
+                .map(r -> {
+                        final RecentlyCommentedAsset a = (RecentlyCommentedAsset) r;
+                        return a.setLastComment(em.find(Comment.class, a.getLastCommentUri()));
+                    }
+                ).collect(Collectors.toList());
+        } catch (RuntimeException e) {
+            throw new PersistenceException(e);
+        }
     }
 
     /**
