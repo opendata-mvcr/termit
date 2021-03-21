@@ -1,16 +1,13 @@
 /**
  * TermIt Copyright (C) 2019 Czech Technical University in Prague
  * <p>
- * This program is free software: you can redistribute it and/or modify it under the terms of the GNU General Public
- * License as published by the Free Software Foundation, either version 3 of the License, or (at your option) any later
- * version.
+ * This program is free software: you can redistribute it and/or modify it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation, either version 3 of the License, or (at your option) any later version.
  * <p>
- * This program is distributed in the hope that it will be useful, but WITHOUT ANY WARRANTY; without even the implied
- * warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License for more
- * details.
+ * This program is distributed in the hope that it will be useful, but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License for more details.
  * <p>
- * You should have received a copy of the GNU General Public License along with this program.  If not, see
- * <https://www.gnu.org/licenses/>.
+ * You should have received a copy of the GNU General Public License along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
 package cz.cvut.kbss.termit.service.repository;
 
@@ -35,16 +32,11 @@ public class UserRepositoryService {
     }
 
     public List<UserAccount> findAll() {
-        final List<UserAccount> accounts = userAccountDao.findAll();
-        accounts.forEach(UserAccount::erasePassword);
-        return accounts;
+        return userAccountDao.findAll();
     }
 
     public Optional<UserAccount> find(URI uri) {
-        return userAccountDao.find(uri).map(u -> {
-            u.erasePassword();
-            return u;
-        });
+        return userAccountDao.find(uri);
     }
 
     public UserAccount findRequired(URI uri) {

@@ -77,8 +77,6 @@ public class UserService {
      * @return Currently logged in user's account
      */
     public UserAccount getCurrent() {
-        final UserAccount account = securityUtils.getCurrentUser();
-        account.erasePassword();
-        return account;
+        return securityUtils.getCurrentUser();
     }
 }

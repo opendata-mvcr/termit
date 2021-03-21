@@ -22,7 +22,6 @@ import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
@@ -50,14 +49,5 @@ class UserServiceTest {
         when(securityUtilsMock.getCurrentUser()).thenReturn(account);
         final UserAccount result = sut.getCurrent();
         assertEquals(account, result);
-    }
-
-    @Test
-    void getCurrentReturnsCurrentUserAccountWithoutPassword() {
-        final UserAccount account = Generator.generateUserAccount();
-        account.setPassword("12345");
-        when(securityUtilsMock.getCurrentUser()).thenReturn(account);
-        final UserAccount result = sut.getCurrent();
-        assertNull(result.getPassword());
     }
 }
