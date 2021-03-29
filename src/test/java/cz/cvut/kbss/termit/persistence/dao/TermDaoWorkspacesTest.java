@@ -68,9 +68,9 @@ public class TermDaoWorkspacesTest extends BaseDaoTestRunner {
     private void saveVocabulary(Vocabulary vocabulary) {
         final WorkspaceMetadata wsMetadata = wsMetadataCache.getCurrentWorkspaceMetadata();
         doReturn(new VocabularyInfo(vocabulary.getUri(), vocabulary.getUri(), vocabulary.getUri())).when(wsMetadata)
-                                                                                                   .getVocabularyInfo(
-                                                                                                           vocabulary
-                                                                                                                   .getUri());
+                .getVocabularyInfo(
+                        vocabulary
+                                .getUri());
         doReturn(Collections.singleton(vocabulary.getUri())).when(wsMetadata).getVocabularyContexts();
         transactional(() -> {
             em.persist(vocabulary, descriptorFactory.vocabularyDescriptor(vocabulary));
@@ -445,7 +445,7 @@ public class TermDaoWorkspacesTest extends BaseDaoTestRunner {
         final Collection<Statement> canonical = WorkspaceGenerator
                 .generateCanonicalCacheContainer(config.get(ConfigParam.CANONICAL_CACHE_CONTAINER_IRI));
         final List<String> ids = canonical.stream().map(s -> s.getObject().stringValue()).sorted()
-                                          .collect(Collectors.toList());
+                .collect(Collectors.toList());
         final URI selectedVocabulary = URI.create(ids.get(0));
         transactional(() -> {
             em.persist(term, new EntityDescriptor(selectedVocabulary));
@@ -649,5 +649,36 @@ public class TermDaoWorkspacesTest extends BaseDaoTestRunner {
 
         final List<Term> result = sut.findAllSubTerms(canonical);
         assertEquals(Collections.singletonList(canonicalChild), result);
+    }
+
+    @Test
+    void termLoadResolvesPublishedStatus() {
+        final Term publishedTerm = Generator.generateTermWithId();
+        final Term notPublishedTerm = Generator.generateTermWithId();
+        // This will simulate the canonical version of the current vocabulary
+        final Vocabulary canonical = Generator.generateVocabularyWithId();
+        canonical.getGlossary().setUri(vocabulary.getGlossary().getUri());
+        transactional(() -> {
+            canonical.getGlossary().addRootTerm(publishedTerm);
+            em.persist(canonical, new EntityDescriptor(canonical.getUri()));
+            em.persist(publishedTerm, new EntityDescriptor(canonical.getUri()));
+        });
+        transactional(() -> {
+            final EntityDescriptor termDescriptor = new EntityDescriptor(vocabulary.getUri());
+            em.persist(publishedTerm, termDescriptor);
+            em.persist(notPublishedTerm, termDescriptor);
+            vocabulary.getGlossary().addRootTerm(publishedTerm);
+            vocabulary.getGlossary().addRootTerm(notPublishedTerm);
+            em.merge(vocabulary.getGlossary(), descriptorFactory.glossaryDescriptor(vocabulary));
+            Generator.addTermInVocabularyRelationship(publishedTerm, vocabulary.getUri(), em);
+            Generator.addTermInVocabularyRelationship(notPublishedTerm, vocabulary.getUri(), em);
+        });
+
+        final Optional<Term> publishedResult = sut.find(publishedTerm.getUri());
+        assertTrue(publishedResult.isPresent());
+        assertTrue(publishedResult.get().isPublished());
+        final Optional<Term> notPublishedResult = sut.find(notPublishedTerm.getUri());
+        assertTrue(notPublishedResult.isPresent());
+        assertFalse(notPublishedResult.get().isPublished());
     }
 }

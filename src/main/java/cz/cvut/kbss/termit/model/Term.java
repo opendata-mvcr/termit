@@ -93,6 +93,10 @@ public class Term extends Asset<MultilingualString> implements HasTypes, Seriali
     @OWLDataProperty(iri = Vocabulary.s_p_je_draft)
     private Boolean draft;
 
+    @Transient
+    @OWLDataProperty(iri = Vocabulary.s_p_je_publikovan)
+    private Boolean published;
+
     @Types
     private Set<String> types;
 
@@ -236,6 +240,14 @@ public class Term extends Asset<MultilingualString> implements HasTypes, Seriali
         this.draft = draft;
     }
 
+    public Boolean isPublished() {
+        return published != null && published;
+    }
+
+    public void setPublished(Boolean published) {
+        this.published = published;
+    }
+
     @Override
     public Set<String> getTypes() {
         return types;
@@ -328,13 +340,13 @@ public class Term extends Asset<MultilingualString> implements HasTypes, Seriali
         }
         if (parentTerms != null) {
             row.createCell(8)
-               .setCellValue(String.join(";",
-                       parentTerms.stream().map(pt -> pt.getUri().toString()).collect(Collectors.toSet())));
+                    .setCellValue(String.join(";",
+                            parentTerms.stream().map(pt -> pt.getUri().toString()).collect(Collectors.toSet())));
         }
         if (subTerms != null) {
             row.createCell(9)
-               .setCellValue(String.join(";",
-                       subTerms.stream().map(ti -> ti.getUri().toString()).collect(Collectors.toSet())));
+                    .setCellValue(String.join(";",
+                            subTerms.stream().map(ti -> ti.getUri().toString()).collect(Collectors.toSet())));
         }
         row.createCell(10).setCellValue(isDraft());
     }
