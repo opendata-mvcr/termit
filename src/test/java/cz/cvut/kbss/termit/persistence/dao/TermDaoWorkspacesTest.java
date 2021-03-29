@@ -68,16 +68,13 @@ public class TermDaoWorkspacesTest extends BaseDaoTestRunner {
     private void saveVocabulary(Vocabulary vocabulary) {
         final WorkspaceMetadata wsMetadata = wsMetadataCache.getCurrentWorkspaceMetadata();
         doReturn(new VocabularyInfo(vocabulary.getUri(), vocabulary.getUri(), vocabulary.getUri())).when(wsMetadata)
-                .getVocabularyInfo(
-                        vocabulary
-                                .getUri());
+                .getVocabularyInfo(vocabulary.getUri());
         doReturn(Collections.singleton(vocabulary.getUri())).when(wsMetadata).getVocabularyContexts();
         transactional(() -> {
             em.persist(vocabulary, descriptorFactory.vocabularyDescriptor(vocabulary));
             try (final RepositoryConnection conn = em.unwrap(Repository.class).getConnection()) {
                 conn.begin();
-                conn.add(Generator
-                        .generateWorkspaceReferences(Collections.singleton(vocabulary), wsMetadata.getWorkspace()));
+                conn.add(Generator.generateWorkspaceReferences(Collections.singleton(vocabulary), wsMetadata.getWorkspace()));
                 conn.commit();
             }
         });
@@ -444,8 +441,7 @@ public class TermDaoWorkspacesTest extends BaseDaoTestRunner {
     private URI persistTermIntoCanonicalContainer(Term term) {
         final Collection<Statement> canonical = WorkspaceGenerator
                 .generateCanonicalCacheContainer(config.get(ConfigParam.CANONICAL_CACHE_CONTAINER_IRI));
-        final List<String> ids = canonical.stream().map(s -> s.getObject().stringValue()).sorted()
-                .collect(Collectors.toList());
+        final List<String> ids = canonical.stream().map(s -> s.getObject().stringValue()).sorted().collect(Collectors.toList());
         final URI selectedVocabulary = URI.create(ids.get(0));
         transactional(() -> {
             em.persist(term, new EntityDescriptor(selectedVocabulary));
