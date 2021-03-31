@@ -68,9 +68,9 @@ public class TermDaoWorkspacesTest extends BaseDaoTestRunner {
     private void saveVocabulary(Vocabulary vocabulary) {
         final WorkspaceMetadata wsMetadata = wsMetadataCache.getCurrentWorkspaceMetadata();
         doReturn(new VocabularyInfo(vocabulary.getUri(), vocabulary.getUri(), vocabulary.getUri())).when(wsMetadata)
-                                                                                                   .getVocabularyInfo(
-                                                                                                           vocabulary
-                                                                                                                   .getUri());
+                .getVocabularyInfo(
+                        vocabulary
+                                .getUri());
         doReturn(Collections.singleton(vocabulary.getUri())).when(wsMetadata).getVocabularyContexts();
         transactional(() -> {
             em.persist(vocabulary, descriptorFactory.vocabularyDescriptor(vocabulary));
@@ -445,7 +445,7 @@ public class TermDaoWorkspacesTest extends BaseDaoTestRunner {
         final Collection<Statement> canonical = WorkspaceGenerator
                 .generateCanonicalCacheContainer(config.get(ConfigParam.CANONICAL_CACHE_CONTAINER_IRI));
         final List<String> ids = canonical.stream().map(s -> s.getObject().stringValue()).sorted()
-                                          .collect(Collectors.toList());
+                .collect(Collectors.toList());
         final URI selectedVocabulary = URI.create(ids.get(0));
         transactional(() -> {
             em.persist(term, new EntityDescriptor(selectedVocabulary));
@@ -649,5 +649,25 @@ public class TermDaoWorkspacesTest extends BaseDaoTestRunner {
 
         final List<Term> result = sut.findAllSubTerms(canonical);
         assertEquals(Collections.singletonList(canonicalChild), result);
+    }
+
+    @Test
+    void removeHandlesWorkspacesAndCanonicalContainer() {
+        final Term term = Generator.generateTermWithId();
+        term.setGlossary(vocabulary.getGlossary().getUri());
+        final Collection<Statement> canonical = WorkspaceGenerator
+                .generateCanonicalCacheContainer(config.get(ConfigParam.CANONICAL_CACHE_CONTAINER_IRI));
+        transactional(() -> {
+            em.persist(term, new EntityDescriptor(vocabulary.getUri()));
+            Generator.addTermInVocabularyRelationship(term, vocabulary.getUri(), em);
+            final Repository repo = em.unwrap(Repository.class);
+            try (final RepositoryConnection conn = repo.getConnection()) {
+                conn.add(canonical);
+            }
+        });
+
+        term.setVocabulary(vocabulary.getUri());    // This is normally inferred
+        transactional(() -> sut.remove(term));
+        assertFalse(sut.exists(term.getUri()));
     }
 }
