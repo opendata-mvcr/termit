@@ -185,6 +185,7 @@ class TermDaoTest extends BaseDaoTestRunner {
         matchingDesc.setPrimaryLabel("Metropolitan plan");
         matchingDesc.setParentTerms(Collections.singleton(child));
         matchingDesc.setVocabulary(vocabulary.getUri());
+        matchingDesc.setGlossary(vocabulary.getGlossary().getUri());
         transactional(() -> {
             em.persist(child, descriptorFactory.termDescriptor(vocabulary));
             em.persist(matchingDesc, descriptorFactory.termDescriptor(vocabulary));
@@ -574,6 +575,7 @@ class TermDaoTest extends BaseDaoTestRunner {
         final Term parentTwo = Generator.generateTermWithId();
         final Vocabulary parentTwoVoc = Generator.generateVocabularyWithId();
         term.addParentTerm(parentOne);
+        term.setGlossary(vocabulary.getGlossary().getUri());
         initVocabularyWorkspaceMetadata(parentOneVoc, parentTwoVoc);
         transactional(() -> {
             parentOneVoc.getGlossary().addRootTerm(parentOne);

@@ -447,6 +447,7 @@ public class TermDaoWorkspacesTest extends BaseDaoTestRunner {
             em.persist(term, new EntityDescriptor(selectedVocabulary));
             Generator.addTermInVocabularyRelationship(term, selectedVocabulary, em);
             final URI glossary = Generator.generateUri();
+            term.setGlossary(glossary);
             final Repository repo = em.unwrap(Repository.class);
             try (final RepositoryConnection conn = repo.getConnection()) {
                 final ValueFactory vf = conn.getValueFactory();
@@ -468,6 +469,7 @@ public class TermDaoWorkspacesTest extends BaseDaoTestRunner {
         final Term term = Generator.generateTermWithId();
         final Term parent = Generator.generateTermWithId();
         term.addParentTerm(parent);
+        term.setGlossary(vocabulary.getGlossary().getUri());
         persistTermIntoCanonicalContainer(parent);
         final EntityDescriptor termDescriptor = new EntityDescriptor(vocabulary.getUri());
         termDescriptor.addAttributeContext(em.getMetamodel().entity(Term.class).getAttribute("parentTerms"), null);
@@ -508,6 +510,7 @@ public class TermDaoWorkspacesTest extends BaseDaoTestRunner {
     @Test
     void findSupportsTermWithParentInCanonicalContainerAndWorkingVersionInCurrentWorkspace() {
         final Term term = Generator.generateTermWithId();
+        term.setGlossary(vocabulary.getGlossary().getUri());
         final Term parent = Generator.generateTermWithId();
         final Term parentCopy = new Term();
         parentCopy.setUri(parent.getUri());
@@ -522,6 +525,7 @@ public class TermDaoWorkspacesTest extends BaseDaoTestRunner {
             final EntityDescriptor parentDescriptor = new EntityDescriptor(wsVocabulary.getUri());
             parentDescriptor
                     .addAttributeContext(em.getMetamodel().entity(Term.class).getAttribute("parentTerms"), null);
+            parentCopy.setGlossary(wsVocabulary.getGlossary().getUri());
             em.persist(parentCopy, parentDescriptor);
             connectWorkspaceVocabularyWithCanonicalOne(wsVocabulary.getUri(), canonicalVocabularyUri);
             Generator.addTermInVocabularyRelationship(parentCopy, canonicalVocabularyUri, em);
@@ -558,6 +562,7 @@ public class TermDaoWorkspacesTest extends BaseDaoTestRunner {
         transactional(() -> {
             em.persist(term, termDescriptor);
             vocabulary.getGlossary().addRootTerm(term);
+            term.setGlossary(vocabulary.getGlossary().getUri());
             em.merge(vocabulary.getGlossary(), descriptorFactory.glossaryDescriptor(vocabulary));
             Generator.addTermInVocabularyRelationship(term, vocabulary.getUri(), em);
         });
@@ -576,6 +581,7 @@ public class TermDaoWorkspacesTest extends BaseDaoTestRunner {
         final EntityDescriptor termDescriptor = new EntityDescriptor(vocabulary.getUri());
         termDescriptor.addAttributeContext(em.getMetamodel().entity(Term.class).getAttribute("parentTerms"), null);
         transactional(() -> {
+            term.setGlossary(vocabulary.getGlossary().getUri());
             em.persist(term, termDescriptor);
             vocabulary.getGlossary().addRootTerm(term);
             em.merge(vocabulary.getGlossary(), descriptorFactory.glossaryDescriptor(vocabulary));
@@ -595,6 +601,7 @@ public class TermDaoWorkspacesTest extends BaseDaoTestRunner {
         final String searchString = "search";
         final Term term = Generator.generateTermWithId();
         term.getLabel().set(Constants.DEFAULT_LANGUAGE, searchString + " string label");
+        term.setGlossary(vocabulary.getGlossary().getUri());
         final Term canonical = Generator.generateTermWithId();
         canonical.getLabel().set(Constants.DEFAULT_LANGUAGE, searchString + " canonical label");
         persistTermIntoCanonicalContainer(canonical);
@@ -637,6 +644,7 @@ public class TermDaoWorkspacesTest extends BaseDaoTestRunner {
         canonical.setVocabulary(canonicalVocUri);
         final Term canonicalChild = Generator.generateTermWithId();
         canonicalChild.addParentTerm(canonical);
+        canonicalChild.setGlossary(canonical.getGlossary());
         transactional(() -> {
             final EntityDescriptor termDescriptor = new EntityDescriptor(canonicalVocUri);
             em.persist(canonicalChild, termDescriptor);
@@ -650,7 +658,9 @@ public class TermDaoWorkspacesTest extends BaseDaoTestRunner {
     @Test
     void termLoadResolvesPublishedStatus() {
         final Term publishedTerm = Generator.generateTermWithId();
+        publishedTerm.setGlossary(vocabulary.getGlossary().getUri());
         final Term notPublishedTerm = Generator.generateTermWithId();
+        notPublishedTerm.setGlossary(vocabulary.getGlossary().getUri());
         // This will simulate the canonical version of the current vocabulary
         final Vocabulary canonical = Generator.generateVocabularyWithId();
         canonical.getGlossary().setUri(vocabulary.getGlossary().getUri());

@@ -426,11 +426,12 @@ public class TermDao extends WorkspaceBasedAssetDao<Term> {
         return em.createNativeQuery("ASK WHERE {" +
                 "    SELECT (count(?g) as ?cnt) WHERE {" +
                 "    GRAPH ?g {" +
-                "    ?term a ?type ." +
+                "    ?term ?inScheme ?glossary ." +
                 "    }" +
                 "    } HAVING (?cnt > 1) }", Boolean.class)
                 .setParameter("term", term)
-                .setParameter("type", typeUri).getSingleResult();
+                .setParameter("inScheme", URI.create(SKOS.IN_SCHEME))
+                .setParameter("glossary", term.getGlossary()).getSingleResult();
     }
 
     /**
