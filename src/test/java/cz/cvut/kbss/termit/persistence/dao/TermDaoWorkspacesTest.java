@@ -687,4 +687,24 @@ public class TermDaoWorkspacesTest extends BaseDaoTestRunner {
         assertTrue(notPublishedResult.isPresent());
         assertFalse(notPublishedResult.get().isPublished());
     }
+  
+    @Test
+    void removeHandlesWorkspacesAndCanonicalContainer() {
+        final Term term = Generator.generateTermWithId();
+        term.setGlossary(vocabulary.getGlossary().getUri());
+        final Collection<Statement> canonical = WorkspaceGenerator
+                .generateCanonicalCacheContainer(config.get(ConfigParam.CANONICAL_CACHE_CONTAINER_IRI));
+        transactional(() -> {
+            em.persist(term, new EntityDescriptor(vocabulary.getUri()));
+            Generator.addTermInVocabularyRelationship(term, vocabulary.getUri(), em);
+            final Repository repo = em.unwrap(Repository.class);
+            try (final RepositoryConnection conn = repo.getConnection()) {
+                conn.add(canonical);
+            }
+        });
+
+        term.setVocabulary(vocabulary.getUri());    // This is normally inferred
+        transactional(() -> sut.remove(term));
+        assertFalse(sut.exists(term.getUri()));
+    }
 }

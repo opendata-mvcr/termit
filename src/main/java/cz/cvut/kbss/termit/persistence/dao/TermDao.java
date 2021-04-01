@@ -134,6 +134,21 @@ public class TermDao extends WorkspaceBasedAssetDao<Term> {
     }
 
     @Override
+    public void remove(Term entity) {
+        Objects.requireNonNull(entity);
+        assert entity.getVocabulary() != null;
+
+        try {
+            final Term toRemove = em.getReference(Term.class, entity.getUri(), descriptorFactory.termDescriptor(entity));
+            if (toRemove != null) {
+                em.remove(toRemove);
+            }
+        } catch (RuntimeException e) {
+            throw new PersistenceException(e);
+        }
+    }
+
+    @Override
     public List<Term> findAll() {
         return findAll(Constants.DEFAULT_PAGE_SPEC);
     }
