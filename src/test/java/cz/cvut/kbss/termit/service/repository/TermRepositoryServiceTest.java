@@ -259,7 +259,10 @@ class TermRepositoryServiceTest extends BaseServiceTestRunner {
         final List<Term> terms = Generator.generateTermsWithIds(10);
         vocabulary.getGlossary().setRootTerms(terms.stream().map(Asset::getUri).collect(Collectors.toSet()));
         transactional(() -> {
-            terms.forEach(t -> em.persist(t, descriptorFactory.termDescriptor(vocabulary)));
+            terms.forEach(t -> {
+                t.setGlossary(vocabulary.getGlossary().getUri());
+                em.persist(t, descriptorFactory.termDescriptor(vocabulary));
+            });
             em.merge(vocabulary.getGlossary(), descriptorFactory.glossaryDescriptor(vocabulary));
         });
 
@@ -286,7 +289,10 @@ class TermRepositoryServiceTest extends BaseServiceTestRunner {
         vocabulary.getGlossary().setRootTerms(terms.stream().map(Asset::getUri).collect(Collectors.toSet()));
         final Descriptor termDescriptor = descriptorFactory.termDescriptor(vocabulary);
         transactional(() -> {
-            terms.forEach(t -> em.persist(t, termDescriptor));
+            terms.forEach(t -> {
+                t.setGlossary(vocabulary.getGlossary().getUri());
+                em.persist(t, termDescriptor);
+            });
             em.merge(vocabulary.getGlossary(), descriptorFactory.glossaryDescriptor(vocabulary));
         });
 
@@ -449,7 +455,10 @@ class TermRepositoryServiceTest extends BaseServiceTestRunner {
         final List<Term> terms = Generator.generateTermsWithIds(10);
         vocabulary.getGlossary().setRootTerms(terms.stream().map(Asset::getUri).collect(Collectors.toSet()));
         transactional(() -> {
-            terms.forEach(t -> em.persist(t, descriptorFactory.termDescriptor(vocabulary)));
+            terms.forEach(t -> {
+                t.setGlossary(vocabulary.getGlossary().getUri());
+                em.persist(t, descriptorFactory.termDescriptor(vocabulary));
+            });
             em.merge(vocabulary.getGlossary(), descriptorFactory.glossaryDescriptor(vocabulary));
         });
 
@@ -479,7 +488,10 @@ class TermRepositoryServiceTest extends BaseServiceTestRunner {
         terms.forEach(t -> t.setVocabulary(vocabulary.getUri()));
         final Descriptor termDescriptor = descriptorFactory.termDescriptor(vocabulary);
         transactional(() -> {
-            terms.forEach(t -> em.persist(t, termDescriptor));
+            terms.forEach(t -> {
+                t.setGlossary(vocabulary.getGlossary().getUri());
+                em.persist(t, termDescriptor);
+            });
             em.merge(vocabulary.getGlossary(), descriptorFactory.glossaryDescriptor(vocabulary));
         });
 
@@ -536,7 +548,7 @@ class TermRepositoryServiceTest extends BaseServiceTestRunner {
         sut.addChildTerm(childTerm, parentTerm);
 
         assertTrue(sut.findAllRoots(childVocabulary, Constants.DEFAULT_PAGE_SPEC, Collections.emptyList())
-                      .contains(childTerm));
+                .contains(childTerm));
         final Glossary result = em.find(Glossary.class, childVocabulary.getGlossary().getUri());
         assertTrue(result.getRootTerms().contains(childTerm.getUri()));
     }
@@ -564,7 +576,7 @@ class TermRepositoryServiceTest extends BaseServiceTestRunner {
         childTerm.setParentTerms(Collections.singleton(newParentTerm));
         sut.update(childTerm);
         assertTrue(sut.findAllRoots(childVocabulary, Constants.DEFAULT_PAGE_SPEC, Collections.emptyList())
-                      .contains(childTerm));
+                .contains(childTerm));
         em.getEntityManagerFactory().getCache().evictAll();
         final Glossary result = em.find(Glossary.class, childVocabulary.getGlossary().getUri());
         assertTrue(result.getRootTerms().contains(childTerm.getUri()));
@@ -588,6 +600,7 @@ class TermRepositoryServiceTest extends BaseServiceTestRunner {
         final Term term = Generator.generateTermWithId();
         term.setDraft(false);
         vocabulary.getGlossary().addRootTerm(term);
+        term.setGlossary(vocabulary.getGlossary().getUri());
         term.setVocabulary(vocabulary.getUri());
         transactional(() -> {
             em.persist(term, descriptorFactory.termDescriptor(term));

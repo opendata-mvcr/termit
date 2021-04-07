@@ -62,7 +62,7 @@ public class TermDao extends WorkspaceBasedAssetDao<Term> {
             final URI vocabularyIri = resolveVocabularyIri(id);
             final Optional<Term> result = Optional.ofNullable(
                     em.find(Term.class, id, descriptorFactory.termDescriptor(vocabularyIri)));
-            result.ifPresent(t -> loadSubTermInfo(t,
+            result.ifPresent(t -> loadAdditionTermMetadata(t,
                     Collections.singleton(persistenceUtils.resolveVocabularyContext(vocabularyIri))));
             return result;
         } catch (RuntimeException e) {
@@ -73,8 +73,8 @@ public class TermDao extends WorkspaceBasedAssetDao<Term> {
     private URI resolveVocabularyIri(URI termIri) {
         return em.createNativeQuery("SELECT ?vocabulary WHERE { ?term ?inVocabulary ?vocabulary . }", URI.class)
                 .setParameter("term", termIri)
-                .setParameter("inVocabulary", URI.create(
-                        cz.cvut.kbss.termit.util.Vocabulary.s_p_je_pojmem_ze_slovniku)).getSingleResult();
+                .setParameter("inVocabulary", URI.create(cz.cvut.kbss.termit.util.Vocabulary.s_p_je_pojmem_ze_slovniku))
+                .getSingleResult();
     }
 
     @Override
@@ -286,8 +286,7 @@ public class TermDao extends WorkspaceBasedAssetDao<Term> {
                     .setParameter("g", vocabularyCtx)
                     .setParameter("hasLabel", LABEL_PROP)
                     .setParameter("inVocabulary",
-                            URI.create(
-                                    cz.cvut.kbss.termit.util.Vocabulary.s_p_je_pojmem_ze_slovniku))
+                            URI.create(cz.cvut.kbss.termit.util.Vocabulary.s_p_je_pojmem_ze_slovniku))
                     .setParameter("labelLang", config.get(ConfigParam.LANGUAGE));
             query.setDescriptor(descriptorFactory.termDescriptor(vocabulary));
             return executeQueryAndLoadSubTerms(query, Collections.singleton(vocabularyCtx));
@@ -363,9 +362,8 @@ public class TermDao extends WorkspaceBasedAssetDao<Term> {
                     .setParameter("type", typeUri)
                     .setParameter("vocabulary", vocabulary.getUri())
                     .setParameter("g", persistenceUtils.resolveVocabularyContext(vocabulary.getUri()))
-                    .setParameter("inVocabulary",
-                            URI.create(
-                                    cz.cvut.kbss.termit.util.Vocabulary.s_p_je_pojmem_ze_slovniku)).getSingleResult();
+                    .setParameter("inVocabulary", URI.create(cz.cvut.kbss.termit.util.Vocabulary.s_p_je_pojmem_ze_slovniku))
+                    .getSingleResult();
         } catch (RuntimeException e) {
             throw new PersistenceException(e);
         }
@@ -373,7 +371,7 @@ public class TermDao extends WorkspaceBasedAssetDao<Term> {
 
     private List<Term> executeQueryAndLoadSubTerms(TypedQuery<Term> query, Set<URI> contexts) {
         final List<Term> terms = query.getResultList();
-        terms.forEach(t -> loadSubTermInfo(t, contexts));
+        terms.forEach(t -> loadAdditionTermMetadata(t, contexts));
         return terms;
     }
 
@@ -395,14 +393,19 @@ public class TermDao extends WorkspaceBasedAssetDao<Term> {
                 "FILTER (lang(?label) = ?labelLang) ." +
                 "} ORDER BY LCASE(?label)", Term.class).setParameter("type", typeUri)
                 .setParameter("hasLabel", LABEL_PROP)
-                .setParameter("inVocabulary",
-                        URI.create(cz.cvut.kbss.termit.util.Vocabulary.s_p_je_pojmem_ze_slovniku))
-                .setParameter("imports",
-                        URI.create(
-                                cz.cvut.kbss.termit.util.Vocabulary.s_p_pouziva_pojmy_ze_slovniku))
+                .setParameter("inVocabulary", URI.create(cz.cvut.kbss.termit.util.Vocabulary.s_p_je_pojmem_ze_slovniku))
+                .setParameter("imports", URI.create(cz.cvut.kbss.termit.util.Vocabulary.s_p_pouziva_pojmy_ze_slovniku))
                 .setParameter("vocabulary", vocabulary)
                 .setParameter("labelLang", config.get(ConfigParam.LANGUAGE));
         return executeQueryAndLoadSubTerms(query, persistenceUtils.getCurrentWorkspaceVocabularyContexts());
+    }
+
+    /**
+     * Loads addition term metadata which are not directly loaded with the specified instance.
+     */
+    private void loadAdditionTermMetadata(Term term, Set<URI> graphs) {
+        loadSubTermInfo(term, graphs);
+        term.setPublished(isPublished(term));
     }
 
     /**
@@ -425,14 +428,25 @@ public class TermDao extends WorkspaceBasedAssetDao<Term> {
                 .setParameter("broader", URI.create(SKOS.BROADER))
                 .setParameter("parent", parent)
                 .setParameter("hasLabel", LABEL_PROP)
-                .setParameter("inVocabulary",
-                        URI.create(
-                                cz.cvut.kbss.termit.util.Vocabulary.s_p_je_pojmem_ze_slovniku))
+                .setParameter("inVocabulary", URI.create(cz.cvut.kbss.termit.util.Vocabulary.s_p_je_pojmem_ze_slovniku))
                 .setParameter("graphs", graphs)
                 .setParameter("labelLang", config.get(ConfigParam.LANGUAGE))
                 .getResultStream();
         // Use LinkedHashSet to preserve term order
         parent.setSubTerms(subTermsStream.collect(Collectors.toCollection(LinkedHashSet::new)));
+    }
+
+    private boolean isPublished(Term term) {
+        // Note that this can be moved into Term once SPARQL-based attributes (https://github.com/kbss-cvut/jopa/issues/65) are supported
+        return em.createNativeQuery("ASK WHERE {" +
+                "    SELECT (count(?g) as ?cnt) WHERE {" +
+                "    GRAPH ?g {" +
+                "    ?term ?inScheme ?glossary ." +
+                "    }" +
+                "    } HAVING (?cnt > 1) }", Boolean.class)
+                .setParameter("term", term)
+                .setParameter("inScheme", URI.create(SKOS.IN_SCHEME))
+                .setParameter("glossary", term.getGlossary()).getSingleResult();
     }
 
     /**
@@ -464,8 +478,7 @@ public class TermDao extends WorkspaceBasedAssetDao<Term> {
             final URI vocabularyCtx = persistenceUtils.resolveVocabularyContext(vocabularyIri);
             final List<Term> result = executeQueryAndLoadSubTerms(query.setParameter("vocabulary", vocabularyIri)
                     .setParameter("g", vocabularyCtx)
-                    .setParameter("labelLang",
-                            config.get(ConfigParam.LANGUAGE))
+                    .setParameter("labelLang", config.get(ConfigParam.LANGUAGE))
                     .setMaxResults(pageSpec.getPageSize())
                     .setFirstResult((int) pageSpec.getOffset()), Collections.singleton(vocabularyCtx));
             result.addAll(loadIncludedTerms(includeTerms));
@@ -478,8 +491,7 @@ public class TermDao extends WorkspaceBasedAssetDao<Term> {
     private <T> TypedQuery<T> setCommonFindAllRootsQueryParams(TypedQuery<T> query) {
         return query.setParameter("type", typeUri)
                 .setParameter("hasLabel", LABEL_PROP)
-                .setParameter("hasGlossary",
-                        URI.create(cz.cvut.kbss.termit.util.Vocabulary.s_p_ma_glosar))
+                .setParameter("hasGlossary", URI.create(cz.cvut.kbss.termit.util.Vocabulary.s_p_ma_glosar))
                 .setParameter("hasTerm", URI.create(SKOS.HAS_TOP_CONCEPT));
     }
 
@@ -542,12 +554,10 @@ public class TermDao extends WorkspaceBasedAssetDao<Term> {
                     "} ORDER BY LCASE(?label)", Term.class)
                     .setParameter("type", typeUri)
                     .setParameter("hasLabel", LABEL_PROP)
-                    .setParameter("inVocabulary", URI.create(
-                            cz.cvut.kbss.termit.util.Vocabulary.s_p_je_pojmem_ze_slovniku))
+                    .setParameter("inVocabulary", URI.create(cz.cvut.kbss.termit.util.Vocabulary.s_p_je_pojmem_ze_slovniku))
                     .setParameter("vocabulary", vocabularyIri)
                     .setParameter("g", vocabularyCtx)
-                    .setParameter("searchString", searchString,
-                            config.get(ConfigParam.LANGUAGE));
+                    .setParameter("searchString", searchString, config.get(ConfigParam.LANGUAGE));
             query.setDescriptor(descriptorFactory.termDescriptor(vocabularyIri));
             final List<Term> terms = executeQueryAndLoadSubTerms(query, Collections.singleton(vocabularyCtx));
             terms.forEach(t -> loadParentSubTerms(t, vocabularyCtx));
@@ -558,7 +568,7 @@ public class TermDao extends WorkspaceBasedAssetDao<Term> {
     }
 
     private void loadParentSubTerms(Term parent, URI vocabularyCtx) {
-        loadSubTermInfo(parent, Collections.singleton(vocabularyCtx));
+        loadAdditionTermMetadata(parent, Collections.singleton(vocabularyCtx));
         if (parent.getParentTerms() != null) {
             parent.getParentTerms().forEach(t -> loadParentSubTerms(t, vocabularyCtx));
         }
@@ -606,12 +616,11 @@ public class TermDao extends WorkspaceBasedAssetDao<Term> {
                     "FILTER (LCASE(?label) = LCASE(?searchString)) . }", Boolean.class)
                     .setParameter("type", typeUri)
                     .setParameter("hasLabel", LABEL_PROP)
-                    .setParameter("inVocabulary",
-                            URI.create(cz.cvut.kbss.termit.util.Vocabulary.s_p_je_pojmem_ze_slovniku))
+                    .setParameter("inVocabulary", URI.create(cz.cvut.kbss.termit.util.Vocabulary.s_p_je_pojmem_ze_slovniku))
                     .setParameter("vocabulary", vocabulary)
                     .setParameter("g", persistenceUtils.resolveVocabularyContext(vocabulary.getUri()))
-                    .setParameter("searchString", label,
-                            languageTag != null ? languageTag : config.get(ConfigParam.LANGUAGE)).getSingleResult();
+                    .setParameter("searchString", label, languageTag != null ? languageTag : config.get(ConfigParam.LANGUAGE))
+                    .getSingleResult();
         } catch (RuntimeException e) {
             throw new PersistenceException(e);
         }

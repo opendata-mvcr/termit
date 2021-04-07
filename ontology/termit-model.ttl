@@ -259,3 +259,8 @@ termit-pojem:konfigurace
 termit-pojem:je-tématem
         a               owl:ObjectProperty;
         owl:inverseOf   sioc:topic .
+
+termit-pojem:je-publikován
+        a               owl:DatatypeProperty , <https://slovník.gov.cz/základní/pojem/typ-vlastnosti> ;
+        rdfs:domain         <http://onto.fel.cvut.cz/ontologies/slovník/agendový/popis-dat/pojem/term> ;
+        rdfs:subPropertyOf  <https://slovník.gov.cz/základní/pojem/vlastnost> .
