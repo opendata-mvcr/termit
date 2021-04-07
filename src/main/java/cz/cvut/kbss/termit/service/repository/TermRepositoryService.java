@@ -153,7 +153,7 @@ public class TermRepositoryService extends BaseAssetRepositoryService<Term> {
      * @param pageSpec Page specification
      * @return Content of matching page of root terms
      */
-    public List<Term> findAllRoots(Pageable pageSpec) {
+    public List<TermDto> findAllRoots(Pageable pageSpec) {
         return termDao.findAllRoots(pageSpec);
     }
 
@@ -166,7 +166,7 @@ public class TermRepositoryService extends BaseAssetRepositoryService<Term> {
      * @param pageSpec Page specification
      * @return Content of matching page of root terms
      */
-    public List<Term> findAllRootsIncludingCanonical(Pageable pageSpec) {
+    public List<TermDto> findAllRootsIncludingCanonical(Pageable pageSpec) {
         return termDao.findAllRootsIncludingCanonical(pageSpec);
     }
 
@@ -176,7 +176,7 @@ public class TermRepositoryService extends BaseAssetRepositoryService<Term> {
      * @param pageSpec Page specification
      * @return Content of matching page of terms
      */
-    public List<Term> findAll(Pageable pageSpec) {
+    public List<TermDto> findAll(Pageable pageSpec) {
         return termDao.findAll(pageSpec);
     }
 
@@ -190,7 +190,7 @@ public class TermRepositoryService extends BaseAssetRepositoryService<Term> {
      * @param pageSpec Page specification
      * @return Content of matching page of terms
      */
-    public List<Term> findAllIncludingCanonical(Pageable pageSpec) {
+    public List<TermDto> findAllIncludingCanonical(Pageable pageSpec) {
         return termDao.findAllIncludingCanonical(pageSpec);
     }
 
@@ -200,7 +200,7 @@ public class TermRepositoryService extends BaseAssetRepositoryService<Term> {
      * @param searchString Search string
      * @return Matching terms
      */
-    public List<Term> findAll(String searchString) {
+    public List<TermDto> findAll(String searchString) {
         return termDao.findAll(searchString);
     }
 
@@ -213,7 +213,7 @@ public class TermRepositoryService extends BaseAssetRepositoryService<Term> {
      * @param searchString Search string
      * @return Matching terms
      */
-    public List<Term> findAllIncludingCanonical(String searchString) {
+    public List<TermDto> findAllIncludingCanonical(String searchString) {
         return termDao.findAllIncludingCanonical(searchString);
     }
 
@@ -262,7 +262,7 @@ public class TermRepositoryService extends BaseAssetRepositoryService<Term> {
      * @see #findAllRootsIncludingImported(Vocabulary, Pageable, Collection)
      */
     public List<TermDto> findAllRoots(Vocabulary vocabulary, Pageable pageSpec,
-                                   Collection<URI> includeTerms) {
+                                      Collection<URI> includeTerms) {
         return termDao.findAllRoots(vocabulary, pageSpec, includeTerms);
     }
 
@@ -280,7 +280,7 @@ public class TermRepositoryService extends BaseAssetRepositoryService<Term> {
      * @see #findAllRoots(Vocabulary, Pageable, Collection)
      */
     public List<TermDto> findAllRootsIncludingImported(Vocabulary vocabulary, Pageable pageSpec,
-                                                    Collection<URI> includeTerms) {
+                                                       Collection<URI> includeTerms) {
         return termDao.findAllRootsIncludingImports(vocabulary, pageSpec, includeTerms);
     }
 

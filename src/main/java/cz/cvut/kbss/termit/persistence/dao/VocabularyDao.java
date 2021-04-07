@@ -1,13 +1,16 @@
 /**
  * TermIt Copyright (C) 2019 Czech Technical University in Prague
  * <p>
- * This program is free software: you can redistribute it and/or modify it under the terms of the GNU General Public License as published by
- * the Free Software Foundation, either version 3 of the License, or (at your option) any later version.
+ * This program is free software: you can redistribute it and/or modify it under the terms of the GNU General Public
+ * License as published by the Free Software Foundation, either version 3 of the License, or (at your option) any later
+ * version.
  * <p>
- * This program is distributed in the hope that it will be useful, but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License for more details.
+ * This program is distributed in the hope that it will be useful, but WITHOUT ANY WARRANTY; without even the implied
+ * warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License for more
+ * details.
  * <p>
- * You should have received a copy of the GNU General Public License along with this program.  If not, see <https://www.gnu.org/licenses/>.
+ * You should have received a copy of the GNU General Public License along with this program.  If not, see
+ * <https://www.gnu.org/licenses/>.
  */
 package cz.cvut.kbss.termit.persistence.dao;
 
@@ -25,14 +28,13 @@ import cz.cvut.kbss.termit.exception.workspace.WorkspaceException;
 import cz.cvut.kbss.termit.model.Glossary;
 import cz.cvut.kbss.termit.model.Term;
 import cz.cvut.kbss.termit.model.Vocabulary;
-import cz.cvut.kbss.termit.model.changetracking.AbstractChangeRecord;
 import cz.cvut.kbss.termit.model.Workspace;
+import cz.cvut.kbss.termit.model.changetracking.AbstractChangeRecord;
 import cz.cvut.kbss.termit.model.validation.ValidationResult;
 import cz.cvut.kbss.termit.persistence.DescriptorFactory;
 import cz.cvut.kbss.termit.persistence.PersistenceUtils;
-import cz.cvut.kbss.termit.persistence.dao.util.Validator;
-import cz.cvut.kbss.termit.persistence.dao.workspace.WorkspaceBasedAssetDao;
 import cz.cvut.kbss.termit.persistence.dao.changetracking.ChangeRecordDao;
+import cz.cvut.kbss.termit.persistence.dao.workspace.WorkspaceBasedAssetDao;
 import cz.cvut.kbss.termit.persistence.validation.VocabularyContentValidator;
 import cz.cvut.kbss.termit.util.Configuration;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -41,7 +43,6 @@ import org.springframework.context.event.EventListener;
 import org.springframework.stereotype.Repository;
 import org.springframework.transaction.annotation.Transactional;
 
-import java.io.IOException;
 import java.net.URI;
 import java.util.*;
 import java.util.stream.Collectors;
@@ -59,7 +60,7 @@ public class VocabularyDao extends WorkspaceBasedAssetDao<Vocabulary> implements
 
     @Autowired
     public VocabularyDao(EntityManager em, Configuration config, DescriptorFactory descriptorFactory,
-                         PersistenceUtils persistenceUtils, ChangeRecordDao changeRecordDao ApplicationContext context) {
+                         PersistenceUtils persistenceUtils, ChangeRecordDao changeRecordDao, ApplicationContext context) {
         super(Vocabulary.class, em, config, descriptorFactory, persistenceUtils);
         this.changeRecordDao = changeRecordDao;
         refreshLastModified();
@@ -95,16 +96,16 @@ public class VocabularyDao extends WorkspaceBasedAssetDao<Vocabulary> implements
                 "?v a ?type ." +
                 "}" +
                 "}", Vocabulary.class).setParameter("mc", workspace.getUri())
-                                          .setParameter("metadataCtx",
-                                                  URI.create(
-                                                          cz.cvut.kbss.termit.util.Vocabulary.s_c_metadatovy_kontext))
-                                          .setParameter("referencesCtx", URI.create(
-                                                  cz.cvut.kbss.termit.util.Vocabulary.s_p_odkazuje_na_kontext))
-                                          .setParameter("vocabularyCtx", URI.create(
-                                                  cz.cvut.kbss.termit.util.Vocabulary.s_c_slovnikovy_kontext))
-                                          .setParameter("type", typeUri)
-                                          .setDescriptor(createVocabulariesLoadingDescriptor(workspace))
-                                          .getResultList();
+                .setParameter("metadataCtx",
+                        URI.create(
+                                cz.cvut.kbss.termit.util.Vocabulary.s_c_metadatovy_kontext))
+                .setParameter("referencesCtx", URI.create(
+                        cz.cvut.kbss.termit.util.Vocabulary.s_p_odkazuje_na_kontext))
+                .setParameter("vocabularyCtx", URI.create(
+                        cz.cvut.kbss.termit.util.Vocabulary.s_c_slovnikovy_kontext))
+                .setParameter("type", typeUri)
+                .setDescriptor(createVocabulariesLoadingDescriptor(workspace))
+                .getResultList();
         result.sort(Comparator.comparing(Vocabulary::getLabel));
         return result;
     }
@@ -151,9 +152,9 @@ public class VocabularyDao extends WorkspaceBasedAssetDao<Vocabulary> implements
             return em.createNativeQuery("SELECT DISTINCT ?used WHERE {" +
                     "?x ?uses+ ?used ." +
                     "}", URI.class)
-                     .setParameter("uses",
-                             URI.create(cz.cvut.kbss.termit.util.Vocabulary.s_p_pouziva_pojmy_ze_slovniku))
-                     .setParameter("x", entity.getUri()).getResultList();
+                    .setParameter("uses",
+                            URI.create(cz.cvut.kbss.termit.util.Vocabulary.s_p_pouziva_pojmy_ze_slovniku))
+                    .setParameter("x", entity.getUri()).getResultList();
         } catch (RuntimeException e) {
             throw new PersistenceException(e);
         }
@@ -173,9 +174,9 @@ public class VocabularyDao extends WorkspaceBasedAssetDao<Vocabulary> implements
             return em.createNativeQuery("SELECT DISTINCT ?importing WHERE {" +
                     "?importing ?uses ?target ." +
                     "}", Vocabulary.class)
-                     .setParameter("uses",
-                             URI.create(cz.cvut.kbss.termit.util.Vocabulary.s_p_pouziva_pojmy_ze_slovniku))
-                     .setParameter("target", vocabulary.getUri()).getResultList();
+                    .setParameter("uses",
+                            URI.create(cz.cvut.kbss.termit.util.Vocabulary.s_p_pouziva_pojmy_ze_slovniku))
+                    .setParameter("target", vocabulary.getUri()).getResultList();
         } catch (RuntimeException e) {
             throw new PersistenceException(e);
         }
@@ -233,12 +234,12 @@ public class VocabularyDao extends WorkspaceBasedAssetDao<Vocabulary> implements
                 "       ?hasParentTerm ?parent . " +
                 "    ?parent ?isTermFromVocabulary ?targetVocabulary . " +
                 "}", Boolean.class)
-                 .setParameter("isTermFromVocabulary",
-                         URI.create(cz.cvut.kbss.termit.util.Vocabulary.s_p_je_pojmem_ze_slovniku))
-                 .setParameter("subjectVocabulary", subjectVocabulary)
-                 .setParameter("hasParentTerm", URI.create(SKOS.BROADER))
-                 .setParameter("targetVocabulary", targetVocabulary)
-                 .getSingleResult();
+                .setParameter("isTermFromVocabulary",
+                        URI.create(cz.cvut.kbss.termit.util.Vocabulary.s_p_je_pojmem_ze_slovniku))
+                .setParameter("subjectVocabulary", subjectVocabulary)
+                .setParameter("hasParentTerm", URI.create(SKOS.BROADER))
+                .setParameter("targetVocabulary", targetVocabulary)
+                .getSingleResult();
     }
 
     @Override
@@ -268,16 +269,16 @@ public class VocabularyDao extends WorkspaceBasedAssetDao<Vocabulary> implements
                 "?v a ?type ." +
                 "}" +
                 "}", URI.class).setParameter("mc", workspace.getUri())
-                 .setParameter("metadataCtx",
-                         URI.create(
-                                 cz.cvut.kbss.termit.util.Vocabulary.s_c_metadatovy_kontext))
-                 .setParameter("referencesCtx", URI.create(
-                         cz.cvut.kbss.termit.util.Vocabulary.s_p_odkazuje_na_kontext))
-                 .setParameter("vocabularyCtx", URI.create(
-                         cz.cvut.kbss.termit.util.Vocabulary.s_c_slovnikovy_kontext))
-                 .setParameter("type", typeUri)
-                 .setDescriptor(createVocabulariesLoadingDescriptor(workspace))
-                 .getResultList();
+                .setParameter("metadataCtx",
+                        URI.create(
+                                cz.cvut.kbss.termit.util.Vocabulary.s_c_metadatovy_kontext))
+                .setParameter("referencesCtx", URI.create(
+                        cz.cvut.kbss.termit.util.Vocabulary.s_p_odkazuje_na_kontext))
+                .setParameter("vocabularyCtx", URI.create(
+                        cz.cvut.kbss.termit.util.Vocabulary.s_c_slovnikovy_kontext))
+                .setParameter("type", typeUri)
+                .setDescriptor(createVocabulariesLoadingDescriptor(workspace))
+                .getResultList();
     }
 
     /**
@@ -291,15 +292,10 @@ public class VocabularyDao extends WorkspaceBasedAssetDao<Vocabulary> implements
     @Transactional
     public List<ValidationResult> validateContents(Vocabulary voc, Workspace workspace) {
         final VocabularyContentValidator validator = context.getBean(VocabularyContentValidator.class);
-        final Collection<URI> importClosure = getTransitivelyImportedVocabularies(voc);
+        final Collection<URI> importClosure = getTransitiveDependencies(voc);
         importClosure.add(voc.getUri());
-        return validator.validate(importClosure);
-    @Transactional
-    public List<ValidationResult> validateContents(Vocabulary voc) {
-        final VocabularyContentValidator validator = context.getBean(VocabularyContentValidator.class);
-        final Collection<URI> importClosure = getTransitivelyImportedVocabularies(voc);
-        importClosure.add(voc.getUri());
-        return validator.validate(importClosure);
+        final Collection<URI> closure = getVocabularyContexts(importClosure, workspace);
+        return validator.validate(closure);
     }
 
     /**
