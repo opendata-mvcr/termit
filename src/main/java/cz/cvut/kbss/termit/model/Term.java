@@ -49,11 +49,6 @@ public class Term extends Asset<MultilingualString> implements HasTypes, Seriali
     @Transient
     private Configuration config;
 
-    @PrimaryNotBlank
-    @ParticipationConstraints(nonEmpty = true)
-    @OWLAnnotationProperty(iri = SKOS.PREF_LABEL)
-    private MultilingualString label;
-
     @OWLAnnotationProperty(iri = SKOS.ALT_LABEL)
     private Set<MultilingualString> altLabels;
 
@@ -63,25 +58,11 @@ public class Term extends Asset<MultilingualString> implements HasTypes, Seriali
     @OWLAnnotationProperty(iri = SKOS.SCOPE_NOTE)
     private MultilingualString description;
 
-    @OWLAnnotationProperty(iri = SKOS.DEFINITION)
-    private MultilingualString definition;
-
     @OWLAnnotationProperty(iri = DC.Terms.SOURCE, simpleLiteral = true)
     private Set<String> sources;
 
     @OWLObjectProperty(iri = SKOS.BROADER, fetch = FetchType.EAGER)
     private Set<Term> parentTerms;
-
-    @Transient  // Not used by JOPA
-    @OWLObjectProperty(iri = SKOS.NARROWER) // But map the property for JSON-LD serialization
-    private Set<TermInfo> subTerms;
-
-    @OWLObjectProperty(iri = SKOS.IN_SCHEME)
-    private URI glossary;
-
-    @Inferred
-    @OWLObjectProperty(iri = Vocabulary.s_p_je_pojmem_ze_slovniku)
-    private URI vocabulary;
 
     @Inferred
     @OWLObjectProperty(iri = Vocabulary.s_p_ma_zdroj_definice_termu, fetch = FetchType.EAGER)
@@ -90,25 +71,9 @@ public class Term extends Asset<MultilingualString> implements HasTypes, Seriali
     @Properties(fetchType = FetchType.EAGER)
     private Map<String, Set<String>> properties;
 
-    @OWLDataProperty(iri = Vocabulary.s_p_je_draft)
-    private Boolean draft;
-
-    @Transient
-    @OWLDataProperty(iri = Vocabulary.s_p_je_publikovan)
-    private Boolean published;
-
     @Types
     private Set<String> types;
 
-    @Override
-    public MultilingualString getLabel() {
-        return label;
-    }
-
-    @Override
-    public void setLabel(MultilingualString label) {
-        this.label = label;
-    }
 
     /**
      * Sets label in the application-configured language.
@@ -120,10 +85,10 @@ public class Term extends Asset<MultilingualString> implements HasTypes, Seriali
      */
     @JsonIgnore
     public void setPrimaryLabel(String label) {
-        if (this.label == null) {
-            this.label = MultilingualString.create(label, config.get(ConfigParam.LANGUAGE));
+        if (this.getLabel() == null) {
+            this.setLabel(MultilingualString.create(label, config.get(ConfigParam.LANGUAGE)));
         } else {
-            this.label.set(config.get(ConfigParam.LANGUAGE), label);
+            this.getLabel().set(config.get(ConfigParam.LANGUAGE), label);
         }
     }
 
@@ -137,7 +102,7 @@ public class Term extends Asset<MultilingualString> implements HasTypes, Seriali
      */
     @JsonIgnore
     public String getPrimaryLabel() {
-        return label != null ? label.get(config.get(ConfigParam.LANGUAGE)) : null;
+        return getLabel() != null ? getLabel().get(config.get(ConfigParam.LANGUAGE)) : null;
     }
 
     @Override
@@ -169,14 +134,6 @@ public class Term extends Asset<MultilingualString> implements HasTypes, Seriali
         this.description = description;
     }
 
-    public MultilingualString getDefinition() {
-        return definition;
-    }
-
-    public void setDefinition(MultilingualString definition) {
-        this.definition = definition;
-    }
-
     public Set<Term> getParentTerms() {
         return parentTerms;
     }
@@ -192,14 +149,6 @@ public class Term extends Asset<MultilingualString> implements HasTypes, Seriali
         parentTerms.add(term);
     }
 
-    public Set<TermInfo> getSubTerms() {
-        return subTerms;
-    }
-
-    public void setSubTerms(Set<TermInfo> subTerms) {
-        this.subTerms = subTerms;
-    }
-
     public Set<String> getSources() {
         return sources;
     }
@@ -208,44 +157,12 @@ public class Term extends Asset<MultilingualString> implements HasTypes, Seriali
         this.sources = source;
     }
 
-    public URI getGlossary() {
-        return glossary;
-    }
-
-    public void setGlossary(URI glossary) {
-        this.glossary = glossary;
-    }
-
-    public URI getVocabulary() {
-        return vocabulary;
-    }
-
-    public void setVocabulary(URI vocabulary) {
-        this.vocabulary = vocabulary;
-    }
-
     public TermDefinitionSource getDefinitionSource() {
         return definitionSource;
     }
 
     public void setDefinitionSource(TermDefinitionSource definitionSource) {
         this.definitionSource = definitionSource;
-    }
-
-    public boolean isDraft() {
-        return draft == null ? true : draft;
-    }
-
-    public void setDraft(boolean draft) {
-        this.draft = draft;
-    }
-
-    public Boolean isPublished() {
-        return published != null && published;
-    }
-
-    public void setPublished(Boolean published) {
-        this.published = published;
     }
 
     @Override
@@ -285,12 +202,12 @@ public class Term extends Asset<MultilingualString> implements HasTypes, Seriali
         sb.append(',').append(exportMultilingualString(getLabel()));
         exportMulti(sb, altLabels, Term::exportMultilingualString);
         exportMulti(sb, hiddenLabels, Term::exportMultilingualString);
-        sb.append(',').append(exportMultilingualString(definition));
+        sb.append(',').append(exportMultilingualString(getDefinition()));
         sb.append(',').append(exportMultilingualString(description));
         exportMulti(sb, types, String::toString);
         exportMulti(sb, sources, String::toString);
         exportMulti(sb, parentTerms, pt -> pt.getUri().toString());
-        exportMulti(sb, subTerms, pt -> pt.getUri().toString());
+        exportMulti(sb, getSubTerms(), pt -> pt.getUri().toString());
         sb.append(',');
         sb.append(isDraft());
         return sb.toString();
@@ -326,8 +243,8 @@ public class Term extends Asset<MultilingualString> implements HasTypes, Seriali
             row.createCell(3).setCellValue(String.join(";",
                     hiddenLabels.stream().map(Term::exportMultilingualString).collect(Collectors.toSet())));
         }
-        if (definition != null) {
-            row.createCell(4).setCellValue(definition.toString());
+        if (getDefinition() != null) {
+            row.createCell(4).setCellValue(getDefinition().toString());
         }
         if (description != null) {
             row.createCell(5).setCellValue(description.toString());
@@ -340,13 +257,13 @@ public class Term extends Asset<MultilingualString> implements HasTypes, Seriali
         }
         if (parentTerms != null) {
             row.createCell(8)
-                    .setCellValue(String.join(";",
-                            parentTerms.stream().map(pt -> pt.getUri().toString()).collect(Collectors.toSet())));
+               .setCellValue(String.join(";",
+                       parentTerms.stream().map(pt -> pt.getUri().toString()).collect(Collectors.toSet())));
         }
-        if (subTerms != null) {
+        if (getSubTerms() != null) {
             row.createCell(9)
-                    .setCellValue(String.join(";",
-                            subTerms.stream().map(ti -> ti.getUri().toString()).collect(Collectors.toSet())));
+               .setCellValue(String.join(";",
+                       getSubTerms().stream().map(ti -> ti.getUri().toString()).collect(Collectors.toSet())));
         }
         row.createCell(10).setCellValue(isDraft());
     }
@@ -358,24 +275,7 @@ public class Term extends Asset<MultilingualString> implements HasTypes, Seriali
      * term at all
      */
     public boolean hasParentInSameVocabulary() {
-        return parentTerms != null && parentTerms.stream().anyMatch(p -> p.getGlossary().equals(glossary));
-    }
-
-    @Override
-    public boolean equals(Object o) {
-        if (this == o) {
-            return true;
-        }
-        if (!(o instanceof Term)) {
-            return false;
-        }
-        Term term = (Term) o;
-        return Objects.equals(getUri(), term.getUri());
-    }
-
-    @Override
-    public int hashCode() {
-        return Objects.hash(getUri());
+        return parentTerms != null && parentTerms.stream().anyMatch(p -> p.getGlossary().equals(getGlossary()));
     }
 
     @Override

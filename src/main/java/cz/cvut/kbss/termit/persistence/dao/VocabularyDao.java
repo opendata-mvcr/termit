@@ -1,16 +1,13 @@
 /**
  * TermIt Copyright (C) 2019 Czech Technical University in Prague
  * <p>
- * This program is free software: you can redistribute it and/or modify it under the terms of the GNU General Public
- * License as published by the Free Software Foundation, either version 3 of the License, or (at your option) any later
- * version.
+ * This program is free software: you can redistribute it and/or modify it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation, either version 3 of the License, or (at your option) any later version.
  * <p>
- * This program is distributed in the hope that it will be useful, but WITHOUT ANY WARRANTY; without even the implied
- * warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License for more
- * details.
+ * This program is distributed in the hope that it will be useful, but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License for more details.
  * <p>
- * You should have received a copy of the GNU General Public License along with this program.  If not, see
- * <https://www.gnu.org/licenses/>.
+ * You should have received a copy of the GNU General Public License along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
 package cz.cvut.kbss.termit.persistence.dao;
 
@@ -26,18 +23,23 @@ import cz.cvut.kbss.termit.event.RefreshLastModifiedEvent;
 import cz.cvut.kbss.termit.exception.PersistenceException;
 import cz.cvut.kbss.termit.exception.workspace.WorkspaceException;
 import cz.cvut.kbss.termit.model.Glossary;
+import cz.cvut.kbss.termit.model.Term;
 import cz.cvut.kbss.termit.model.Vocabulary;
+import cz.cvut.kbss.termit.model.changetracking.AbstractChangeRecord;
 import cz.cvut.kbss.termit.model.Workspace;
 import cz.cvut.kbss.termit.model.validation.ValidationResult;
 import cz.cvut.kbss.termit.persistence.DescriptorFactory;
 import cz.cvut.kbss.termit.persistence.PersistenceUtils;
 import cz.cvut.kbss.termit.persistence.dao.util.Validator;
 import cz.cvut.kbss.termit.persistence.dao.workspace.WorkspaceBasedAssetDao;
+import cz.cvut.kbss.termit.persistence.dao.changetracking.ChangeRecordDao;
+import cz.cvut.kbss.termit.persistence.validation.VocabularyContentValidator;
 import cz.cvut.kbss.termit.util.Configuration;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.context.ApplicationContext;
 import org.springframework.context.event.EventListener;
 import org.springframework.stereotype.Repository;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.io.IOException;
 import java.net.URI;
@@ -51,12 +53,15 @@ public class VocabularyDao extends WorkspaceBasedAssetDao<Vocabulary> implements
 
     private volatile long lastModified;
 
+    private final ChangeRecordDao changeRecordDao;
+
     private final ApplicationContext context;
 
     @Autowired
     public VocabularyDao(EntityManager em, Configuration config, DescriptorFactory descriptorFactory,
-                         PersistenceUtils persistenceUtils, ApplicationContext context) {
+                         PersistenceUtils persistenceUtils, ChangeRecordDao changeRecordDao ApplicationContext context) {
         super(Vocabulary.class, em, config, descriptorFactory, persistenceUtils);
+        this.changeRecordDao = changeRecordDao;
         refreshLastModified();
         this.context = context;
     }
@@ -203,8 +208,7 @@ public class VocabularyDao extends WorkspaceBasedAssetDao<Vocabulary> implements
     /**
      * Updates glossary contained in the specified vocabulary.
      * <p>
-     * The vocabulary is passed for correct context resolution, as glossary existentially depends on its owning
-     * vocabulary.
+     * The vocabulary is passed for correct context resolution, as glossary existentially depends on its owning vocabulary.
      *
      * @param entity Owner of the updated glossary
      * @return The updated entity
@@ -215,8 +219,7 @@ public class VocabularyDao extends WorkspaceBasedAssetDao<Vocabulary> implements
     }
 
     /**
-     * Checks whether terms from the {@code subjectVocabulary} reference (as parent terms) any terms from the {@code
-     * targetVocabulary}.
+     * Checks whether terms from the {@code subjectVocabulary} reference (as parent terms) any terms from the {@code targetVocabulary}.
      *
      * @param subjectVocabulary Subject vocabulary identifier
      * @param targetVocabulary  Target vocabulary identifier
@@ -285,17 +288,40 @@ public class VocabularyDao extends WorkspaceBasedAssetDao<Vocabulary> implements
      * @param workspace workspace to limit the imports of the vocabulary to validate
      * @return validation results
      */
+    @Transactional
     public List<ValidationResult> validateContents(Vocabulary voc, Workspace workspace) {
-        final Validator validator = context.getBean(
-                cz.cvut.kbss.termit.persistence.dao.util.Validator.class);
-        try {
-            final Collection<URI> importClosure = getTransitiveDependencies(voc);
-            importClosure.add(voc.getUri());
-            final Collection<URI> closure = getVocabularyContexts(importClosure, workspace);
-            return validator.validate(closure);
-        } catch (IOException e) {
-            throw new PersistenceException(e);
-        }
+        final VocabularyContentValidator validator = context.getBean(VocabularyContentValidator.class);
+        final Collection<URI> importClosure = getTransitivelyImportedVocabularies(voc);
+        importClosure.add(voc.getUri());
+        return validator.validate(importClosure);
+    @Transactional
+    public List<ValidationResult> validateContents(Vocabulary voc) {
+        final VocabularyContentValidator validator = context.getBean(VocabularyContentValidator.class);
+        final Collection<URI> importClosure = getTransitivelyImportedVocabularies(voc);
+        importClosure.add(voc.getUri());
+        return validator.validate(importClosure);
+    }
+
+    /**
+     * Gets all changes of all of the terms in the specified vocabulary.
+     *
+     * @param vocabulary Vocabulary to get changes for
+     * @return List of change records
+     */
+    public List<AbstractChangeRecord> getChangesOfContent(Vocabulary vocabulary) {
+        Objects.requireNonNull(vocabulary);
+        final List<URI> terms = em.createNativeQuery("SELECT DISTINCT ?term WHERE {" +
+                "GRAPH ?vocabulary { " +
+                "?term a ?type ;" +
+                "}" +
+                "?term ?inVocabulary ?vocabulary ." +
+                " }", URI.class).setParameter("type", URI.create(SKOS.CONCEPT))
+                .setParameter("vocabulary", vocabulary).getResultList();
+        return terms.stream().flatMap(tUri -> {
+            final Term t = new Term();
+            t.setUri(tUri);
+            return changeRecordDao.findAll(t).stream();
+        }).collect(Collectors.toList());
     }
 
     /**

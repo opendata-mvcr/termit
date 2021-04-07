@@ -1,6 +1,7 @@
 package cz.cvut.kbss.termit.rest;
 
 import cz.cvut.kbss.jsonld.JsonLd;
+import cz.cvut.kbss.termit.dto.TermDto;
 import cz.cvut.kbss.termit.dto.assignment.TermAssignments;
 import cz.cvut.kbss.termit.exception.NotFoundException;
 import cz.cvut.kbss.termit.exception.TermItException;
@@ -66,7 +67,7 @@ public class TermController extends BaseController {
      * @return List of terms matching the specified parameters
      */
     @GetMapping(value = "/terms", produces = {JsonLd.MEDIA_TYPE, MediaType.APPLICATION_JSON_VALUE})
-    public List<Term> getAll(@RequestParam(required = false, defaultValue = "false") boolean rootsOnly,
+    public List<TermDto> getAll(@RequestParam(required = false, defaultValue = "false") boolean rootsOnly,
                              @RequestParam(required = false) String searchString,
                              @RequestParam(required = false, defaultValue = "false") boolean includeCanonical,
                              @RequestParam(name = QueryParams.PAGE_SIZE, required = false) Integer pageSize,
@@ -178,13 +179,12 @@ public class TermController extends BaseController {
      */
     @GetMapping(value = "/vocabularies/{vocabularyIdFragment}/terms/roots",
             produces = {MediaType.APPLICATION_JSON_VALUE, JsonLd.MEDIA_TYPE})
-    public List<Term> getAllRoots(@PathVariable String vocabularyIdFragment,
-                                  @RequestParam(name = QueryParams.NAMESPACE, required = false) String namespace,
-                                  @RequestParam(name = QueryParams.PAGE_SIZE, required = false) Integer pageSize,
-                                  @RequestParam(name = QueryParams.PAGE, required = false) Integer pageNo,
-                                  @RequestParam(name = "includeImported", required = false) boolean includeImported,
-                                  @RequestParam(name = "includeTerms", required = false, defaultValue = "")
-                                          List<URI> includeTerms) {
+    public List<TermDto> getAllRoots(@PathVariable String vocabularyIdFragment,
+                                     @RequestParam(name = QueryParams.NAMESPACE, required = false) String namespace,
+                                     @RequestParam(name = QueryParams.PAGE_SIZE, required = false) Integer pageSize,
+                                     @RequestParam(name = QueryParams.PAGE, required = false) Integer pageNo,
+                                     @RequestParam(name = "includeImported", required = false) boolean includeImported,
+                                     @RequestParam(name = "includeTerms", required = false, defaultValue = "") List<URI> includeTerms) {
         final Vocabulary vocabulary = getVocabulary(getVocabularyUri(namespace, vocabularyIdFragment));
         return includeImported ?
                termService

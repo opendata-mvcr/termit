@@ -1,16 +1,13 @@
 /**
  * TermIt Copyright (C) 2019 Czech Technical University in Prague
  * <p>
- * This program is free software: you can redistribute it and/or modify it under the terms of the GNU General Public
- * License as published by the Free Software Foundation, either version 3 of the License, or (at your option) any later
- * version.
+ * This program is free software: you can redistribute it and/or modify it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation, either version 3 of the License, or (at your option) any later version.
  * <p>
- * This program is distributed in the hope that it will be useful, but WITHOUT ANY WARRANTY; without even the implied
- * warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License for more
- * details.
+ * This program is distributed in the hope that it will be useful, but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License for more details.
  * <p>
- * You should have received a copy of the GNU General Public License along with this program.  If not, see
- * <https://www.gnu.org/licenses/>.
+ * You should have received a copy of the GNU General Public License along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
 package cz.cvut.kbss.termit.persistence.dao;
 
@@ -18,10 +15,14 @@ import cz.cvut.kbss.jopa.model.EntityManager;
 import cz.cvut.kbss.jopa.model.descriptors.Descriptor;
 import cz.cvut.kbss.jopa.model.query.TypedQuery;
 import cz.cvut.kbss.jopa.vocabulary.SKOS;
+import cz.cvut.kbss.termit.asset.provenance.ModifiesData;
+import cz.cvut.kbss.termit.dto.TermDto;
 import cz.cvut.kbss.termit.dto.TermInfo;
 import cz.cvut.kbss.termit.exception.PersistenceException;
+import cz.cvut.kbss.termit.model.AbstractTerm;
 import cz.cvut.kbss.termit.model.Term;
 import cz.cvut.kbss.termit.model.Vocabulary;
+import cz.cvut.kbss.termit.model.util.HasIdentifier;
 import cz.cvut.kbss.termit.persistence.DescriptorFactory;
 import cz.cvut.kbss.termit.persistence.PersistenceUtils;
 import cz.cvut.kbss.termit.persistence.dao.workspace.WorkspaceBasedAssetDao;
@@ -104,6 +105,7 @@ public class TermDao extends WorkspaceBasedAssetDao<Term> {
      * @param entity     The term to persist
      * @param vocabulary Vocabulary which shall contain the persisted term
      */
+    @ModifiesData
     public void persist(Term entity, Vocabulary vocabulary) {
         Objects.requireNonNull(entity);
         Objects.requireNonNull(vocabulary);
@@ -117,6 +119,7 @@ public class TermDao extends WorkspaceBasedAssetDao<Term> {
         }
     }
 
+    @ModifiesData
     @Override
     public Term update(Term entity) {
         Objects.requireNonNull(entity);
@@ -369,7 +372,7 @@ public class TermDao extends WorkspaceBasedAssetDao<Term> {
         }
     }
 
-    private List<Term> executeQueryAndLoadSubTerms(TypedQuery<Term> query, Set<URI> contexts) {
+    private <T extends AbstractTerm> List<T> executeQueryAndLoadSubTerms(TypedQuery<T> query, Set<URI> contexts) {
         final List<Term> terms = query.getResultList();
         terms.forEach(t -> loadAdditionTermMetadata(t, contexts));
         return terms;
@@ -383,15 +386,15 @@ public class TermDao extends WorkspaceBasedAssetDao<Term> {
      * @param vocabulary Vocabulary whose terms should be returned
      * @return Matching terms, ordered by label
      */
-    public List<Term> findAllIncludingImported(Vocabulary vocabulary) {
+    public List<TermDto> findAllIncludingImported(Vocabulary vocabulary) {
         Objects.requireNonNull(vocabulary);
-        TypedQuery<Term> query = em.createNativeQuery("SELECT DISTINCT ?term WHERE {" +
+        TypedQuery<TermDto> query = em.createNativeQuery("SELECT DISTINCT ?term WHERE {" +
                 "?term a ?type ;" +
                 "?hasLabel ?label ;" +
                 "?inVocabulary ?parent ." +
                 "?vocabulary ?imports* ?parent ." +
                 "FILTER (lang(?label) = ?labelLang) ." +
-                "} ORDER BY LCASE(?label)", Term.class).setParameter("type", typeUri)
+                "} ORDER BY LCASE(?label)", TermDto.class).setParameter("type", typeUri)
                 .setParameter("hasLabel", LABEL_PROP)
                 .setParameter("inVocabulary", URI.create(cz.cvut.kbss.termit.util.Vocabulary.s_p_je_pojmem_ze_slovniku))
                 .setParameter("imports", URI.create(cz.cvut.kbss.termit.util.Vocabulary.s_p_pouziva_pojmy_ze_slovniku))
@@ -458,7 +461,7 @@ public class TermDao extends WorkspaceBasedAssetDao<Term> {
      * @return Matching terms, ordered by their label
      * @see #findAllRootsIncludingImports(Vocabulary, Pageable, Collection)
      */
-    public List<Term> findAllRoots(Vocabulary vocabulary, Pageable pageSpec, Collection<URI> includeTerms) {
+    public List<TermDto> findAllRoots(Vocabulary vocabulary, Pageable pageSpec, Collection<URI> includeTerms) {
         Objects.requireNonNull(vocabulary);
         Objects.requireNonNull(pageSpec);
         return findAllRootsImpl(vocabulary.getUri(), pageSpec, includeTerms);
@@ -514,8 +517,8 @@ public class TermDao extends WorkspaceBasedAssetDao<Term> {
      * @return Matching terms, ordered by their label
      * @see #findAllRoots(Vocabulary, Pageable, Collection)
      */
-    public List<Term> findAllRootsIncludingImports(Vocabulary vocabulary, Pageable pageSpec,
-                                                   Collection<URI> includeTerms) {
+    public List<TermDto> findAllRootsIncludingImports(Vocabulary vocabulary, Pageable pageSpec,
+                                                      Collection<URI> includeTerms) {
         Objects.requireNonNull(vocabulary);
         Objects.requireNonNull(pageSpec);
         final Collection<URI> vocabularies = vocabularyDao.getTransitiveDependencies(vocabulary);
@@ -535,7 +538,7 @@ public class TermDao extends WorkspaceBasedAssetDao<Term> {
      * @param vocabulary   Vocabulary whose terms should be searched
      * @return List of matching terms
      */
-    public List<Term> findAll(String searchString, Vocabulary vocabulary) {
+    public List<TermDto> findAll(String searchString, Vocabulary vocabulary) {
         Objects.requireNonNull(searchString);
         Objects.requireNonNull(vocabulary);
         return findAllImpl(searchString, vocabulary.getUri());
@@ -567,7 +570,7 @@ public class TermDao extends WorkspaceBasedAssetDao<Term> {
         }
     }
 
-    private void loadParentSubTerms(Term parent, URI vocabularyCtx) {
+    private void loadParentSubTerms(TermDto parent, URI vocabularyCtx) {
         loadAdditionTermMetadata(parent, Collections.singleton(vocabularyCtx));
         if (parent.getParentTerms() != null) {
             parent.getParentTerms().forEach(t -> loadParentSubTerms(t, vocabularyCtx));
@@ -583,7 +586,7 @@ public class TermDao extends WorkspaceBasedAssetDao<Term> {
      * @param vocabulary   Vocabulary whose terms should be searched
      * @return List of matching terms
      */
-    public List<Term> findAllIncludingImported(String searchString, Vocabulary vocabulary) {
+    public List<TermDto> findAllIncludingImported(String searchString, Vocabulary vocabulary) {
         Objects.requireNonNull(searchString);
         Objects.requireNonNull(vocabulary);
         final Collection<URI> vocabularies = vocabularyDao.getTransitiveDependencies(vocabulary);
