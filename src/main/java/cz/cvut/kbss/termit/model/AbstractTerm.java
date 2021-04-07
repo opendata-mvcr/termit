@@ -2,15 +2,15 @@ package cz.cvut.kbss.termit.model;
 
 import cz.cvut.kbss.jopa.model.MultilingualString;
 import cz.cvut.kbss.jopa.model.annotations.*;
+import cz.cvut.kbss.jopa.model.descriptors.Descriptor;
 import cz.cvut.kbss.jopa.vocabulary.SKOS;
-import cz.cvut.kbss.termit.dto.TermDto;
 import cz.cvut.kbss.termit.dto.TermInfo;
+import cz.cvut.kbss.termit.persistence.DescriptorFactory;
 import cz.cvut.kbss.termit.util.Vocabulary;
 import cz.cvut.kbss.termit.validation.PrimaryNotBlank;
 
 import java.io.Serializable;
 import java.net.URI;
-import java.util.HashSet;
 import java.util.Objects;
 import java.util.Set;
 
@@ -38,6 +38,10 @@ public abstract class AbstractTerm extends Asset<MultilingualString> implements 
 
     @OWLDataProperty(iri = Vocabulary.s_p_je_draft)
     private Boolean draft;
+
+    @Transient
+    @OWLDataProperty(iri = Vocabulary.s_p_je_publikovan)
+    private Boolean published;
 
     @Override
     public MultilingualString getLabel() {
@@ -87,6 +91,19 @@ public abstract class AbstractTerm extends Asset<MultilingualString> implements 
 
     public void setDraft(Boolean draft) {
         this.draft = draft;
+    }
+
+    public Boolean isPublished() {
+        return published;
+    }
+
+    public void setPublished(Boolean published) {
+        this.published = published;
+    }
+
+    @Override
+    public Descriptor createDescriptor(DescriptorFactory descriptorFactory) {
+        return descriptorFactory.termDescriptor(this);
     }
 
     @Override

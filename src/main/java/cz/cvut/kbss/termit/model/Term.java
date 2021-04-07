@@ -34,7 +34,7 @@ import java.util.stream.Collectors;
 @Audited
 @OWLClass(iri = SKOS.CONCEPT)
 @JsonLdAttributeOrder({"uri", "label", "description", "subTerms"})
-public class Term extends Asset<MultilingualString> implements HasTypes, Serializable {
+public class Term extends AbstractTerm implements HasTypes {
 
     /**
      * Names of columns used in term export.
@@ -103,11 +103,6 @@ public class Term extends Asset<MultilingualString> implements HasTypes, Seriali
     @JsonIgnore
     public String getPrimaryLabel() {
         return getLabel() != null ? getLabel().get(config.get(ConfigParam.LANGUAGE)) : null;
-    }
-
-    @Override
-    public Descriptor createDescriptor(DescriptorFactory descriptorFactory) {
-        return descriptorFactory.termDescriptor(this);
     }
 
     public Set<MultilingualString> getAltLabels() {

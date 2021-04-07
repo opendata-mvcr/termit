@@ -15,6 +15,7 @@ import cz.cvut.kbss.jopa.model.descriptors.Descriptor;
 import cz.cvut.kbss.jopa.model.descriptors.EntityDescriptor;
 import cz.cvut.kbss.jopa.model.descriptors.FieldDescriptor;
 import cz.cvut.kbss.jopa.model.metamodel.FieldSpecification;
+import cz.cvut.kbss.termit.model.AbstractTerm;
 import cz.cvut.kbss.termit.model.Glossary;
 import cz.cvut.kbss.termit.model.Term;
 import cz.cvut.kbss.termit.model.Vocabulary;
@@ -265,7 +266,7 @@ public class DescriptorFactory {
      * @param term Term to create descriptor for
      * @return Term descriptor
      */
-    public Descriptor termDescriptor(Term term) {
+    public Descriptor termDescriptor(AbstractTerm term) {
         Objects.requireNonNull(term);
         assert term.getVocabulary() != null;
         return termDescriptor(term.getVocabulary());
