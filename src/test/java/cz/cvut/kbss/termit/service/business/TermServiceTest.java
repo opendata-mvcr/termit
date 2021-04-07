@@ -333,58 +333,58 @@ class TermServiceTest {
 
     @Test
     void findAllRootsInWorkspaceRetrievesRootTermsFromRepositoryService() {
-        final List<Term> terms = Collections.singletonList(generateTermWithId());
+        final List<TermDto> terms = Collections.singletonList(new TermDto(generateTermWithId()));
         when(termRepositoryService.findAllRoots(any(Pageable.class))).thenReturn(terms);
         final Pageable pageSpec = PageRequest.of(2, 117);
-        final List<Term> result = sut.findAllRoots(pageSpec);
+        final List<TermDto> result = sut.findAllRoots(pageSpec);
         assertEquals(terms, result);
         verify(termRepositoryService).findAllRoots(pageSpec);
     }
 
     @Test
     void findAllWithPageSpecInWorkspaceRetrievesTermsFromRepositoryService() {
-        final List<Term> terms = Collections.singletonList(generateTermWithId());
+        final List<TermDto> terms = Collections.singletonList(new TermDto(generateTermWithId()));
         when(termRepositoryService.findAll(any(Pageable.class))).thenReturn(terms);
         final Pageable pageSpec = PageRequest.of(1, 117);
-        final List<Term> result = sut.findAll(pageSpec);
+        final List<TermDto> result = sut.findAll(pageSpec);
         assertEquals(terms, result);
         verify(termRepositoryService).findAll(pageSpec);
     }
 
     @Test
     void findAllWithSearchStringInWorkspaceRetrievesTermsFromRepositoryService() {
-        final List<Term> terms = Collections.singletonList(generateTermWithId());
+        final List<TermDto> terms = Collections.singletonList(new TermDto(generateTermWithId()));
         when(termRepositoryService.findAll(anyString())).thenReturn(terms);
         final String searchString = "search";
-        final List<Term> result = sut.findAll(searchString);
+        final List<TermDto> result = sut.findAll(searchString);
         assertEquals(terms, result);
         verify(termRepositoryService).findAll(searchString);
     }
 
     @Test
     void findAllRootsIncludingCanonicalRetrievesTermsFromRepositoryService() {
-        final List<Term> terms = Collections.singletonList(generateTermWithId());
+        final List<TermDto> terms = Collections.singletonList(new TermDto(generateTermWithId()));
         when(termRepositoryService.findAllRootsIncludingCanonical(any())).thenReturn(terms);
-        final List<Term> result = sut.findAllRootsIncludingCanonical(Constants.DEFAULT_PAGE_SPEC);
+        final List<TermDto> result = sut.findAllRootsIncludingCanonical(Constants.DEFAULT_PAGE_SPEC);
         assertEquals(terms, result);
         verify(termRepositoryService).findAllRootsIncludingCanonical(Constants.DEFAULT_PAGE_SPEC);
     }
 
     @Test
     void findAllIncludingCanonicalRetrievesTermsFromRepositoryService() {
-        final List<Term> terms = Collections.singletonList(generateTermWithId());
+        final List<TermDto> terms = Collections.singletonList(new TermDto(generateTermWithId()));
         when(termRepositoryService.findAllIncludingCanonical(any(Pageable.class))).thenReturn(terms);
-        final List<Term> result = sut.findAllIncludingCanonical(Constants.DEFAULT_PAGE_SPEC);
+        final List<TermDto> result = sut.findAllIncludingCanonical(Constants.DEFAULT_PAGE_SPEC);
         assertEquals(terms, result);
         verify(termRepositoryService).findAllIncludingCanonical(Constants.DEFAULT_PAGE_SPEC);
     }
 
     @Test
     void findAllIncludingCanonicalWithSearchStringInWorkspaceRetrievesTermsFromRepositoryService() {
-        final List<Term> terms = Collections.singletonList(generateTermWithId());
+        final List<TermDto> terms = Collections.singletonList(new TermDto(generateTermWithId()));
         when(termRepositoryService.findAllIncludingCanonical(anyString())).thenReturn(terms);
         final String searchString = "search";
-        final List<Term> result = sut.findAllIncludingCanonical(searchString);
+        final List<TermDto> result = sut.findAllIncludingCanonical(searchString);
         assertEquals(terms, result);
         verify(termRepositoryService).findAllIncludingCanonical(searchString);
     }

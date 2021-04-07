@@ -39,6 +39,7 @@ import cz.cvut.kbss.termit.persistence.validation.VocabularyContentValidator;
 import cz.cvut.kbss.termit.util.Configuration;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.context.ApplicationContext;
+import org.springframework.context.annotation.Lazy;
 import org.springframework.context.event.EventListener;
 import org.springframework.stereotype.Repository;
 import org.springframework.transaction.annotation.Transactional;
@@ -60,7 +61,7 @@ public class VocabularyDao extends WorkspaceBasedAssetDao<Vocabulary> implements
 
     @Autowired
     public VocabularyDao(EntityManager em, Configuration config, DescriptorFactory descriptorFactory,
-                         PersistenceUtils persistenceUtils, ChangeRecordDao changeRecordDao, ApplicationContext context) {
+                         PersistenceUtils persistenceUtils, @Lazy ChangeRecordDao changeRecordDao, ApplicationContext context) {
         super(Vocabulary.class, em, config, descriptorFactory, persistenceUtils);
         this.changeRecordDao = changeRecordDao;
         refreshLastModified();
@@ -209,7 +210,8 @@ public class VocabularyDao extends WorkspaceBasedAssetDao<Vocabulary> implements
     /**
      * Updates glossary contained in the specified vocabulary.
      * <p>
-     * The vocabulary is passed for correct context resolution, as glossary existentially depends on its owning vocabulary.
+     * The vocabulary is passed for correct context resolution, as glossary existentially depends on its owning
+     * vocabulary.
      *
      * @param entity Owner of the updated glossary
      * @return The updated entity
@@ -220,7 +222,8 @@ public class VocabularyDao extends WorkspaceBasedAssetDao<Vocabulary> implements
     }
 
     /**
-     * Checks whether terms from the {@code subjectVocabulary} reference (as parent terms) any terms from the {@code targetVocabulary}.
+     * Checks whether terms from the {@code subjectVocabulary} reference (as parent terms) any terms from the {@code
+     * targetVocabulary}.
      *
      * @param subjectVocabulary Subject vocabulary identifier
      * @param targetVocabulary  Target vocabulary identifier
@@ -305,13 +308,15 @@ public class VocabularyDao extends WorkspaceBasedAssetDao<Vocabulary> implements
      * @return List of change records
      */
     public List<AbstractChangeRecord> getChangesOfContent(Vocabulary vocabulary) {
+        final URI ctx = persistenceUtils.resolveVocabularyContext(vocabulary.getUri());
         Objects.requireNonNull(vocabulary);
         final List<URI> terms = em.createNativeQuery("SELECT DISTINCT ?term WHERE {" +
-                "GRAPH ?vocabulary { " +
+                "GRAPH ?g { " +
                 "?term a ?type ;" +
                 "}" +
                 "?term ?inVocabulary ?vocabulary ." +
                 " }", URI.class).setParameter("type", URI.create(SKOS.CONCEPT))
+                .setParameter("g", ctx)
                 .setParameter("vocabulary", vocabulary).getResultList();
         return terms.stream().flatMap(tUri -> {
             final Term t = new Term();

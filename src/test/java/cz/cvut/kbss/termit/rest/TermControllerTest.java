@@ -831,8 +831,8 @@ class TermControllerTest extends BaseControllerTestRunner {
         final List<URI> toInclude = Arrays.asList(Generator.generateUri(), Generator.generateUri());
         mockMvc.perform(get(PATH + VOCABULARY_NAME + "/terms/roots").param("includeTerms",
                 toInclude.stream().map(URI::toString)
-                         .toArray(String[]::new)))
-               .andExpect(status().isOk());
+                        .toArray(String[]::new)))
+                .andExpect(status().isOk());
 
         verify(termServiceMock).findAllRoots(eq(vocabulary), any(Pageable.class), eq(toInclude));
     }
@@ -1003,14 +1003,14 @@ class TermControllerTest extends BaseControllerTestRunner {
 
     @Test
     void getAllStandaloneWithOnlyRootsRetrievesPageOfRootTermsFromService() throws Exception {
-        final List<Term> terms = Generator.generateTermsWithIds(5);
+        final List<TermDto> terms = termsToDtos(Generator.generateTermsWithIds(5));
         when(termServiceMock.findAllRoots(any(Pageable.class))).thenReturn(terms);
         final int pageSize = 300;
         final MvcResult mvcResult = mockMvc.perform(get("/terms")
                 .queryParam("rootsOnly", Boolean.TRUE.toString())
                 .queryParam(PAGE_SIZE, Integer.toString(pageSize))
                 .accept(MediaType.APPLICATION_JSON)).andExpect(status().isOk()).andReturn();
-        final List<Term> result = readValue(mvcResult, new TypeReference<List<Term>>() {
+        final List<TermDto> result = readValue(mvcResult, new TypeReference<List<TermDto>>() {
         });
         assertEquals(terms, result);
         verify(termServiceMock).findAllRoots(PageRequest.of(0, pageSize));
@@ -1018,11 +1018,11 @@ class TermControllerTest extends BaseControllerTestRunner {
 
     @Test
     void getAllStandaloneRetrievesPageOfTermsFromService() throws Exception {
-        final List<Term> terms = Generator.generateTermsWithIds(5);
+        final List<TermDto> terms = termsToDtos(Generator.generateTermsWithIds(5));
         when(termServiceMock.findAll(any(Pageable.class))).thenReturn(terms);
         final MvcResult mvcResult = mockMvc.perform(get("/terms")
                 .accept(MediaType.APPLICATION_JSON)).andExpect(status().isOk()).andReturn();
-        final List<Term> result = readValue(mvcResult, new TypeReference<List<Term>>() {
+        final List<TermDto> result = readValue(mvcResult, new TypeReference<List<TermDto>>() {
         });
         assertEquals(terms, result);
         verify(termServiceMock).findAll(DEFAULT_PAGE_SPEC);
@@ -1030,13 +1030,13 @@ class TermControllerTest extends BaseControllerTestRunner {
 
     @Test
     void getAllStandaloneWithSearchStringRetrievesMatchingTermsFromService() throws Exception {
-        final List<Term> terms = Generator.generateTermsWithIds(5);
+        final List<TermDto> terms = termsToDtos(Generator.generateTermsWithIds(5));
         when(termServiceMock.findAll(anyString())).thenReturn(terms);
         final String searchString = "search string";
         final MvcResult mvcResult = mockMvc.perform(get("/terms")
                 .queryParam("searchString", searchString)
                 .accept(MediaType.APPLICATION_JSON)).andExpect(status().isOk()).andReturn();
-        final List<Term> result = readValue(mvcResult, new TypeReference<List<Term>>() {
+        final List<TermDto> result = readValue(mvcResult, new TypeReference<List<TermDto>>() {
         });
         assertEquals(terms, result);
         verify(termServiceMock).findAll(searchString);
@@ -1044,12 +1044,12 @@ class TermControllerTest extends BaseControllerTestRunner {
 
     @Test
     void getAllStandaloneRetrievesAllTermsIncludingCanonicalWhenIncludeCanonicalIsTrue() throws Exception {
-        final List<Term> terms = Generator.generateTermsWithIds(5);
+        final List<TermDto> terms = termsToDtos(Generator.generateTermsWithIds(5));
         when(termServiceMock.findAllIncludingCanonical(any(Pageable.class))).thenReturn(terms);
         final MvcResult mvcResult = mockMvc.perform(get("/terms")
                 .queryParam("includeCanonical", Boolean.TRUE.toString())
                 .accept(MediaType.APPLICATION_JSON)).andExpect(status().isOk()).andReturn();
-        final List<Term> result = readValue(mvcResult, new TypeReference<List<Term>>() {
+        final List<TermDto> result = readValue(mvcResult, new TypeReference<List<TermDto>>() {
         });
         assertEquals(terms, result);
         verify(termServiceMock).findAllIncludingCanonical(DEFAULT_PAGE_SPEC);
@@ -1057,14 +1057,14 @@ class TermControllerTest extends BaseControllerTestRunner {
 
     @Test
     void getAllStandaloneWithSearchStringRetrievesAllTermsIncludingCanonicalWhenIncludeCanonicalIsTrue() throws Exception {
-        final List<Term> terms = Generator.generateTermsWithIds(5);
+        final List<TermDto> terms = termsToDtos(Generator.generateTermsWithIds(5));
         when(termServiceMock.findAllIncludingCanonical(anyString())).thenReturn(terms);
         final String searchString = "search string";
         final MvcResult mvcResult = mockMvc.perform(get("/terms")
                 .queryParam("searchString", searchString)
                 .queryParam("includeCanonical", Boolean.TRUE.toString())
                 .accept(MediaType.APPLICATION_JSON)).andExpect(status().isOk()).andReturn();
-        final List<Term> result = readValue(mvcResult, new TypeReference<List<Term>>() {
+        final List<TermDto> result = readValue(mvcResult, new TypeReference<List<TermDto>>() {
         });
         assertEquals(terms, result);
         verify(termServiceMock).findAllIncludingCanonical(searchString);
@@ -1072,13 +1072,13 @@ class TermControllerTest extends BaseControllerTestRunner {
 
     @Test
     void getAllStandaloneRetrievesAllRootTermsIncludingCanonicalWhenIncludeCanonicalIsTrue() throws Exception {
-        final List<Term> terms = Generator.generateTermsWithIds(5);
+        final List<TermDto> terms = termsToDtos(Generator.generateTermsWithIds(5));
         when(termServiceMock.findAllRootsIncludingCanonical(any(Pageable.class))).thenReturn(terms);
         final MvcResult mvcResult = mockMvc.perform(get("/terms")
                 .queryParam("includeCanonical", Boolean.TRUE.toString())
                 .queryParam("rootsOnly", Boolean.TRUE.toString())
                 .accept(MediaType.APPLICATION_JSON)).andExpect(status().isOk()).andReturn();
-        final List<Term> result = readValue(mvcResult, new TypeReference<List<Term>>() {
+        final List<TermDto> result = readValue(mvcResult, new TypeReference<List<TermDto>>() {
         });
         assertEquals(terms, result);
         verify(termServiceMock).findAllRootsIncludingCanonical(DEFAULT_PAGE_SPEC);
