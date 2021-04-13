@@ -1,3 +1,5 @@
+application.version: @project.version@
+
 management:
   endpoints:
     enabled-by-default: false
@@ -33,6 +35,8 @@ keycloak:
 
 repository:
   url: http://localhost:7200/repositories/termit
+  # if empty, repository.url will be used
+  publicUrl:
 persistence:
   driver: cz.cvut.kbss.ontodriver.sesame.SesameDataSource
   language: cs

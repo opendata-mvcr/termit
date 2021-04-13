@@ -1,23 +1,20 @@
 /**
  * TermIt Copyright (C) 2019 Czech Technical University in Prague
  * <p>
- * This program is free software: you can redistribute it and/or modify it under the terms of the GNU General Public
- * License as published by the Free Software Foundation, either version 3 of the License, or (at your option) any later
- * version.
+ * This program is free software: you can redistribute it and/or modify it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation, either version 3 of the License, or (at your option) any later version.
  * <p>
- * This program is distributed in the hope that it will be useful, but WITHOUT ANY WARRANTY; without even the implied
- * warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License for more
- * details.
+ * This program is distributed in the hope that it will be useful, but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License for more details.
  * <p>
- * You should have received a copy of the GNU General Public License along with this program.  If not, see
- * <https://www.gnu.org/licenses/>.
+ * You should have received a copy of the GNU General Public License along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
 
 package cz.cvut.kbss.termit.environment;
 
 import cz.cvut.kbss.jopa.model.EntityManager;
 import cz.cvut.kbss.jopa.model.MultilingualString;
-import cz.cvut.kbss.jopa.model.annotations.OWLAnnotationProperty;
+import cz.cvut.kbss.jopa.vocabulary.RDFS;
 import cz.cvut.kbss.termit.model.*;
 import cz.cvut.kbss.termit.model.assignment.Target;
 import cz.cvut.kbss.termit.model.assignment.TermAssignment;
@@ -40,10 +37,10 @@ import org.eclipse.rdf4j.repository.Repository;
 import org.eclipse.rdf4j.repository.RepositoryConnection;
 import org.topbraid.shacl.vocabulary.SH;
 
-import java.lang.reflect.Field;
 import java.net.URI;
 import java.time.Instant;
 import java.util.*;
+import java.time.temporal.ChronoUnit;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 
@@ -227,8 +224,8 @@ public class Generator {
         final Term term = new Term();
         term.setLabel(MultilingualString.create("Term" + randomInt(), Constants.DEFAULT_LANGUAGE));
         term.setDefinition(MultilingualString
-            .create("Normative definition of term " + term.getLabel().get(),
-                Constants.DEFAULT_LANGUAGE));
+                .create("Normative definition of term " + term.getLabel().get(),
+                        Constants.DEFAULT_LANGUAGE));
         term.setDescription(MultilingualString.create("Comment" + randomInt(), Constants.DEFAULT_LANGUAGE));
         return term;
     }
@@ -247,7 +244,7 @@ public class Generator {
 
     public static List<Term> generateTermsWithIds(int count) {
         return IntStream.range(0, count).mapToObj(i -> generateTermWithId())
-                        .collect(Collectors.toList());
+                .collect(Collectors.toList());
     }
 
     public static Resource generateResource() {
@@ -292,7 +289,7 @@ public class Generator {
 
     public static PersistChangeRecord generatePersistChange(Asset<?> asset) {
         final PersistChangeRecord record = new PersistChangeRecord(asset);
-        record.setTimestamp(Instant.now());
+        record.setTimestamp(Instant.now().truncatedTo(ChronoUnit.MILLIS));
         if (Environment.getCurrentUser() != null) {
             record.setAuthor(Environment.getCurrentUser().toUser());
         }
@@ -307,20 +304,11 @@ public class Generator {
      */
     public static UpdateChangeRecord generateUpdateChange(Asset<?> asset) {
         final UpdateChangeRecord record = new UpdateChangeRecord(asset);
-        record.setTimestamp(Instant.now());
+        record.setTimestamp(Instant.now().truncatedTo(ChronoUnit.MILLIS));
         if (Environment.getCurrentUser() != null) {
             record.setAuthor(Environment.getCurrentUser().toUser());
         }
-        try {
-            final Class<?> cls = asset.getClass();
-            final Field labelField = cls.getDeclaredField("label");
-            if (labelField.getAnnotation(OWLAnnotationProperty.class) != null) {
-                record.setChangedAttribute(
-                        URI.create(labelField.getAnnotation(OWLAnnotationProperty.class).iri()));
-            }
-        } catch (NoSuchFieldException e) {
-            throw new RuntimeException("Unable to generate update record.");
-        }
+        record.setChangedAttribute(URI.create(RDFS.LABEL));
         record.setNewValue(Collections.singleton(asset.getLabel()));
         return record;
     }
@@ -329,8 +317,8 @@ public class Generator {
         final PersistChangeRecord persistRecord = generatePersistChange(asset);
         final List<AbstractChangeRecord> result =
                 IntStream.range(0, 5).mapToObj(i -> generateUpdateChange(asset))
-                         .collect(
-                                 Collectors.toList());
+                        .collect(
+                                Collectors.toList());
         result.add(0, persistRecord);
         if (user != null) {
             result.forEach(r -> r.setAuthor(user));
@@ -339,17 +327,14 @@ public class Generator {
     }
 
     public static List<cz.cvut.kbss.termit.model.validation.ValidationResult> generateValidationRecords() {
-        final List<cz.cvut.kbss.termit.model.validation.ValidationResult> result =
-                IntStream.range(0, 1)
-                         .mapToObj(i ->
-                                 new cz.cvut.kbss.termit.model.validation.ValidationResult()
-                                         .setTermUri(URI.create("https://example.org/term-" + i))
-                                         .setIssueCauseUri(URI.create("https://example.org/issue-" + i))
-                                         .setSeverity(URI.create(SH.Violation.toString()))
-                         )
-                         .collect(
-                                 Collectors.toList());
-        return result;
+        return IntStream.range(0, 1)
+                .mapToObj(i ->
+                        new cz.cvut.kbss.termit.model.validation.ValidationResult()
+                                .setTermUri(URI.create("https://example.org/term-" + i))
+                                .setIssueCauseUri(URI.create("https://example.org/issue-" + i))
+                                .setSeverity(URI.create(SH.Violation.toString()))
+                )
+                .collect(Collectors.toList());
     }
 
     /**

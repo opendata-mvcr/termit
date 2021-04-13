@@ -1,6 +1,7 @@
 package cz.cvut.kbss.termit.rest;
 
 import cz.cvut.kbss.jsonld.JsonLd;
+import cz.cvut.kbss.termit.dto.TermDto;
 import cz.cvut.kbss.termit.dto.assignment.TermAssignments;
 import cz.cvut.kbss.termit.exception.NotFoundException;
 import cz.cvut.kbss.termit.exception.TermItException;
@@ -66,19 +67,19 @@ public class TermController extends BaseController {
      * @return List of terms matching the specified parameters
      */
     @GetMapping(value = "/terms", produces = {JsonLd.MEDIA_TYPE, MediaType.APPLICATION_JSON_VALUE})
-    public List<Term> getAll(@RequestParam(required = false, defaultValue = "false") boolean rootsOnly,
-                             @RequestParam(required = false) String searchString,
-                             @RequestParam(required = false, defaultValue = "false") boolean includeCanonical,
-                             @RequestParam(name = QueryParams.PAGE_SIZE, required = false) Integer pageSize,
-                             @RequestParam(name = QueryParams.PAGE, required = false) Integer pageNo) {
+    public List<TermDto> getAll(@RequestParam(required = false, defaultValue = "false") boolean rootsOnly,
+                                @RequestParam(required = false) String searchString,
+                                @RequestParam(required = false, defaultValue = "false") boolean includeCanonical,
+                                @RequestParam(name = QueryParams.PAGE_SIZE, required = false) Integer pageSize,
+                                @RequestParam(name = QueryParams.PAGE, required = false) Integer pageNo) {
         if (searchString != null && !searchString.trim().isEmpty()) {
             return includeCanonical ? termService.findAllIncludingCanonical(searchString) :
-                   termService.findAll(searchString);
+                    termService.findAll(searchString);
         }
         final Pageable pageSpec = createPageRequest(pageSize, pageNo);
         if (includeCanonical) {
             return rootsOnly ? termService.findAllRootsIncludingCanonical(pageSpec) :
-                   termService.findAllIncludingCanonical(pageSpec);
+                    termService.findAllIncludingCanonical(pageSpec);
         }
         return rootsOnly ? termService.findAllRoots(pageSpec) : termService.findAll(pageSpec);
     }
@@ -109,13 +110,13 @@ public class TermController extends BaseController {
         final Vocabulary vocabulary = getVocabulary(vocabularyUri);
         if (searchString != null) {
             return ResponseEntity.ok(includeImported ?
-                                     termService.findAllIncludingImported(searchString, vocabulary) :
-                                     termService.findAll(searchString, vocabulary));
+                    termService.findAllIncludingImported(searchString, vocabulary) :
+                    termService.findAll(searchString, vocabulary));
         }
         final Optional<ResponseEntity<?>> export = exportTerms(vocabulary, vocabularyIdFragment, acceptType);
         return export.orElse(ResponseEntity
                 .ok(includeImported ? termService.findAllIncludingImported(vocabulary) :
-                    termService.findAll(vocabulary)));
+                        termService.findAll(vocabulary)));
     }
 
     /**
@@ -125,7 +126,7 @@ public class TermController extends BaseController {
      * @param namespace            vocabulary namespace
      * @param prefLabel            the label to check
      * @param language             language to check existence in
-     * @return
+     * @return Not found if term does not exist, Ok if it exists
      */
     @PreAuthorize("permitAll()")
     @RequestMapping(method = RequestMethod.HEAD,
@@ -146,12 +147,12 @@ public class TermController extends BaseController {
         return content.map(r -> {
             try {
                 return ResponseEntity.ok()
-                                     .contentLength(r.contentLength())
-                                     .contentType(MediaType.parseMediaType(mediaType))
-                                     .header(HttpHeaders.CONTENT_DISPOSITION,
-                                             "attachment; filename=\"" + fileName +
-                                                     r.getFileExtension().orElse("") + "\"")
-                                     .body(r);
+                        .contentLength(r.contentLength())
+                        .contentType(MediaType.parseMediaType(mediaType))
+                        .header(HttpHeaders.CONTENT_DISPOSITION,
+                                "attachment; filename=\"" + fileName +
+                                        r.getFileExtension().orElse("") + "\"")
+                        .body(r);
             } catch (IOException e) {
                 throw new TermItException("Unable to export terms.", e);
             }
@@ -178,18 +179,17 @@ public class TermController extends BaseController {
      */
     @GetMapping(value = "/vocabularies/{vocabularyIdFragment}/terms/roots",
             produces = {MediaType.APPLICATION_JSON_VALUE, JsonLd.MEDIA_TYPE})
-    public List<Term> getAllRoots(@PathVariable String vocabularyIdFragment,
-                                  @RequestParam(name = QueryParams.NAMESPACE, required = false) String namespace,
-                                  @RequestParam(name = QueryParams.PAGE_SIZE, required = false) Integer pageSize,
-                                  @RequestParam(name = QueryParams.PAGE, required = false) Integer pageNo,
-                                  @RequestParam(name = "includeImported", required = false) boolean includeImported,
-                                  @RequestParam(name = "includeTerms", required = false, defaultValue = "")
-                                          List<URI> includeTerms) {
+    public List<TermDto> getAllRoots(@PathVariable String vocabularyIdFragment,
+                                     @RequestParam(name = QueryParams.NAMESPACE, required = false) String namespace,
+                                     @RequestParam(name = QueryParams.PAGE_SIZE, required = false) Integer pageSize,
+                                     @RequestParam(name = QueryParams.PAGE, required = false) Integer pageNo,
+                                     @RequestParam(name = "includeImported", required = false) boolean includeImported,
+                                     @RequestParam(name = "includeTerms", required = false, defaultValue = "") List<URI> includeTerms) {
         final Vocabulary vocabulary = getVocabulary(getVocabularyUri(namespace, vocabularyIdFragment));
         return includeImported ?
-               termService
-                       .findAllRootsIncludingImported(vocabulary, createPageRequest(pageSize, pageNo), includeTerms) :
-               termService.findAllRoots(vocabulary, createPageRequest(pageSize, pageNo), includeTerms);
+                termService
+                        .findAllRootsIncludingImported(vocabulary, createPageRequest(pageSize, pageNo), includeTerms) :
+                termService.findAllRoots(vocabulary, createPageRequest(pageSize, pageNo), includeTerms);
     }
 
     /**

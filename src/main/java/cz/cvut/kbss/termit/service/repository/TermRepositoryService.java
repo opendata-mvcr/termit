@@ -15,6 +15,7 @@
 package cz.cvut.kbss.termit.service.repository;
 
 import cz.cvut.kbss.jopa.model.MultilingualString;
+import cz.cvut.kbss.termit.dto.TermDto;
 import cz.cvut.kbss.termit.dto.TermInfo;
 import cz.cvut.kbss.termit.dto.assignment.TermAssignments;
 import cz.cvut.kbss.termit.exception.TermRemovalException;
@@ -152,7 +153,7 @@ public class TermRepositoryService extends BaseAssetRepositoryService<Term> {
      * @param pageSpec Page specification
      * @return Content of matching page of root terms
      */
-    public List<Term> findAllRoots(Pageable pageSpec) {
+    public List<TermDto> findAllRoots(Pageable pageSpec) {
         return termDao.findAllRoots(pageSpec);
     }
 
@@ -165,7 +166,7 @@ public class TermRepositoryService extends BaseAssetRepositoryService<Term> {
      * @param pageSpec Page specification
      * @return Content of matching page of root terms
      */
-    public List<Term> findAllRootsIncludingCanonical(Pageable pageSpec) {
+    public List<TermDto> findAllRootsIncludingCanonical(Pageable pageSpec) {
         return termDao.findAllRootsIncludingCanonical(pageSpec);
     }
 
@@ -175,7 +176,7 @@ public class TermRepositoryService extends BaseAssetRepositoryService<Term> {
      * @param pageSpec Page specification
      * @return Content of matching page of terms
      */
-    public List<Term> findAll(Pageable pageSpec) {
+    public List<TermDto> findAll(Pageable pageSpec) {
         return termDao.findAll(pageSpec);
     }
 
@@ -189,7 +190,7 @@ public class TermRepositoryService extends BaseAssetRepositoryService<Term> {
      * @param pageSpec Page specification
      * @return Content of matching page of terms
      */
-    public List<Term> findAllIncludingCanonical(Pageable pageSpec) {
+    public List<TermDto> findAllIncludingCanonical(Pageable pageSpec) {
         return termDao.findAllIncludingCanonical(pageSpec);
     }
 
@@ -199,7 +200,7 @@ public class TermRepositoryService extends BaseAssetRepositoryService<Term> {
      * @param searchString Search string
      * @return Matching terms
      */
-    public List<Term> findAll(String searchString) {
+    public List<TermDto> findAll(String searchString) {
         return termDao.findAll(searchString);
     }
 
@@ -212,7 +213,7 @@ public class TermRepositoryService extends BaseAssetRepositoryService<Term> {
      * @param searchString Search string
      * @return Matching terms
      */
-    public List<Term> findAllIncludingCanonical(String searchString) {
+    public List<TermDto> findAllIncludingCanonical(String searchString) {
         return termDao.findAllIncludingCanonical(searchString);
     }
 
@@ -247,7 +248,7 @@ public class TermRepositoryService extends BaseAssetRepositoryService<Term> {
      * @param vocabulary Base vocabulary for the vocabulary import closure
      * @return List of terms ordered by label
      */
-    public List<Term> findAllIncludingImported(Vocabulary vocabulary) {
+    public List<TermDto> findAllIncludingImported(Vocabulary vocabulary) {
         return termDao.findAllIncludingImported(vocabulary);
     }
 
@@ -260,7 +261,8 @@ public class TermRepositoryService extends BaseAssetRepositoryService<Term> {
      * @return Matching root terms
      * @see #findAllRootsIncludingImported(Vocabulary, Pageable, Collection)
      */
-    public List<Term> findAllRoots(Vocabulary vocabulary, Pageable pageSpec, Collection<URI> includeTerms) {
+    public List<TermDto> findAllRoots(Vocabulary vocabulary, Pageable pageSpec,
+                                      Collection<URI> includeTerms) {
         return termDao.findAllRoots(vocabulary, pageSpec, includeTerms);
     }
 
@@ -277,8 +279,8 @@ public class TermRepositoryService extends BaseAssetRepositoryService<Term> {
      * @return Matching root terms
      * @see #findAllRoots(Vocabulary, Pageable, Collection)
      */
-    public List<Term> findAllRootsIncludingImported(Vocabulary vocabulary, Pageable pageSpec,
-                                                    Collection<URI> includeTerms) {
+    public List<TermDto> findAllRootsIncludingImported(Vocabulary vocabulary, Pageable pageSpec,
+                                                       Collection<URI> includeTerms) {
         return termDao.findAllRootsIncludingImports(vocabulary, pageSpec, includeTerms);
     }
 
@@ -289,7 +291,7 @@ public class TermRepositoryService extends BaseAssetRepositoryService<Term> {
      * @param vocabulary   Vocabulary whose terms should be returned
      * @return Matching terms
      */
-    public List<Term> findAll(String searchString, Vocabulary vocabulary) {
+    public List<TermDto> findAll(String searchString, Vocabulary vocabulary) {
         return termDao.findAll(searchString, vocabulary);
     }
 
@@ -301,7 +303,7 @@ public class TermRepositoryService extends BaseAssetRepositoryService<Term> {
      * @param vocabulary   Vocabulary whose terms should be returned
      * @return Matching terms
      */
-    public List<Term> findAllIncludingImported(String searchString, Vocabulary vocabulary) {
+    public List<TermDto> findAllIncludingImported(String searchString, Vocabulary vocabulary) {
         return termDao.findAllIncludingImported(searchString, vocabulary);
     }
 

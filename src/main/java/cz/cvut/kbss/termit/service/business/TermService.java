@@ -1,5 +1,6 @@
 package cz.cvut.kbss.termit.service.business;
 
+import cz.cvut.kbss.termit.dto.TermDto;
 import cz.cvut.kbss.termit.dto.assignment.TermAssignments;
 import cz.cvut.kbss.termit.exception.NotFoundException;
 import cz.cvut.kbss.termit.model.Term;
@@ -21,8 +22,10 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.net.URI;
-import java.util.*;
-import java.util.stream.Collectors;
+import java.util.Collection;
+import java.util.List;
+import java.util.Objects;
+import java.util.Optional;
 
 /**
  * Service for term-related business logic.
@@ -77,7 +80,7 @@ public class TermService implements RudService<Term>, ChangeRecordProvider<Term>
      * @param pageSpec Page specification
      * @return Content of matching page of root terms
      */
-    public List<Term> findAllRoots(Pageable pageSpec) {
+    public List<TermDto> findAllRoots(Pageable pageSpec) {
         Objects.requireNonNull(pageSpec);
         return repositoryService.findAllRoots(pageSpec);
     }
@@ -90,7 +93,7 @@ public class TermService implements RudService<Term>, ChangeRecordProvider<Term>
      * @param pageSpec Page specification
      * @return Content of matching page of root terms
      */
-    public List<Term> findAllRootsIncludingCanonical(Pageable pageSpec) {
+    public List<TermDto> findAllRootsIncludingCanonical(Pageable pageSpec) {
         Objects.requireNonNull(pageSpec);
         return repositoryService.findAllRootsIncludingCanonical(pageSpec);
     }
@@ -101,7 +104,7 @@ public class TermService implements RudService<Term>, ChangeRecordProvider<Term>
      * @param pageSpec Page specification
      * @return Content of matching page of terms
      */
-    public List<Term> findAll(Pageable pageSpec) {
+    public List<TermDto> findAll(Pageable pageSpec) {
         Objects.requireNonNull(pageSpec);
         return repositoryService.findAll(pageSpec);
     }
@@ -113,7 +116,7 @@ public class TermService implements RudService<Term>, ChangeRecordProvider<Term>
      * @param pageSpec Page specification
      * @return Content of matching page of terms
      */
-    public List<Term> findAllIncludingCanonical(Pageable pageSpec) {
+    public List<TermDto> findAllIncludingCanonical(Pageable pageSpec) {
         Objects.requireNonNull(pageSpec);
         return repositoryService.findAllIncludingCanonical(pageSpec);
     }
@@ -124,7 +127,7 @@ public class TermService implements RudService<Term>, ChangeRecordProvider<Term>
      * @param searchString Search string
      * @return Matching terms
      */
-    public List<Term> findAll(String searchString) {
+    public List<TermDto> findAll(String searchString) {
         Objects.requireNonNull(searchString);
         return repositoryService.findAll(searchString);
     }
@@ -135,7 +138,7 @@ public class TermService implements RudService<Term>, ChangeRecordProvider<Term>
      * @param searchString Search string
      * @return Matching terms
      */
-    public List<Term> findAllIncludingCanonical(String searchString) {
+    public List<TermDto> findAllIncludingCanonical(String searchString) {
         Objects.requireNonNull(searchString);
         return repositoryService.findAllIncludingCanonical(searchString);
     }
@@ -157,7 +160,7 @@ public class TermService implements RudService<Term>, ChangeRecordProvider<Term>
      * @param vocabulary Base vocabulary for the vocabulary import closure
      * @return Matching terms
      */
-    public List<Term> findAllIncludingImported(Vocabulary vocabulary) {
+    public List<TermDto> findAllIncludingImported(Vocabulary vocabulary) {
         Objects.requireNonNull(vocabulary);
         return repositoryService.findAllIncludingImported(vocabulary);
     }
@@ -172,7 +175,7 @@ public class TermService implements RudService<Term>, ChangeRecordProvider<Term>
      * @param includeTerms Identifiers of terms which should be a part of the result. Optional
      * @return Matching terms
      */
-    public List<Term> findAllRoots(Vocabulary vocabulary, Pageable pageSpec, Collection<URI> includeTerms) {
+    public List<TermDto> findAllRoots(Vocabulary vocabulary, Pageable pageSpec, Collection<URI> includeTerms) {
         Objects.requireNonNull(vocabulary);
         Objects.requireNonNull(pageSpec);
         return repositoryService.findAllRoots(vocabulary, pageSpec, includeTerms);
@@ -191,8 +194,8 @@ public class TermService implements RudService<Term>, ChangeRecordProvider<Term>
      * @return Matching root terms
      * @see #findAllRoots(Vocabulary, Pageable, Collection)
      */
-    public List<Term> findAllRootsIncludingImported(Vocabulary vocabulary, Pageable pageSpec,
-                                                    Collection<URI> includeTerms) {
+    public List<TermDto> findAllRootsIncludingImported(Vocabulary vocabulary, Pageable pageSpec,
+                                                       Collection<URI> includeTerms) {
         Objects.requireNonNull(vocabulary);
         Objects.requireNonNull(pageSpec);
         return repositoryService.findAllRootsIncludingImported(vocabulary, pageSpec, includeTerms);
@@ -216,7 +219,7 @@ public class TermService implements RudService<Term>, ChangeRecordProvider<Term>
      * @param vocabulary   Vocabulary whose terms should be returned
      * @return Matching terms
      */
-    public List<Term> findAll(String searchString, Vocabulary vocabulary) {
+    public List<TermDto> findAll(String searchString, Vocabulary vocabulary) {
         Objects.requireNonNull(vocabulary);
         Objects.requireNonNull(searchString);
         return repositoryService.findAll(searchString, vocabulary);
@@ -230,7 +233,7 @@ public class TermService implements RudService<Term>, ChangeRecordProvider<Term>
      * @param vocabulary   Vocabulary whose terms should be returned
      * @return Matching terms
      */
-    public List<Term> findAllIncludingImported(String searchString, Vocabulary vocabulary) {
+    public List<TermDto> findAllIncludingImported(String searchString, Vocabulary vocabulary) {
         Objects.requireNonNull(searchString);
         Objects.requireNonNull(vocabulary);
         return repositoryService.findAllIncludingImported(searchString, vocabulary);
@@ -246,7 +249,7 @@ public class TermService implements RudService<Term>, ChangeRecordProvider<Term>
     public Vocabulary findVocabularyRequired(URI id) {
         Objects.requireNonNull(id);
         return vocabularyService.find(id)
-                                .orElseThrow(() -> NotFoundException.create(Vocabulary.class.getSimpleName(), id));
+                .orElseThrow(() -> NotFoundException.create(Vocabulary.class.getSimpleName(), id));
     }
 
     /**

@@ -18,14 +18,12 @@ import cz.cvut.kbss.jopa.model.annotations.*;
 import cz.cvut.kbss.jopa.model.descriptors.Descriptor;
 import cz.cvut.kbss.jopa.vocabulary.DC;
 import cz.cvut.kbss.jsonld.annotation.JsonLdAttributeOrder;
-import cz.cvut.kbss.termit.exception.TermItException;
 import cz.cvut.kbss.termit.model.changetracking.Audited;
 import cz.cvut.kbss.termit.persistence.DescriptorFactory;
-
 import cz.cvut.kbss.termit.model.resource.Document;
+
 import javax.validation.constraints.NotBlank;
 import java.io.Serializable;
-import java.lang.reflect.Field;
 import java.net.URI;
 import java.util.Map;
 import java.util.Objects;
@@ -160,13 +158,5 @@ public class Vocabulary extends Asset<String> implements Serializable {
                  ", dependencies = [" + dependencies.stream().map(p -> "<" + p + ">").collect(
                          Collectors.joining(", ")) + "]" : "") +
                 '}';
-    }
-
-    public static Field getGlossaryField() {
-        try {
-            return Vocabulary.class.getDeclaredField("glossary");
-        } catch (NoSuchFieldException e) {
-            throw new TermItException("Fatal error! Unable to retrieve \"glossary\" field.", e);
-        }
     }
 }

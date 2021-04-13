@@ -11,7 +11,7 @@
     </parent>
 
     <artifactId>termit</artifactId>
-    <version>2.3.0</version>
+    <version>2.4.0</version>
     <name>TermIt</name>
     <description>Terminology manager based on Semantic Web technologies.</description>
     <packaging>${packaging}</packaging>
@@ -380,24 +380,6 @@
                                     <regex>false</regex>
                                     <token>TermItAdminBean</token>
                                     <value>TermItAdminBean-${deployment}</value>
-                                </configuration>
-                            </execution>
-                            <execution>
-                                <id>project-version</id>
-                                <phase>process-sources</phase>
-                                <goals>
-                                    <goal>replace</goal>
-                                </goals>
-                                <configuration>
-                                    <file>
-                                        ${project.basedir}/src/main/java/cz/cvut/kbss/termit/util/Constants.java
-                                    </file>
-                                    <outputFile>
-                                        ${project.basedir}/src/main/java/cz/cvut/kbss/termit/util/Constants.java
-                                    </outputFile>
-                                    <regex>false</regex>
-                                    <token>$VERSION$</token>
-                                    <value>${project.version}</value>
                                 </configuration>
                             </execution>
                             <execution>

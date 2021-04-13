@@ -1,5 +1,6 @@
 package cz.cvut.kbss.termit.service.business;
 
+import cz.cvut.kbss.termit.dto.TermDto;
 import cz.cvut.kbss.termit.dto.TermInfo;
 import cz.cvut.kbss.termit.dto.assignment.TermAssignments;
 import cz.cvut.kbss.termit.environment.Generator;
@@ -102,10 +103,10 @@ class TermServiceTest {
 
     @Test
     void findAllRootsWithPagingRetrievesRootTermsFromVocabularyUsingRepositoryService() {
-        final List<Term> terms = Collections.singletonList(Generator.generateTermWithId());
+        final List<TermDto> terms = Collections.singletonList(new TermDto(Generator.generateTermWithId()));
         when(termRepositoryService.findAllRoots(eq(vocabulary), eq(Constants.DEFAULT_PAGE_SPEC), anyCollection()))
                 .thenReturn(terms);
-        final List<Term> result = sut.findAllRoots(vocabulary, Constants.DEFAULT_PAGE_SPEC, Collections.emptyList());
+        final List<TermDto> result = sut.findAllRoots(vocabulary, Constants.DEFAULT_PAGE_SPEC, Collections.emptyList());
         assertEquals(terms, result);
         verify(termRepositoryService).findAllRoots(vocabulary, Constants.DEFAULT_PAGE_SPEC, Collections.emptyList());
     }
@@ -113,9 +114,9 @@ class TermServiceTest {
     @Test
     void findAllBySearchStringRetrievesMatchingTermsFromVocabularyUsingRepositoryService() {
         final String searchString = "test";
-        final List<Term> terms = Collections.singletonList(Generator.generateTermWithId());
+        final List<TermDto> terms = Collections.singletonList(new TermDto(Generator.generateTermWithId()));
         when(termRepositoryService.findAll(searchString, vocabulary)).thenReturn(terms);
-        final List<Term> result = sut.findAll(searchString, vocabulary);
+        final List<TermDto> result = sut.findAll(searchString, vocabulary);
         assertEquals(terms, result);
         verify(termRepositoryService).findAll(searchString, vocabulary);
     }
@@ -213,23 +214,21 @@ class TermServiceTest {
 
     @Test
     void findAllRootsIncludingImportsRetrievesRootTermsUsingRepositoryService() {
-        final List<Term> terms = Collections.singletonList(Generator.generateTermWithId());
+        final List<TermDto> terms = Collections.singletonList(new TermDto(Generator.generateTermWithId()));
         when(termRepositoryService
                 .findAllRootsIncludingImported(eq(vocabulary), eq(Constants.DEFAULT_PAGE_SPEC), anyCollection()))
                 .thenReturn(terms);
-        final List<Term> result = sut
-                .findAllRootsIncludingImported(vocabulary, Constants.DEFAULT_PAGE_SPEC, Collections.emptyList());
+        final List<TermDto> result = sut.findAllRootsIncludingImported(vocabulary, Constants.DEFAULT_PAGE_SPEC, Collections.emptyList());
         assertEquals(terms, result);
-        verify(termRepositoryService)
-                .findAllRootsIncludingImported(vocabulary, Constants.DEFAULT_PAGE_SPEC, Collections.emptyList());
+        verify(termRepositoryService).findAllRootsIncludingImported(vocabulary, Constants.DEFAULT_PAGE_SPEC, Collections.emptyList());
     }
 
     @Test
     void findAllIncludingImportedBySearchStringRetrievesMatchingTermsUsingRepositoryService() {
         final String searchString = "test";
-        final List<Term> terms = Collections.singletonList(Generator.generateTermWithId());
+        final List<TermDto> terms = Collections.singletonList(new TermDto(Generator.generateTermWithId()));
         when(termRepositoryService.findAllIncludingImported(searchString, vocabulary)).thenReturn(terms);
-        final List<Term> result = sut.findAllIncludingImported(searchString, vocabulary);
+        final List<TermDto> result = sut.findAllIncludingImported(searchString, vocabulary);
         assertEquals(terms, result);
         verify(termRepositoryService).findAllIncludingImported(searchString, vocabulary);
     }
@@ -334,58 +333,58 @@ class TermServiceTest {
 
     @Test
     void findAllRootsInWorkspaceRetrievesRootTermsFromRepositoryService() {
-        final List<Term> terms = Collections.singletonList(generateTermWithId());
+        final List<TermDto> terms = Collections.singletonList(new TermDto(generateTermWithId()));
         when(termRepositoryService.findAllRoots(any(Pageable.class))).thenReturn(terms);
         final Pageable pageSpec = PageRequest.of(2, 117);
-        final List<Term> result = sut.findAllRoots(pageSpec);
+        final List<TermDto> result = sut.findAllRoots(pageSpec);
         assertEquals(terms, result);
         verify(termRepositoryService).findAllRoots(pageSpec);
     }
 
     @Test
     void findAllWithPageSpecInWorkspaceRetrievesTermsFromRepositoryService() {
-        final List<Term> terms = Collections.singletonList(generateTermWithId());
+        final List<TermDto> terms = Collections.singletonList(new TermDto(generateTermWithId()));
         when(termRepositoryService.findAll(any(Pageable.class))).thenReturn(terms);
         final Pageable pageSpec = PageRequest.of(1, 117);
-        final List<Term> result = sut.findAll(pageSpec);
+        final List<TermDto> result = sut.findAll(pageSpec);
         assertEquals(terms, result);
         verify(termRepositoryService).findAll(pageSpec);
     }
 
     @Test
     void findAllWithSearchStringInWorkspaceRetrievesTermsFromRepositoryService() {
-        final List<Term> terms = Collections.singletonList(generateTermWithId());
+        final List<TermDto> terms = Collections.singletonList(new TermDto(generateTermWithId()));
         when(termRepositoryService.findAll(anyString())).thenReturn(terms);
         final String searchString = "search";
-        final List<Term> result = sut.findAll(searchString);
+        final List<TermDto> result = sut.findAll(searchString);
         assertEquals(terms, result);
         verify(termRepositoryService).findAll(searchString);
     }
 
     @Test
     void findAllRootsIncludingCanonicalRetrievesTermsFromRepositoryService() {
-        final List<Term> terms = Collections.singletonList(generateTermWithId());
+        final List<TermDto> terms = Collections.singletonList(new TermDto(generateTermWithId()));
         when(termRepositoryService.findAllRootsIncludingCanonical(any())).thenReturn(terms);
-        final List<Term> result = sut.findAllRootsIncludingCanonical(Constants.DEFAULT_PAGE_SPEC);
+        final List<TermDto> result = sut.findAllRootsIncludingCanonical(Constants.DEFAULT_PAGE_SPEC);
         assertEquals(terms, result);
         verify(termRepositoryService).findAllRootsIncludingCanonical(Constants.DEFAULT_PAGE_SPEC);
     }
 
     @Test
     void findAllIncludingCanonicalRetrievesTermsFromRepositoryService() {
-        final List<Term> terms = Collections.singletonList(generateTermWithId());
+        final List<TermDto> terms = Collections.singletonList(new TermDto(generateTermWithId()));
         when(termRepositoryService.findAllIncludingCanonical(any(Pageable.class))).thenReturn(terms);
-        final List<Term> result = sut.findAllIncludingCanonical(Constants.DEFAULT_PAGE_SPEC);
+        final List<TermDto> result = sut.findAllIncludingCanonical(Constants.DEFAULT_PAGE_SPEC);
         assertEquals(terms, result);
         verify(termRepositoryService).findAllIncludingCanonical(Constants.DEFAULT_PAGE_SPEC);
     }
 
     @Test
     void findAllIncludingCanonicalWithSearchStringInWorkspaceRetrievesTermsFromRepositoryService() {
-        final List<Term> terms = Collections.singletonList(generateTermWithId());
+        final List<TermDto> terms = Collections.singletonList(new TermDto(generateTermWithId()));
         when(termRepositoryService.findAllIncludingCanonical(anyString())).thenReturn(terms);
         final String searchString = "search";
-        final List<Term> result = sut.findAllIncludingCanonical(searchString);
+        final List<TermDto> result = sut.findAllIncludingCanonical(searchString);
         assertEquals(terms, result);
         verify(termRepositoryService).findAllIncludingCanonical(searchString);
     }

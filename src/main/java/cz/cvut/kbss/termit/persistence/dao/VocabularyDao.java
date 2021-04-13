@@ -26,20 +26,24 @@ import cz.cvut.kbss.termit.event.RefreshLastModifiedEvent;
 import cz.cvut.kbss.termit.exception.PersistenceException;
 import cz.cvut.kbss.termit.exception.workspace.WorkspaceException;
 import cz.cvut.kbss.termit.model.Glossary;
+import cz.cvut.kbss.termit.model.Term;
 import cz.cvut.kbss.termit.model.Vocabulary;
 import cz.cvut.kbss.termit.model.Workspace;
+import cz.cvut.kbss.termit.model.changetracking.AbstractChangeRecord;
 import cz.cvut.kbss.termit.model.validation.ValidationResult;
 import cz.cvut.kbss.termit.persistence.DescriptorFactory;
 import cz.cvut.kbss.termit.persistence.PersistenceUtils;
-import cz.cvut.kbss.termit.persistence.dao.util.Validator;
+import cz.cvut.kbss.termit.persistence.dao.changetracking.ChangeRecordDao;
 import cz.cvut.kbss.termit.persistence.dao.workspace.WorkspaceBasedAssetDao;
+import cz.cvut.kbss.termit.persistence.validation.VocabularyContentValidator;
 import cz.cvut.kbss.termit.util.Configuration;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.context.ApplicationContext;
+import org.springframework.context.annotation.Lazy;
 import org.springframework.context.event.EventListener;
 import org.springframework.stereotype.Repository;
+import org.springframework.transaction.annotation.Transactional;
 
-import java.io.IOException;
 import java.net.URI;
 import java.util.*;
 import java.util.stream.Collectors;
@@ -51,12 +55,15 @@ public class VocabularyDao extends WorkspaceBasedAssetDao<Vocabulary> implements
 
     private volatile long lastModified;
 
+    private final ChangeRecordDao changeRecordDao;
+
     private final ApplicationContext context;
 
     @Autowired
     public VocabularyDao(EntityManager em, Configuration config, DescriptorFactory descriptorFactory,
-                         PersistenceUtils persistenceUtils, ApplicationContext context) {
+                         PersistenceUtils persistenceUtils, @Lazy ChangeRecordDao changeRecordDao, ApplicationContext context) {
         super(Vocabulary.class, em, config, descriptorFactory, persistenceUtils);
+        this.changeRecordDao = changeRecordDao;
         refreshLastModified();
         this.context = context;
     }
@@ -90,16 +97,16 @@ public class VocabularyDao extends WorkspaceBasedAssetDao<Vocabulary> implements
                 "?v a ?type ." +
                 "}" +
                 "}", Vocabulary.class).setParameter("mc", workspace.getUri())
-                                          .setParameter("metadataCtx",
-                                                  URI.create(
-                                                          cz.cvut.kbss.termit.util.Vocabulary.s_c_metadatovy_kontext))
-                                          .setParameter("referencesCtx", URI.create(
-                                                  cz.cvut.kbss.termit.util.Vocabulary.s_p_odkazuje_na_kontext))
-                                          .setParameter("vocabularyCtx", URI.create(
-                                                  cz.cvut.kbss.termit.util.Vocabulary.s_c_slovnikovy_kontext))
-                                          .setParameter("type", typeUri)
-                                          .setDescriptor(createVocabulariesLoadingDescriptor(workspace))
-                                          .getResultList();
+                .setParameter("metadataCtx",
+                        URI.create(
+                                cz.cvut.kbss.termit.util.Vocabulary.s_c_metadatovy_kontext))
+                .setParameter("referencesCtx", URI.create(
+                        cz.cvut.kbss.termit.util.Vocabulary.s_p_odkazuje_na_kontext))
+                .setParameter("vocabularyCtx", URI.create(
+                        cz.cvut.kbss.termit.util.Vocabulary.s_c_slovnikovy_kontext))
+                .setParameter("type", typeUri)
+                .setDescriptor(createVocabulariesLoadingDescriptor(workspace))
+                .getResultList();
         result.sort(Comparator.comparing(Vocabulary::getLabel));
         return result;
     }
@@ -146,9 +153,9 @@ public class VocabularyDao extends WorkspaceBasedAssetDao<Vocabulary> implements
             return em.createNativeQuery("SELECT DISTINCT ?used WHERE {" +
                     "?x ?uses+ ?used ." +
                     "}", URI.class)
-                     .setParameter("uses",
-                             URI.create(cz.cvut.kbss.termit.util.Vocabulary.s_p_pouziva_pojmy_ze_slovniku))
-                     .setParameter("x", entity.getUri()).getResultList();
+                    .setParameter("uses",
+                            URI.create(cz.cvut.kbss.termit.util.Vocabulary.s_p_pouziva_pojmy_ze_slovniku))
+                    .setParameter("x", entity.getUri()).getResultList();
         } catch (RuntimeException e) {
             throw new PersistenceException(e);
         }
@@ -168,9 +175,9 @@ public class VocabularyDao extends WorkspaceBasedAssetDao<Vocabulary> implements
             return em.createNativeQuery("SELECT DISTINCT ?importing WHERE {" +
                     "?importing ?uses ?target ." +
                     "}", Vocabulary.class)
-                     .setParameter("uses",
-                             URI.create(cz.cvut.kbss.termit.util.Vocabulary.s_p_pouziva_pojmy_ze_slovniku))
-                     .setParameter("target", vocabulary.getUri()).getResultList();
+                    .setParameter("uses",
+                            URI.create(cz.cvut.kbss.termit.util.Vocabulary.s_p_pouziva_pojmy_ze_slovniku))
+                    .setParameter("target", vocabulary.getUri()).getResultList();
         } catch (RuntimeException e) {
             throw new PersistenceException(e);
         }
@@ -230,12 +237,12 @@ public class VocabularyDao extends WorkspaceBasedAssetDao<Vocabulary> implements
                 "       ?hasParentTerm ?parent . " +
                 "    ?parent ?isTermFromVocabulary ?targetVocabulary . " +
                 "}", Boolean.class)
-                 .setParameter("isTermFromVocabulary",
-                         URI.create(cz.cvut.kbss.termit.util.Vocabulary.s_p_je_pojmem_ze_slovniku))
-                 .setParameter("subjectVocabulary", subjectVocabulary)
-                 .setParameter("hasParentTerm", URI.create(SKOS.BROADER))
-                 .setParameter("targetVocabulary", targetVocabulary)
-                 .getSingleResult();
+                .setParameter("isTermFromVocabulary",
+                        URI.create(cz.cvut.kbss.termit.util.Vocabulary.s_p_je_pojmem_ze_slovniku))
+                .setParameter("subjectVocabulary", subjectVocabulary)
+                .setParameter("hasParentTerm", URI.create(SKOS.BROADER))
+                .setParameter("targetVocabulary", targetVocabulary)
+                .getSingleResult();
     }
 
     @Override
@@ -265,16 +272,16 @@ public class VocabularyDao extends WorkspaceBasedAssetDao<Vocabulary> implements
                 "?v a ?type ." +
                 "}" +
                 "}", URI.class).setParameter("mc", workspace.getUri())
-                 .setParameter("metadataCtx",
-                         URI.create(
-                                 cz.cvut.kbss.termit.util.Vocabulary.s_c_metadatovy_kontext))
-                 .setParameter("referencesCtx", URI.create(
-                         cz.cvut.kbss.termit.util.Vocabulary.s_p_odkazuje_na_kontext))
-                 .setParameter("vocabularyCtx", URI.create(
-                         cz.cvut.kbss.termit.util.Vocabulary.s_c_slovnikovy_kontext))
-                 .setParameter("type", typeUri)
-                 .setDescriptor(createVocabulariesLoadingDescriptor(workspace))
-                 .getResultList();
+                .setParameter("metadataCtx",
+                        URI.create(
+                                cz.cvut.kbss.termit.util.Vocabulary.s_c_metadatovy_kontext))
+                .setParameter("referencesCtx", URI.create(
+                        cz.cvut.kbss.termit.util.Vocabulary.s_p_odkazuje_na_kontext))
+                .setParameter("vocabularyCtx", URI.create(
+                        cz.cvut.kbss.termit.util.Vocabulary.s_c_slovnikovy_kontext))
+                .setParameter("type", typeUri)
+                .setDescriptor(createVocabulariesLoadingDescriptor(workspace))
+                .getResultList();
     }
 
     /**
@@ -285,17 +292,37 @@ public class VocabularyDao extends WorkspaceBasedAssetDao<Vocabulary> implements
      * @param workspace workspace to limit the imports of the vocabulary to validate
      * @return validation results
      */
+    @Transactional
     public List<ValidationResult> validateContents(Vocabulary voc, Workspace workspace) {
-        final Validator validator = context.getBean(
-                cz.cvut.kbss.termit.persistence.dao.util.Validator.class);
-        try {
-            final Collection<URI> importClosure = getTransitiveDependencies(voc);
-            importClosure.add(voc.getUri());
-            final Collection<URI> closure = getVocabularyContexts(importClosure, workspace);
-            return validator.validate(closure);
-        } catch (IOException e) {
-            throw new PersistenceException(e);
-        }
+        final VocabularyContentValidator validator = context.getBean(VocabularyContentValidator.class);
+        final Collection<URI> importClosure = getTransitiveDependencies(voc);
+        importClosure.add(voc.getUri());
+        final Collection<URI> closure = getVocabularyContexts(importClosure, workspace);
+        return validator.validate(closure);
+    }
+
+    /**
+     * Gets all changes of all of the terms in the specified vocabulary.
+     *
+     * @param vocabulary Vocabulary to get changes for
+     * @return List of change records
+     */
+    public List<AbstractChangeRecord> getChangesOfContent(Vocabulary vocabulary) {
+        final URI ctx = persistenceUtils.resolveVocabularyContext(vocabulary.getUri());
+        Objects.requireNonNull(vocabulary);
+        final List<URI> terms = em.createNativeQuery("SELECT DISTINCT ?term WHERE {" +
+                "GRAPH ?g { " +
+                "?term a ?type ;" +
+                "}" +
+                "?term ?inVocabulary ?vocabulary ." +
+                " }", URI.class).setParameter("type", URI.create(SKOS.CONCEPT))
+                .setParameter("g", ctx)
+                .setParameter("vocabulary", vocabulary).getResultList();
+        return terms.stream().flatMap(tUri -> {
+            final Term t = new Term();
+            t.setUri(tUri);
+            return changeRecordDao.findAll(t).stream();
+        }).collect(Collectors.toList());
     }
 
     /**

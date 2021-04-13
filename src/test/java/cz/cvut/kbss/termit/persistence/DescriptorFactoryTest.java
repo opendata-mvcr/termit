@@ -17,6 +17,7 @@ import cz.cvut.kbss.jopa.model.metamodel.FieldSpecification;
 import cz.cvut.kbss.termit.dto.workspace.WorkspaceMetadata;
 import cz.cvut.kbss.termit.environment.Generator;
 import cz.cvut.kbss.termit.environment.WorkspaceGenerator;
+import cz.cvut.kbss.termit.model.AbstractTerm;
 import cz.cvut.kbss.termit.model.Term;
 import cz.cvut.kbss.termit.model.Vocabulary;
 import cz.cvut.kbss.termit.model.resource.Document;
@@ -130,7 +131,7 @@ class DescriptorFactoryTest extends BaseDaoTestRunner {
         doReturn(vocabUris).when(wsMetadata).getVocabularyContexts();
         final Descriptor result = sut.termDescriptor(term);
         final FieldSpecification<?, ?> vocSpec = mock(FieldSpecification.class);
-        when(vocSpec.getJavaField()).thenReturn(Term.class.getDeclaredField("vocabulary"));
+        when(vocSpec.getJavaField()).thenReturn(AbstractTerm.class.getDeclaredField("vocabulary"));
         assertTrue(result.getAttributeContexts(vocSpec).isEmpty());
         final Descriptor parentDescriptor = result.getAttributeDescriptor(parentFieldSpec);
         assertTrue(parentDescriptor.getAttributeContexts(vocSpec).isEmpty());
