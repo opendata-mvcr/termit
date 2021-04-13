@@ -45,13 +45,10 @@ public class TermDao extends WorkspaceBasedAssetDao<Term> {
 
     private static final URI LABEL_PROP = URI.create(SKOS.PREF_LABEL);
 
-    private final VocabularyDao vocabularyDao;
 
     @Autowired
-    public TermDao(EntityManager em, Configuration config, DescriptorFactory descriptorFactory,
-                   VocabularyDao vocabularyDao, PersistenceUtils persistenceUtils) {
+    public TermDao(EntityManager em, Configuration config, DescriptorFactory descriptorFactory, PersistenceUtils persistenceUtils) {
         super(Term.class, em, config, descriptorFactory, persistenceUtils);
-        this.vocabularyDao = vocabularyDao;
     }
 
     @Override
@@ -152,20 +149,42 @@ public class TermDao extends WorkspaceBasedAssetDao<Term> {
         }
     }
 
+    /**
+     * Gets all terms.
+     * <p>
+     * No differences are made between root terms and terms with parents.
+     * <p>
+     * The result contains first terms from the current workspace and then from the canonical container (if they fit in
+     * the page).
+     * <p>
+     * This method prioritizes workspace versions of terms whose vocabularies are both in the canonical container and in
+     * the current workspace.
+     *
+     * @return Matching terms, ordered by label
+     */
     @Override
     public List<Term> findAll() {
         final Set<URI> vocContexts = persistenceUtils.getCurrentWorkspaceVocabularyContexts();
+        // TODO
         return findAllFrom(vocContexts, Constants.DEFAULT_PAGE_SPEC, Term.class);
     }
 
     /**
-     * Gets a page of all root terms in the current workspace.
+     * Gets a page of all root terms.
+     * <p>
+     * The result contains first terms from the current workspace and then from the canonical container (if they fit in
+     * the page).
+     * <p>
+     * This method prioritizes workspace versions of terms whose vocabularies are both in the canonical container and in
+     * the current workspace.
      *
      * @param pageSpec Page specification
      * @return Content of the matching page of root terms
      */
     public List<TermDto> findAllRoots(Pageable pageSpec) {
         Objects.requireNonNull(pageSpec);
+        // TODO
+        // TODO How to determine pages after the first page?
         final Set<URI> vocContexts = persistenceUtils.getCurrentWorkspaceVocabularyContexts();
         return findAllRootsFrom(vocContexts, pageSpec);
     }
@@ -194,20 +213,6 @@ public class TermDao extends WorkspaceBasedAssetDao<Term> {
         }
     }
 
-    /**
-     * Gets a page of all root terms in the current workspace and from the canonical container.
-     * <p>
-     * This method prioritizes workspace versions of terms whose vocabularies are both in the canonical container and in
-     * the current workspace.
-     *
-     * @param pageSpec Page specification
-     * @return Content of the matching page of root terms sorted by label
-     */
-    public List<TermDto> findAllRootsIncludingCanonical(Pageable pageSpec) {
-        Objects.requireNonNull(pageSpec);
-        return findAllRootsFrom(resolveWorkspaceAndCanonicalContexts(), pageSpec);
-    }
-
     private Set<URI> resolveWorkspaceAndCanonicalContexts() {
         final Set<URI> contexts = persistenceUtils.getCanonicalContainerContexts();
         contexts.addAll(persistenceUtils.getCurrentWorkspaceVocabularyContexts());
@@ -215,15 +220,22 @@ public class TermDao extends WorkspaceBasedAssetDao<Term> {
     }
 
     /**
-     * Gets all terms in the current workspace.
+     * Gets a page of all terms.
      * <p>
      * No differences are made between root terms and terms with parents.
+     * <p>
+     * The result contains first terms from the current workspace and then from the canonical container (if they fit in
+     * the page).
+     * <p>
+     * This method prioritizes workspace versions of terms whose vocabularies are both in the canonical container and in
+     * the current workspace.
      *
      * @param pageSpec Page specification
      * @return Matching terms, ordered by label
      */
     public List<TermDto> findAll(Pageable pageSpec) {
         Objects.requireNonNull(pageSpec);
+        // TODO
         final Set<URI> vocContexts = persistenceUtils.getCurrentWorkspaceVocabularyContexts();
         return findAllFrom(vocContexts, pageSpec, TermDto.class);
     }
@@ -250,21 +262,6 @@ public class TermDao extends WorkspaceBasedAssetDao<Term> {
         } catch (RuntimeException e) {
             throw new PersistenceException(e);
         }
-    }
-
-    /**
-     * Gets all terms in the current workspace and from the canonical container.
-     * <p>
-     * No differences are made between root terms and terms with parents.
-     * <p>
-     * This method prioritizes workspace versions of terms whose vocabularies are both in the canonical container and in
-     * the current workspace.
-     *
-     * @param pageSpec Page specification
-     * @return List of matching terms, ordered by label
-     */
-    public List<TermDto> findAllIncludingCanonical(Pageable pageSpec) {
-        return findAllFrom(resolveWorkspaceAndCanonicalContexts(), pageSpec, TermDto.class);
     }
 
     /**
@@ -303,7 +300,8 @@ public class TermDao extends WorkspaceBasedAssetDao<Term> {
     /**
      * Finds terms whose label contains the specified search string.
      * <p>
-     * This method searches in the current workspace.
+     * This method searches in the current workspace and in the canonical container, but workspace results are
+     * preferred.
      *
      * @param searchString String the search term labels by
      * @return List of matching terms
@@ -311,6 +309,7 @@ public class TermDao extends WorkspaceBasedAssetDao<Term> {
     public List<TermDto> findAll(String searchString) {
         Objects.requireNonNull(searchString);
         final Set<URI> vocContexts = persistenceUtils.getCurrentWorkspaceVocabularyContexts();
+        // TODO
         return findAllFrom(vocContexts, searchString);
     }
 
@@ -335,18 +334,6 @@ public class TermDao extends WorkspaceBasedAssetDao<Term> {
         } catch (RuntimeException e) {
             throw new PersistenceException(e);
         }
-    }
-
-    /**
-     * Finds terms whose label contains the specified search string.
-     * <p>
-     * This method searches in the current workspace and in the canonical container.
-     *
-     * @param searchString String the search term labels by
-     * @return List of matching terms
-     */
-    public List<TermDto> findAllIncludingCanonical(String searchString) {
-        return findAllFrom(resolveWorkspaceAndCanonicalContexts(), searchString);
     }
 
     /**
@@ -381,31 +368,6 @@ public class TermDao extends WorkspaceBasedAssetDao<Term> {
     }
 
     /**
-     * Gets all terms from the specified vocabulary and any of its imports (transitively).
-     * <p>
-     * No differences are made between root terms and terms with parents.
-     *
-     * @param vocabulary Vocabulary whose terms should be returned
-     * @return Matching terms, ordered by label
-     */
-    public List<TermDto> findAllIncludingImported(Vocabulary vocabulary) {
-        Objects.requireNonNull(vocabulary);
-        TypedQuery<TermDto> query = em.createNativeQuery("SELECT DISTINCT ?term WHERE {" +
-                "?term a ?type ;" +
-                "?hasLabel ?label ;" +
-                "?inVocabulary ?parent ." +
-                "?vocabulary ?imports* ?parent ." +
-                "FILTER (lang(?label) = ?labelLang) ." +
-                "} ORDER BY LCASE(?label)", TermDto.class).setParameter("type", typeUri)
-                .setParameter("hasLabel", LABEL_PROP)
-                .setParameter("inVocabulary", URI.create(cz.cvut.kbss.termit.util.Vocabulary.s_p_je_pojmem_ze_slovniku))
-                .setParameter("imports", URI.create(cz.cvut.kbss.termit.util.Vocabulary.s_p_pouziva_pojmy_ze_slovniku))
-                .setParameter("vocabulary", vocabulary)
-                .setParameter("labelLang", config.get(ConfigParam.LANGUAGE));
-        return executeQueryAndLoadSubTerms(query, persistenceUtils.getCurrentWorkspaceVocabularyContexts());
-    }
-
-    /**
      * Loads addition term metadata which are not directly loaded with the specified instance.
      */
     private void loadAdditionTermMetadata(AbstractTerm term, Set<URI> graphs) {
@@ -425,10 +387,11 @@ public class TermDao extends WorkspaceBasedAssetDao<Term> {
                 "GRAPH ?g { ?entity ?broader ?parent ;" +
                 "a ?type ;" +
                 "?hasLabel ?label ." +
+                "FILTER (lang(?label) = ?labelLang) ." +
                 "}" +
                 "?entity ?inVocabulary ?vocabulary ." +
                 "FILTER (?g in (?graphs))" +
-                "FILTER (lang(?label) = ?labelLang) . } ORDER BY LCASE(?label)", "TermInfo")
+                "} ORDER BY LCASE(?label)", "TermInfo")
                 .setParameter("type", typeUri)
                 .setParameter("broader", URI.create(SKOS.BROADER))
                 .setParameter("parent", parent)
@@ -461,7 +424,6 @@ public class TermDao extends WorkspaceBasedAssetDao<Term> {
      * @param pageSpec     Page specification
      * @param includeTerms Identifiers of terms which should be a part of the result. Optional
      * @return Matching terms, ordered by their label
-     * @see #findAllRootsIncludingImports(Vocabulary, Pageable, Collection)
      */
     public List<TermDto> findAllRoots(Vocabulary vocabulary, Pageable pageSpec, Collection<URI> includeTerms) {
         Objects.requireNonNull(vocabulary);
@@ -505,30 +467,6 @@ public class TermDao extends WorkspaceBasedAssetDao<Term> {
                 .map(u -> em.find(TermDto.class, u, descriptorFactory.termDescriptor(resolveVocabularyIri(u))))
                 .filter(Objects::nonNull)
                 .collect(Collectors.toList());
-    }
-
-    /**
-     * Loads a page of root terms contained in the specified vocabulary or any of its imports (transitively).
-     * <p>
-     * This method basically does a transitive closure of the vocabulary import relationship and retrieves a page of
-     * root terms from this closure.
-     *
-     * @param vocabulary   The last vocabulary in the vocabulary import chain
-     * @param pageSpec     Page specification
-     * @param includeTerms Identifiers of terms which should be a part of the result. Optional
-     * @return Matching terms, ordered by their label
-     * @see #findAllRoots(Vocabulary, Pageable, Collection)
-     */
-    public List<TermDto> findAllRootsIncludingImports(Vocabulary vocabulary, Pageable pageSpec,
-                                                      Collection<URI> includeTerms) {
-        Objects.requireNonNull(vocabulary);
-        Objects.requireNonNull(pageSpec);
-        final Collection<URI> vocabularies = vocabularyDao.getTransitiveDependencies(vocabulary);
-        vocabularies.add(vocabulary.getUri());
-        final List<TermDto> result = new ArrayList<>();
-        vocabularies.forEach(v -> result.addAll(findAllRootsImpl(v, pageSpec, includeTerms)));
-        result.sort(Comparator.comparing((t -> t.getLabel().get(config.get(ConfigParam.LANGUAGE)))));
-        return result.subList(0, Math.min(result.size(), pageSpec.getPageSize()));
     }
 
     /**
@@ -580,26 +518,6 @@ public class TermDao extends WorkspaceBasedAssetDao<Term> {
     }
 
     /**
-     * Finds terms whose label contains the specified search string.
-     * <p>
-     * This method searches in the specified vocabulary and all the vocabularies it (transitively) imports.
-     *
-     * @param searchString String the search term labels by
-     * @param vocabulary   Vocabulary whose terms should be searched
-     * @return List of matching terms
-     */
-    public List<TermDto> findAllIncludingImported(String searchString, Vocabulary vocabulary) {
-        Objects.requireNonNull(searchString);
-        Objects.requireNonNull(vocabulary);
-        final Collection<URI> vocabularies = vocabularyDao.getTransitiveDependencies(vocabulary);
-        vocabularies.add(vocabulary.getUri());
-        final List<TermDto> result = new ArrayList<>();
-        vocabularies.forEach(v -> result.addAll(findAllImpl(searchString, v)));
-        result.sort(Comparator.comparing((t -> t.getLabel().get(config.get(ConfigParam.LANGUAGE)))));
-        return result;
-    }
-
-    /**
      * Checks whether a term with the specified label exists in a vocabulary with the specified URI.
      * <p>
      * Note that this method uses comparison ignoring case, so that two labels differing just in character case are
@@ -646,9 +564,10 @@ public class TermDao extends WorkspaceBasedAssetDao<Term> {
                 "GRAPH ?g { " +
                 "?term ?broader ?parent ;" +
                 "a ?type ;" +
-                "?hasLabel ?label . }" +
-                "FILTER (?g in (?graphs))" +
+                "?hasLabel ?label . " +
                 "FILTER (lang(?label) = ?labelLang) ." +
+                "}" +
+                "FILTER (?g in (?graphs))" +
                 "} ORDER BY LCASE(?label)", Term.class).setParameter("type", typeUri)
                 .setParameter("broader", URI.create(SKOS.BROADER))
                 .setParameter("parent", parent)

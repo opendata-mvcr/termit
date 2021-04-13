@@ -146,9 +146,13 @@ public class TermRepositoryService extends BaseAssetRepositoryService<Term> {
     }
 
     /**
-     * Gets a page of all root terms available in the current workspace.
+     * Gets a page of all root terms.
      * <p>
-     * That is, terms without parent term
+     * That is, terms without parent term.
+     * <p>
+     * The returned roots are prioritized from the current workspace and then from the canonical container. In case of
+     * terms existing both in the current workspace and in the canonical container, the workspace versions take
+     * precedence.
      *
      * @param pageSpec Page specification
      * @return Content of matching page of root terms
@@ -158,20 +162,11 @@ public class TermRepositoryService extends BaseAssetRepositoryService<Term> {
     }
 
     /**
-     * Gets a page of all roots terms available in the current workspace and in the canonical container.
-     * <p>
-     * In case of terms existing both in the current workspace and in the canonical container, the workspace version
-     * takes precedence.
-     *
-     * @param pageSpec Page specification
-     * @return Content of matching page of root terms
-     */
-    public List<TermDto> findAllRootsIncludingCanonical(Pageable pageSpec) {
-        return termDao.findAllRootsIncludingCanonical(pageSpec);
-    }
-
-    /**
      * Gets a page of all terms available in the current workspace, regardless of their position in the SKOS hierarchy.
+     * <p>
+     * The returned terms are prioritized from the current workspace and then from the canonical container. In case of
+     * terms existing both in the current workspace and in the canonical container, the workspace versions take
+     * precedence.
      *
      * @param pageSpec Page specification
      * @return Content of matching page of terms
@@ -180,41 +175,18 @@ public class TermRepositoryService extends BaseAssetRepositoryService<Term> {
         return termDao.findAll(pageSpec);
     }
 
-    /**
-     * Gets a page of all terms available in the current workspace and the canonical container, regardless of their
-     * position in the SKOS hierarchy.
-     * <p>
-     * In case of terms existing both in the current workspace and in the canonical container, the workspace version
-     * takes precedence.
-     *
-     * @param pageSpec Page specification
-     * @return Content of matching page of terms
-     */
-    public List<TermDto> findAllIncludingCanonical(Pageable pageSpec) {
-        return termDao.findAllIncludingCanonical(pageSpec);
-    }
 
     /**
-     * Finds all terms which match the specified search string in the current workspace.
+     * Finds all terms which match the specified search string in the current workspace and in the canonical container.
+     * <p>
+     * Workspace results are placed before canonical container results. In case of terms existing both in the current
+     * workspace and in the canonical container, the workspace versions take precedence.
      *
      * @param searchString Search string
      * @return Matching terms
      */
     public List<TermDto> findAll(String searchString) {
         return termDao.findAll(searchString);
-    }
-
-    /**
-     * Finds all terms which match the specified search string in the current workspace and in the canonical container.
-     * <p>
-     * In case of terms existing both in the current workspace and in the canonical container, the workspace version
-     * takes precedence.
-     *
-     * @param searchString Search string
-     * @return Matching terms
-     */
-    public List<TermDto> findAllIncludingCanonical(String searchString) {
-        return termDao.findAllIncludingCanonical(searchString);
     }
 
     /**
@@ -240,49 +212,17 @@ public class TermRepositoryService extends BaseAssetRepositoryService<Term> {
     }
 
     /**
-     * Gets all terms from the specified vocabulary and its imports (transitive), regardless of their position in the
-     * term hierarchy.
-     * <p>
-     * This returns all terms contained in the vocabulary glossaries.
-     *
-     * @param vocabulary Base vocabulary for the vocabulary import closure
-     * @return List of terms ordered by label
-     */
-    public List<TermDto> findAllIncludingImported(Vocabulary vocabulary) {
-        return termDao.findAllIncludingImported(vocabulary);
-    }
-
-    /**
      * Finds all root terms (terms without parent term) in the specified vocabulary.
      *
      * @param vocabulary   Vocabulary whose terms should be returned
      * @param pageSpec     Page specifying result number and position
      * @param includeTerms Identifiers of terms which should be a part of the result. Optional
      * @return Matching root terms
-     * @see #findAllRootsIncludingImported(Vocabulary, Pageable, Collection)
      */
-    public List<TermDto> findAllRoots(Vocabulary vocabulary, Pageable pageSpec,
-                                      Collection<URI> includeTerms) {
+    public List<TermDto> findAllRoots(Vocabulary vocabulary, Pageable pageSpec, Collection<URI> includeTerms) {
         return termDao.findAllRoots(vocabulary, pageSpec, includeTerms);
     }
 
-    /**
-     * Finds all root terms (terms without parent term) in the specified vocabulary or any of its imported
-     * vocabularies.
-     * <p>
-     * Basically, this does a transitive closure over the vocabulary import relationship, starting at the specified
-     * vocabulary, and returns all parent-less terms.
-     *
-     * @param vocabulary   Base vocabulary for the vocabulary import closure
-     * @param pageSpec     Page specifying result number and position
-     * @param includeTerms Identifiers of terms which should be a part of the result. Optional
-     * @return Matching root terms
-     * @see #findAllRoots(Vocabulary, Pageable, Collection)
-     */
-    public List<TermDto> findAllRootsIncludingImported(Vocabulary vocabulary, Pageable pageSpec,
-                                                       Collection<URI> includeTerms) {
-        return termDao.findAllRootsIncludingImports(vocabulary, pageSpec, includeTerms);
-    }
 
     /**
      * Finds all terms which match the specified search string in the specified vocabulary.
@@ -293,18 +233,6 @@ public class TermRepositoryService extends BaseAssetRepositoryService<Term> {
      */
     public List<TermDto> findAll(String searchString, Vocabulary vocabulary) {
         return termDao.findAll(searchString, vocabulary);
-    }
-
-    /**
-     * Finds all terms which match the specified search string in the specified vocabulary and any vocabularies it
-     * (transitively) imports.
-     *
-     * @param searchString Search string
-     * @param vocabulary   Vocabulary whose terms should be returned
-     * @return Matching terms
-     */
-    public List<TermDto> findAllIncludingImported(String searchString, Vocabulary vocabulary) {
-        return termDao.findAllIncludingImported(searchString, vocabulary);
     }
 
     /**

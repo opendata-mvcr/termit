@@ -73,9 +73,13 @@ public class TermService implements RudService<Term>, ChangeRecordProvider<Term>
     }
 
     /**
-     * Gets a page of all root terms available in the current workspace.
+     * Gets a page of all root terms.
      * <p>
-     * That is, terms without a parent term.
+     * That is, terms without parent term.
+     * <p>
+     * The returned roots are prioritized from the current workspace and then from the canonical container. In case of
+     * terms existing both in the current workspace and in the canonical container, the workspace versions take
+     * precedence.
      *
      * @param pageSpec Page specification
      * @return Content of matching page of root terms
@@ -86,20 +90,11 @@ public class TermService implements RudService<Term>, ChangeRecordProvider<Term>
     }
 
     /**
-     * Gets a page of all root terms available in the current workspace and in the canonical container.
-     * <p>
-     * That is, terms without a parent term.
-     *
-     * @param pageSpec Page specification
-     * @return Content of matching page of root terms
-     */
-    public List<TermDto> findAllRootsIncludingCanonical(Pageable pageSpec) {
-        Objects.requireNonNull(pageSpec);
-        return repositoryService.findAllRootsIncludingCanonical(pageSpec);
-    }
-
-    /**
      * Gets a page of all terms available in the current workspace, regardless of their position in the SKOS hierarchy.
+     * <p>
+     * The returned terms are prioritized from the current workspace and then from the canonical container. In case of
+     * terms existing both in the current workspace and in the canonical container, the workspace versions take
+     * precedence.
      *
      * @param pageSpec Page specification
      * @return Content of matching page of terms
@@ -110,19 +105,10 @@ public class TermService implements RudService<Term>, ChangeRecordProvider<Term>
     }
 
     /**
-     * Gets a page of all terms available in the current workspace and in the canonical container, regardless of their
-     * position in the SKOS hierarchy.
-     *
-     * @param pageSpec Page specification
-     * @return Content of matching page of terms
-     */
-    public List<TermDto> findAllIncludingCanonical(Pageable pageSpec) {
-        Objects.requireNonNull(pageSpec);
-        return repositoryService.findAllIncludingCanonical(pageSpec);
-    }
-
-    /**
-     * Finds all terms which match the specified search string in the current workspace.
+     * Finds all terms which match the specified search string in the current workspace and in the canonical container.
+     * <p>
+     * Workspace results are placed before canonical container results. In case of terms existing both in the current
+     * workspace and in the canonical container, the workspace versions take precedence.
      *
      * @param searchString Search string
      * @return Matching terms
@@ -130,17 +116,6 @@ public class TermService implements RudService<Term>, ChangeRecordProvider<Term>
     public List<TermDto> findAll(String searchString) {
         Objects.requireNonNull(searchString);
         return repositoryService.findAll(searchString);
-    }
-
-    /**
-     * Finds all terms which match the specified search string in the current workspace or in the canonical container.
-     *
-     * @param searchString Search string
-     * @return Matching terms
-     */
-    public List<TermDto> findAllIncludingCanonical(String searchString) {
-        Objects.requireNonNull(searchString);
-        return repositoryService.findAllIncludingCanonical(searchString);
     }
 
     /**
@@ -152,17 +127,6 @@ public class TermService implements RudService<Term>, ChangeRecordProvider<Term>
     public List<Term> findAll(Vocabulary vocabulary) {
         Objects.requireNonNull(vocabulary);
         return repositoryService.findAll(vocabulary);
-    }
-
-    /**
-     * Retrieves all terms from the specified vocabulary and its imports (transitive).
-     *
-     * @param vocabulary Base vocabulary for the vocabulary import closure
-     * @return Matching terms
-     */
-    public List<TermDto> findAllIncludingImported(Vocabulary vocabulary) {
-        Objects.requireNonNull(vocabulary);
-        return repositoryService.findAllIncludingImported(vocabulary);
     }
 
     /**
@@ -179,26 +143,6 @@ public class TermService implements RudService<Term>, ChangeRecordProvider<Term>
         Objects.requireNonNull(vocabulary);
         Objects.requireNonNull(pageSpec);
         return repositoryService.findAllRoots(vocabulary, pageSpec, includeTerms);
-    }
-
-    /**
-     * Finds all root terms (terms without parent term) in the specified vocabulary or any of its imported
-     * vocabularies.
-     * <p>
-     * Basically, this does a transitive closure over the vocabulary import relationship, starting at the specified
-     * vocabulary, and returns all parent-less terms.
-     *
-     * @param vocabulary   Base vocabulary for the vocabulary import closure
-     * @param pageSpec     Page specifying result number and position
-     * @param includeTerms Identifiers of terms which should be a part of the result. Optional
-     * @return Matching root terms
-     * @see #findAllRoots(Vocabulary, Pageable, Collection)
-     */
-    public List<TermDto> findAllRootsIncludingImported(Vocabulary vocabulary, Pageable pageSpec,
-                                                       Collection<URI> includeTerms) {
-        Objects.requireNonNull(vocabulary);
-        Objects.requireNonNull(pageSpec);
-        return repositoryService.findAllRootsIncludingImported(vocabulary, pageSpec, includeTerms);
     }
 
     /**
@@ -223,20 +167,6 @@ public class TermService implements RudService<Term>, ChangeRecordProvider<Term>
         Objects.requireNonNull(vocabulary);
         Objects.requireNonNull(searchString);
         return repositoryService.findAll(searchString, vocabulary);
-    }
-
-    /**
-     * Finds all terms which match the specified search string in the specified vocabulary and any vocabularies it
-     * (transitively) imports.
-     *
-     * @param searchString Search string
-     * @param vocabulary   Vocabulary whose terms should be returned
-     * @return Matching terms
-     */
-    public List<TermDto> findAllIncludingImported(String searchString, Vocabulary vocabulary) {
-        Objects.requireNonNull(searchString);
-        Objects.requireNonNull(vocabulary);
-        return repositoryService.findAllIncludingImported(searchString, vocabulary);
     }
 
     /**
