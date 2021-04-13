@@ -109,26 +109,6 @@ class ReadOnlyTermControllerTest extends BaseControllerTestRunner {
     }
 
     @Test
-    void getAllWithSearchStringAndIncludeImportedUsesServiceToRetrieveMatchingTermsIncludingImportedOnesAndReturnsThem()
-            throws Exception {
-        when(idResolver.resolveIdentifier(Environment.BASE_URI, VOCABULARY_NAME)).thenReturn(URI.create(VOCABULARY_URI));
-        final List<TermDto> terms = generateTerms();
-        when(termService.findVocabularyRequired(URI.create(VOCABULARY_URI))).thenReturn(vocabulary);
-        when(termService.findAllIncludingImported(any(), any())).thenReturn(terms);
-        final String searchString = "test";
-
-        final MvcResult mvcResult = mockMvc.perform((get(PATH + VOCABULARY_NAME + "/terms"))
-                .param(Constants.QueryParams.NAMESPACE, Environment.BASE_URI).param("searchString", searchString)
-                .param("includeImported", Boolean.TRUE.toString()))
-                .andExpect(status().isOk())
-                .andReturn();
-        final List<TermDto> result = readValue(mvcResult, new TypeReference<List<TermDto>>() {
-        });
-        assertEquals(terms, result);
-        verify(termService).findAllIncludingImported(searchString, vocabulary);
-    }
-
-    @Test
     void getAllRootsLoadsRootsFromCorrectPage() throws Exception {
         when(idResolver.resolveIdentifier(ConfigParam.NAMESPACE_VOCABULARY, VOCABULARY_NAME)).thenReturn(URI.create(VOCABULARY_URI));
         final List<TermDto> terms = generateTerms();
@@ -153,21 +133,6 @@ class ReadOnlyTermControllerTest extends BaseControllerTestRunner {
         final ArgumentCaptor<Pageable> captor = ArgumentCaptor.forClass(Pageable.class);
         verify(termService).findAllRoots(eq(vocabulary), captor.capture());
         assertEquals(DEFAULT_PAGE_SPEC, captor.getValue());
-    }
-
-    @Test
-    void getAllRootsRetrievesRootTermsIncludingImportedWhenParameterIsSpecified() throws Exception {
-        when(idResolver.resolveIdentifier(ConfigParam.NAMESPACE_VOCABULARY, VOCABULARY_NAME)).thenReturn(URI.create(VOCABULARY_URI));
-        final List<TermDto> terms = generateTerms();
-        when(termService.findVocabularyRequired(vocabulary.getUri())).thenReturn(vocabulary);
-        when(termService.findAllRootsIncludingImported(eq(vocabulary), any(Pageable.class))).thenReturn(terms);
-        final MvcResult mvcResult = mockMvc
-                .perform(get(PATH + VOCABULARY_NAME + "/terms/roots").param("includeImported", Boolean.TRUE.toString()))
-                .andExpect(status().isOk()).andReturn();
-        final List<TermDto> result = readValue(mvcResult, new TypeReference<List<TermDto>>() {
-        });
-        assertEquals(terms, result);
-        verify(termService).findAllRootsIncludingImported(eq(vocabulary), any(PageRequest.class));
     }
 
     @Test

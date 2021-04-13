@@ -28,10 +28,7 @@ import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 
 import java.net.URI;
-import java.util.Collection;
-import java.util.Collections;
-import java.util.List;
-import java.util.Optional;
+import java.util.*;
 import java.util.stream.Collectors;
 
 import static org.hamcrest.MatcherAssert.assertThat;
@@ -242,68 +239,6 @@ public class TermDaoWorkspacesTest extends BaseDaoTestRunner {
     }
 
     @Test
-    void findAllRootsRetrievesRootTermsFromVocabulariesInCurrentWorkspace() {
-        final Term term = Generator.generateTermWithId();
-        term.setGlossary(vocabulary.getGlossary().getUri());
-        final Vocabulary importedVocabulary = Generator.generateVocabularyWithId();
-        saveVocabulary(importedVocabulary);
-        final Term importedTerm = Generator.generateTermWithId();
-        importedTerm.setGlossary(importedVocabulary.getGlossary().getUri());
-        transactional(() -> {
-            em.persist(term, descriptorFactory.termDescriptor(vocabulary));
-            vocabulary.getGlossary().addRootTerm(term);
-            Generator.addTermInVocabularyRelationship(term, vocabulary.getUri(), em);
-            em.persist(importedTerm, descriptorFactory.termDescriptor(importedVocabulary));
-            Generator.addTermInVocabularyRelationship(importedTerm, importedVocabulary.getUri(), em);
-            em.merge(vocabulary, descriptorFactory.vocabularyDescriptor(vocabulary));
-            em.merge(vocabulary.getGlossary(), descriptorFactory.glossaryDescriptor(vocabulary));
-            importedVocabulary.getGlossary().addRootTerm(importedTerm);
-            em.merge(importedVocabulary.getGlossary(), descriptorFactory.glossaryDescriptor(importedVocabulary));
-            Generator.addVocabularyDependencyRelationship(vocabulary, importedVocabulary, em);
-        });
-        addTermToVocabularyInAnotherWorkspace(term);
-
-        final List<TermDto> result =
-                sut.findAllRootsIncludingImports(vocabulary, Constants.DEFAULT_PAGE_SPEC, Collections.emptyList());
-        assertEquals(2, result.size());
-        assertThat(result, hasItem(new TermDto(term)));
-        assertThat(result, hasItem(new TermDto(importedTerm)));
-        assertEquals(term.getLabel(), result.get(result.indexOf(new TermDto(term))).getLabel());
-    }
-
-    @Test
-    void findAllIncludingImportsBySearchStringRetrievesTermsFromVocabulariesInCurrentWorkspace() {
-        final Term term = Generator.generateTermWithId();
-        term.setGlossary(vocabulary.getGlossary().getUri());
-        term.getLabel().set(Constants.DEFAULT_LANGUAGE, "searched string one");
-        final Vocabulary importedVocabulary = Generator.generateVocabularyWithId();
-        saveVocabulary(importedVocabulary);
-        final Term importedTerm = Generator.generateTermWithId();
-        importedTerm.setGlossary(importedVocabulary.getGlossary().getUri());
-        importedTerm.getLabel().set(Constants.DEFAULT_LANGUAGE, "searched string two");
-        transactional(() -> {
-            em.persist(term, descriptorFactory.termDescriptor(vocabulary));
-            vocabulary.getGlossary().addRootTerm(term);
-            Generator.addTermInVocabularyRelationship(term, vocabulary.getUri(), em);
-            em.persist(importedTerm, descriptorFactory.termDescriptor(importedVocabulary));
-            Generator.addTermInVocabularyRelationship(importedTerm, importedVocabulary.getUri(), em);
-            em.merge(vocabulary, descriptorFactory.vocabularyDescriptor(vocabulary));
-            em.merge(vocabulary.getGlossary(), descriptorFactory.glossaryDescriptor(vocabulary));
-            importedVocabulary.getGlossary().addRootTerm(importedTerm);
-            em.merge(importedVocabulary.getGlossary(), descriptorFactory.glossaryDescriptor(importedVocabulary));
-            Generator.addVocabularyDependencyRelationship(vocabulary, importedVocabulary, em);
-        });
-        addTermToVocabularyInAnotherWorkspace(term);
-
-        final List<TermDto> result = sut.findAllIncludingImported("searched", vocabulary);
-        assertEquals(2, result.size());
-        assertThat(result, hasItem(new TermDto(term)));
-        assertThat(result, hasItem(new TermDto(importedTerm)));
-        assertEquals(term.getLabel(), result.get(result.indexOf(new TermDto(term))).getLabel());
-        assertEquals(importedTerm.getLabel(), result.get(result.indexOf(new TermDto(importedTerm))).getLabel());
-    }
-
-    @Test
     void findTermHandlesParentTermWhichExistsInTwoWorkspacesWithDifferentLabels() {
         final Term term = Generator.generateTermWithId();
         term.setGlossary(vocabulary.getGlossary().getUri());
@@ -405,7 +340,7 @@ public class TermDaoWorkspacesTest extends BaseDaoTestRunner {
     }
 
     @Test
-    void findAllBySearchStringInWorkspaceRetrievesMatchingTermsInCurrentWorkspace() {
+    void findAllBySearchStringRetrievesMatchingTermsInCurrentWorkspace() {
         final String searchString = "match";
         final Term term = Generator.generateTermWithId();
         term.getLabel().set(Constants.DEFAULT_LANGUAGE, "matching label");
@@ -425,6 +360,26 @@ public class TermDaoWorkspacesTest extends BaseDaoTestRunner {
 
         final List<TermDto> result = sut.findAll(searchString);
         assertEquals(Collections.singletonList(new TermDto(term)), result);
+    }
+
+    @Test
+    void findAllBySearchStringRetrievesMatchingTermsInCurrentWorkspaceAndCanonicalContainer() {
+        final String searchString = "match";
+        final Term term = Generator.generateTermWithId();
+        term.getLabel().set(Constants.DEFAULT_LANGUAGE, "matching label");
+        term.setGlossary(vocabulary.getGlossary().getUri());
+        final Term canonical = Generator.generateTermWithId();
+        canonical.getLabel().set(Constants.DEFAULT_LANGUAGE, "matching label as well");
+        transactional(() -> {
+            em.persist(term, descriptorFactory.termDescriptor(vocabulary));
+            em.merge(vocabulary.getGlossary(), descriptorFactory.glossaryDescriptor(vocabulary));
+            Generator.addTermInVocabularyRelationship(term, vocabulary.getUri(), em);
+        });
+        persistTermIntoCanonicalContainer(canonical);
+        addTermToVocabularyInAnotherWorkspace(term);
+        final List<TermDto> result = sut.findAll(searchString);
+        assertEquals(2, result.size());
+        assertEquals(Arrays.asList(new TermDto(term), new TermDto(canonical)), result);
     }
 
     @Test
@@ -555,7 +510,7 @@ public class TermDaoWorkspacesTest extends BaseDaoTestRunner {
     }
 
     @Test
-    void findAllRootsIncludingCanonicalRetrievesRootTermsFromCurrentWorkspaceAndCanonicalContainer() {
+    void findAllRootsRetrievesRootTermsFromCurrentWorkspaceAndCanonicalContainer() {
         final Term term = Generator.generateTermWithId();
         final Term canonical = Generator.generateTermWithId();
         persistTermIntoCanonicalContainer(canonical);
@@ -568,13 +523,13 @@ public class TermDaoWorkspacesTest extends BaseDaoTestRunner {
             Generator.addTermInVocabularyRelationship(term, vocabulary.getUri(), em);
         });
 
-        final List<TermDto> result = sut.findAllRootsIncludingCanonical(Constants.DEFAULT_PAGE_SPEC);
+        final List<TermDto> result = sut.findAllRoots(Constants.DEFAULT_PAGE_SPEC);
         assertEquals(2, result.size());
         assertThat(result, hasItems(new TermDto(term), new TermDto(canonical)));
     }
 
     @Test
-    void findAllIncludingCanonicalRetrievesTermsFromCurrentWorkspaceAndCanonicalContainer() {
+    void findAllRetrievesTermsFromCurrentWorkspaceAndCanonicalContainer() {
         final Term term = Generator.generateTermWithId();
         final Term parent = Generator.generateTermWithId();
         term.addParentTerm(parent);
@@ -589,7 +544,7 @@ public class TermDaoWorkspacesTest extends BaseDaoTestRunner {
             Generator.addTermInVocabularyRelationship(term, vocabulary.getUri(), em);
         });
 
-        final List<TermDto> result = sut.findAllIncludingCanonical(Constants.DEFAULT_PAGE_SPEC);
+        final List<TermDto> result = sut.findAll(Constants.DEFAULT_PAGE_SPEC);
         assertEquals(2, result.size());
         assertThat(result, hasItems(new TermDto(term), new TermDto(parent)));
         final Optional<TermDto> termResult = result.stream().filter(t -> t.getUri().equals(term.getUri())).findFirst();
@@ -598,7 +553,7 @@ public class TermDaoWorkspacesTest extends BaseDaoTestRunner {
     }
 
     @Test
-    void findAllBySearchStringIncludingCanonicalRetrievesMatchingTermsFromCurrentWorkspaceAndCanonicalContainer() {
+    void findAllBySearchStringRetrievesMatchingTermsFromCurrentWorkspaceAndCanonicalContainer() {
         final String searchString = "search";
         final Term term = Generator.generateTermWithId();
         term.getLabel().set(Constants.DEFAULT_LANGUAGE, searchString + " string label");
@@ -616,13 +571,13 @@ public class TermDaoWorkspacesTest extends BaseDaoTestRunner {
             Generator.addTermInVocabularyRelationship(term, vocabulary.getUri(), em);
         });
 
-        final List<TermDto> result = sut.findAllIncludingCanonical(searchString);
+        final List<TermDto> result = sut.findAll(searchString);
         assertEquals(2, result.size());
         assertThat(result, hasItems(new TermDto(term), new TermDto(canonical)));
     }
 
     @Test
-    void findAllRootsIncludingCanonicalLoadsSubTermsInCanonicalContainer() {
+    void findAllRootsLoadsSubTermsInCanonicalContainer() {
         final Term canonical = Generator.generateTermWithId();
         final URI canonicalVocUri = persistTermIntoCanonicalContainer(canonical);
         final Term canonicalChild = Generator.generateTermWithId();
@@ -633,7 +588,7 @@ public class TermDaoWorkspacesTest extends BaseDaoTestRunner {
             Generator.addTermInVocabularyRelationship(canonicalChild, canonicalVocUri, em);
         });
 
-        final List<TermDto> result = sut.findAllRootsIncludingCanonical(Constants.DEFAULT_PAGE_SPEC);
+        final List<TermDto> result = sut.findAllRoots(Constants.DEFAULT_PAGE_SPEC);
         assertEquals(1, result.size());
         assertThat(result.get(0).getSubTerms(), hasItem(new TermInfo(canonicalChild)));
     }

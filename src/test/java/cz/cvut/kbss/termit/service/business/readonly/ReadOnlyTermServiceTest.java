@@ -70,18 +70,6 @@ class ReadOnlyTermServiceTest {
     }
 
     @Test
-    void findAllIncludingImportedBySearchStringSearchesForTermsViaServiceAndTransformsResultsToReadOnlyVersion() {
-        final Vocabulary vocabulary = Generator.generateVocabularyWithId();
-        final List<TermDto> terms = termsToDtos(Generator.generateTermsWithIds(5));
-        final String searchString = "test";
-        when(termService.findAllIncludingImported(anyString(), any())).thenReturn(terms);
-
-        final List<TermDto> result = sut.findAllIncludingImported(searchString, vocabulary);
-        assertEquals(terms, result);
-        verify(termService).findAllIncludingImported(searchString, vocabulary);
-    }
-
-    @Test
     void findAllRootsGetsRootTermsFromServiceAndTransformsThemToReadOnlyVersion() {
         final Vocabulary vocabulary = Generator.generateVocabularyWithId();
         final List<TermDto> terms = termsToDtos(Generator.generateTermsWithIds(5));
@@ -91,18 +79,6 @@ class ReadOnlyTermServiceTest {
         final List<TermDto> result = sut.findAllRoots(vocabulary, pageSpec);
         assertEquals(terms, result);
         verify(termService).findAllRoots(vocabulary, pageSpec, Collections.emptyList());
-    }
-
-    @Test
-    void findAllRootsIncludingImportedGetsRootTermsFromServiceAndTransformsThemToReadOnlyVersion() {
-        final Vocabulary vocabulary = Generator.generateVocabularyWithId();
-        final List<TermDto> terms = termsToDtos(Generator.generateTermsWithIds(5));
-        final Pageable pageSpec = PageRequest.of(1, 10);
-        when(termService.findAllRootsIncludingImported(any(), any(), anyCollection())).thenReturn(terms);
-
-        final List<TermDto> result = sut.findAllRootsIncludingImported(vocabulary, pageSpec);
-        assertEquals(terms, result);
-        verify(termService).findAllRootsIncludingImported(vocabulary, pageSpec, Collections.emptyList());
     }
 
     @Test
