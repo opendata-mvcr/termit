@@ -1,3 +1,12 @@
+application.version: @project.version@
+
+management:
+  endpoints:
+    enabled-by-default: false
+  endpoint:
+    health:
+      enabled: true
+
 server:
   servlet:
     encoding:
@@ -19,6 +28,8 @@ javamelody:
     authorized-users: admin:kral0vnat3rm1t1st3
 repository:
   url: http://localhost:7200/repositories/termit
+  # if empty, repository.url will be used
+  publicUrl:
 persistence:
   driver: cz.cvut.kbss.ontodriver.sesame.SesameDataSource
   language: cs

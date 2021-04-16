@@ -14,6 +14,7 @@
  */
 package cz.cvut.kbss.termit.service.document;
 
+import cz.cvut.kbss.termit.event.DocumentRenameEvent;
 import cz.cvut.kbss.termit.event.FileRenameEvent;
 import cz.cvut.kbss.termit.exception.DocumentManagerException;
 import cz.cvut.kbss.termit.exception.NotFoundException;
@@ -26,6 +27,7 @@ import cz.cvut.kbss.termit.service.document.util.TypeAwareFileSystemResource;
 import cz.cvut.kbss.termit.util.ConfigParam;
 import cz.cvut.kbss.termit.util.Configuration;
 import cz.cvut.kbss.termit.util.TypeAwareResource;
+import org.apache.tika.Tika;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -52,7 +54,7 @@ public class DefaultDocumentManager implements DocumentManager {
 
     private static final Logger LOG = LoggerFactory.getLogger(DefaultDocumentManager.class);
 
-    private final DateFormat dateFormat = new SimpleDateFormat("yyyy-MM-dd_HHmmss");
+    private final DateFormat dateFormat = new SimpleDateFormat("yyyy-MM-dd_HHmmss_S");
 
     private final Configuration config;
 
@@ -74,6 +76,13 @@ public class DefaultDocumentManager implements DocumentManager {
         return result;
     }
 
+    private java.io.File resolveDocumentDirectory(Document document) {
+        Objects.requireNonNull(document);
+        final String path =
+            config.get(ConfigParam.FILE_STORAGE) + java.io.File.separator + document.getDirectoryName();
+        return new java.io.File(path);
+    }
+
     @Override
     public String loadFileContent(File file) {
         try {
@@ -89,15 +98,6 @@ public class DefaultDocumentManager implements DocumentManager {
     @Override
     public TypeAwareResource getAsResource(File file) {
         return new TypeAwareFileSystemResource(resolveFile(file, true), getMediaType(file));
-    }
-
-    private String getMediaType(File file) {
-        final java.io.File content = resolveFile(file, true);
-        try {
-            return Files.probeContentType(content.toPath());
-        } catch (IOException e) {
-            throw new DocumentManagerException("Unable to determine file content type.", e);
-        }
     }
 
     @Override
@@ -143,12 +143,20 @@ public class DefaultDocumentManager implements DocumentManager {
 
     @Override
     public Optional<String> getContentType(File file) {
-        final java.io.File physicalFile = resolveFile(file, true);
         try {
-            return Optional.ofNullable(Files.probeContentType(physicalFile.toPath()));
-        } catch (IOException e) {
+            return Optional.ofNullable(getMediaType(file));
+        } catch (DocumentManagerException e) {
             LOG.error("Exception caught when determining content type of file {}.", file, e);
             return Optional.empty();
+        }
+    }
+
+    private String getMediaType(File file) {
+        final java.io.File content = resolveFile(file, true);
+        try {
+            return new Tika().detect(content);
+        } catch (IOException e) {
+            throw new DocumentManagerException("Unable to determine file content type.", e);
         }
     }
 
@@ -233,6 +241,26 @@ public class DefaultDocumentManager implements DocumentManager {
             moveFile(tempOriginal, physicalOriginal, event);
         } catch (IOException e) {
             throw new DocumentManagerException("Unable to sync file content after file renaming.", e);
+        }
+    }
+
+    @EventListener
+    public void onDocumentRename(DocumentRenameEvent event) {
+        final Document tempOriginal = new Document();
+        tempOriginal.setUri(event.getSource().getUri());
+        tempOriginal.setLabel(event.getOriginalName());
+
+        final java.io.File originalDirectory = resolveDocumentDirectory(tempOriginal);
+
+        final Document tempNewDocument = new Document();
+        tempNewDocument.setUri(event.getSource().getUri());
+        tempNewDocument.setLabel(event.getNewName());
+        final java.io.File newDirectory = resolveDocumentDirectory(tempNewDocument);
+
+        try {
+            Files.move(originalDirectory.toPath(), newDirectory.toPath());
+        } catch (IOException e) {
+            throw new DocumentManagerException("Cannot rename the directory on document label change.", e);
         }
     }
 

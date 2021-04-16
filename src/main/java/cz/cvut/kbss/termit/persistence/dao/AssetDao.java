@@ -184,7 +184,7 @@ public abstract class AssetDao<T extends Asset<?>> extends BaseDao<T> {
     public List<RecentlyCommentedAsset> findLastCommented(int limit) {
         try {
             return (List<RecentlyCommentedAsset>) em
-                .createNativeQuery("SELECT DISTINCT ?entity ?lastCommentUri ?type"
+                .createNativeQuery("SELECT DISTINCT ?entity ?lastCommentUri ?myLastCommentUri ?type"
                     + " WHERE { ?lastCommentUri a ?commentType ;"
                     + "           ?hasEntity ?entity ."
                     + "  OPTIONAL { ?lastCommentUri ?hasModifiedTime ?modified . }"
@@ -226,11 +226,24 @@ public abstract class AssetDao<T extends Asset<?>> extends BaseDao<T> {
     public List<RecentlyCommentedAsset> findLastCommentedInReaction(User author, int limit) {
         try {
             return (List<RecentlyCommentedAsset>) em
-                .createNativeQuery("SELECT DISTINCT ?entity ?lastCommentUri ?type"
+                .createNativeQuery("SELECT DISTINCT ?entity ?lastCommentUri ?myLastCommentUri ?type"
                     + " WHERE { ?lastCommentUri a ?commentType ;"
                     + "           ?hasEntity ?entity ."
-                    + "  FILTER EXISTS { ?comment3 ?hasEntity ?entity ;"
-                    + "                            ?hasAuthor ?author . }"
+                    + "         ?myLastCommentUri ?hasEntity ?entity ;"
+                    + "                           ?hasAuthor ?author . "
+                    + "         OPTIONAL { ?myLastCommentUri ?hasModifiedTime ?modifiedByMe . } "
+                    + "         OPTIONAL { ?myLastCommentUri ?hasCreatedByMe  ?createdByMe . } "
+                    + "         BIND(COALESCE(?modifiedByMe,?createdByMe) AS ?lastCommentedByMe) "
+                    + " { SELECT (MAX(?lastCommentedByMe2) AS ?maxByMe) {"
+                    + "         ?commentByMe ?hasEntity ?entity ; "
+                    + "                      ?hasAuthor ?author . "
+                    + "          OPTIONAL { ?commentByMe ?hasModifiedTime ?modifiedByMe2 . } "
+                    + "          OPTIONAL { ?commentByMe ?hasCreatedTime ?createdByMe2 . } "
+                    + "          BIND(COALESCE(?modifiedByMe2,?createdByMe2) AS ?lastCommentedByMe2) "
+                    + "        } GROUP BY ?entity "
+                    + "  }"
+                    + "  FILTER (?lastCommentedByMe = ?maxByMe )"
+                    + "  FILTER(?myLastCommentUri != ?lastCommentUri)"
                     + "  OPTIONAL { ?lastCommentUri ?hasModifiedTime ?modified . }"
                     + "  OPTIONAL { ?lastCommentUri ?hasCreatedTime ?created . }"
                     + "  BIND(COALESCE(?modified,?created) AS ?lastCommented) "
@@ -256,7 +269,8 @@ public abstract class AssetDao<T extends Asset<?>> extends BaseDao<T> {
                 .setMaxResults(limit).getResultStream()
                 .map(r -> {
                         final RecentlyCommentedAsset a = (RecentlyCommentedAsset) r;
-                        return a.setLastComment(em.find(Comment.class, a.getLastCommentUri()));
+                        return a.setLastComment(em.find(Comment.class, a.getLastCommentUri()))
+                            .setMyLastComment(em.find(Comment.class, a.getMyLastCommentUri()));
                     }
                 ).collect(Collectors.toList());
         } catch (RuntimeException e) {
@@ -272,7 +286,7 @@ public abstract class AssetDao<T extends Asset<?>> extends BaseDao<T> {
     public List<RecentlyCommentedAsset> findMyLastCommented(User author, int limit) {
         try {
             return (List<RecentlyCommentedAsset>) em
-                .createNativeQuery("SELECT DISTINCT ?entity ?lastCommentUri ?type"
+                .createNativeQuery("SELECT DISTINCT ?entity ?lastCommentUri ?myLastCommentUri ?type"
                     + " WHERE { ?lastCommentUri a ?commentType ;"
                     + "           ?hasEntity ?entity ."
                     + "        FILTER EXISTS{ ?x ?hasModifiedEntity ?entity ;"

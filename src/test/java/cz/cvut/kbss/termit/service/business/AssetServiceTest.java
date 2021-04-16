@@ -164,7 +164,7 @@ class AssetServiceTest {
         for (int i = 0; i < count; i++) {
             final Term term = Generator.generateTermWithId();
             Comment comment = Generator.generateComment(author, term);
-            RecentlyCommentedAsset rca = new RecentlyCommentedAsset(term.getUri(), comment.getUri(), SKOS.CONCEPT);
+            RecentlyCommentedAsset rca = new RecentlyCommentedAsset(term.getUri(), comment.getUri(), null, SKOS.CONCEPT);
             comment.setCreated(new Date(System.currentTimeMillis() - i * 1000));
             comment.setAuthor(author);
             comment.setAsset(term.getUri());
