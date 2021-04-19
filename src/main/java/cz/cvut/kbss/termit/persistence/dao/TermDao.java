@@ -338,8 +338,9 @@ public class TermDao extends WorkspaceBasedAssetDao<Term> {
     public List<TermDto> findAll(String searchString) {
         Objects.requireNonNull(searchString);
         final Set<URI> vocContexts = persistenceUtils.getCurrentWorkspaceVocabularyContexts();
-        // TODO
-        return findAllFrom(vocContexts, searchString);
+        final Set<TermDto> terms = new LinkedHashSet<>(findAllFrom(vocContexts, searchString));
+        terms.addAll(findAllFrom(persistenceUtils.getCanonicalContainerContexts(), searchString));
+        return new ArrayList<>(terms);
     }
 
     private List<TermDto> findAllFrom(Set<URI> contexts, String searchString) {

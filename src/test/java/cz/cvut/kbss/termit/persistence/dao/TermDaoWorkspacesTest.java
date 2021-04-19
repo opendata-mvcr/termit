@@ -575,7 +575,7 @@ public class TermDaoWorkspacesTest extends BaseDaoTestRunner {
 
         final List<TermDto> result = sut.findAll(searchString);
         assertEquals(2, result.size());
-        assertThat(result, hasItems(new TermDto(term), new TermDto(canonical)));
+        assertEquals(Arrays.asList(new TermDto(term), new TermDto(canonical)), result);
     }
 
     @Test
