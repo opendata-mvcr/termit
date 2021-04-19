@@ -32,6 +32,7 @@ import cz.cvut.kbss.termit.util.ConfigParam;
 import cz.cvut.kbss.termit.util.Configuration;
 import cz.cvut.kbss.termit.util.Constants;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Repository;
 
@@ -165,8 +166,9 @@ public class TermDao extends WorkspaceBasedAssetDao<Term> {
     @Override
     public List<Term> findAll() {
         final Set<URI> vocContexts = persistenceUtils.getCurrentWorkspaceVocabularyContexts();
-        // TODO
-        return findAllFrom(vocContexts, Constants.DEFAULT_PAGE_SPEC, Term.class);
+        final Set<Term> terms = new LinkedHashSet<>(findAllFrom(vocContexts, Constants.DEFAULT_PAGE_SPEC, Term.class));
+        terms.addAll(findAllFrom(persistenceUtils.getCanonicalContainerContexts(), Constants.DEFAULT_PAGE_SPEC, Term.class));
+        return new ArrayList<>(terms);
     }
 
     /**
@@ -235,9 +237,36 @@ public class TermDao extends WorkspaceBasedAssetDao<Term> {
      */
     public List<TermDto> findAll(Pageable pageSpec) {
         Objects.requireNonNull(pageSpec);
-        // TODO
-        final Set<URI> vocContexts = persistenceUtils.getCurrentWorkspaceVocabularyContexts();
-        return findAllFrom(vocContexts, pageSpec, TermDto.class);
+        final Set<URI> wsContexts = persistenceUtils.getCurrentWorkspaceVocabularyContexts();
+        final int wsCount = countTermsIn(wsContexts);
+        final int offset = (int) pageSpec.getOffset();
+        final Set<TermDto> terms = new LinkedHashSet<>();
+        if (wsCount > offset) {
+            terms.addAll(findAllFrom(wsContexts, pageSpec, TermDto.class));
+        }
+        if (terms.size() < pageSpec.getPageSize()) {
+            terms.addAll(findAllFrom(persistenceUtils.getCanonicalContainerContexts(), determinePageSpecForCanonical(pageSpec, wsCount, terms.size()), TermDto.class));
+        }
+        return new ArrayList<>(terms);
+    }
+
+    private int countTermsIn(Set<URI> contexts) {
+        try {
+            return em.createNativeQuery("SELECT (COUNT(?term) as ?count) WHERE {" +
+                    "GRAPH ?g {" +
+                    "?term a ?type ." +
+                    "} FILTER (?g in (?graphs)) }", Integer.class)
+                    .setParameter("type", typeUri)
+                    .setParameter("graphs", contexts)
+                    .getSingleResult();
+        } catch (RuntimeException e) {
+            throw new PersistenceException(e);
+        }
+    }
+
+    private Pageable determinePageSpecForCanonical(Pageable original, int wsCount, int alreadyHave) {
+        final int newOffset = (original.getPageNumber() + 1) * original.getPageSize() - wsCount;
+        return PageRequest.of(newOffset / original.getPageSize(), original.getPageSize() - alreadyHave);
     }
 
     private <T extends AbstractTerm> List<T> findAllFrom(Set<URI> contexts, Pageable pageSpec, Class<T> resultType) {
@@ -256,7 +285,7 @@ public class TermDao extends WorkspaceBasedAssetDao<Term> {
                     .setParameter("labelLang", config.get(ConfigParam.LANGUAGE));
             query.setMaxResults(pageSpec.getPageSize()).setFirstResult((int) pageSpec.getOffset());
             final Descriptor descriptor = descriptorFactory.termDescriptor((URI) null);
-            contexts.forEach(descriptor::addContext);
+            resolveWorkspaceAndCanonicalContexts().forEach(descriptor::addContext);
             query.setDescriptor(descriptor);
             return executeQueryAndLoadSubTerms(query, contexts);
         } catch (RuntimeException e) {

@@ -26,10 +26,12 @@ import org.eclipse.rdf4j.repository.RepositoryConnection;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.data.domain.PageRequest;
 
 import java.net.URI;
 import java.util.*;
 import java.util.stream.Collectors;
+import java.util.stream.IntStream;
 
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.*;
@@ -662,5 +664,76 @@ public class TermDaoWorkspacesTest extends BaseDaoTestRunner {
         term.setVocabulary(vocabulary.getUri());    // This is normally inferred
         transactional(() -> sut.remove(term));
         assertFalse(sut.exists(term.getUri()));
+    }
+
+    @Test
+    void findAllRetrievesTermsFromCurrentWorkspaceAndCanonicalContainerWithCurrentWorkspaceTermsPrioritized() {
+        final Term term = Generator.generateTermWithId();
+        final Term canonical = Generator.generateTermWithId();
+        persistTermIntoCanonicalContainer(canonical);
+        final EntityDescriptor termDescriptor = new EntityDescriptor(vocabulary.getUri());
+        termDescriptor.addAttributeContext(em.getMetamodel().entity(Term.class).getAttribute("parentTerms"), null);
+        transactional(() -> {
+            term.setGlossary(vocabulary.getGlossary().getUri());
+            em.persist(term, termDescriptor);
+            vocabulary.getGlossary().addRootTerm(term);
+            em.merge(vocabulary.getGlossary(), descriptorFactory.glossaryDescriptor(vocabulary));
+            Generator.addTermInVocabularyRelationship(term, vocabulary.getUri(), em);
+        });
+
+        final List<Term> result = sut.findAll();
+        assertEquals(2, result.size());
+        assertEquals(Arrays.asList(term, canonical), result);
+    }
+
+    @Test
+    void findAllWithPageSpecificationRetrievesPagesWithCurrentWorkspaceTermsBeforeCanonicalTerms() {
+        final List<Term> wsTerms = generateRootTerms();
+        final List<Term> canonicalTerms = IntStream.range(0, 5).mapToObj(i -> {
+            final Term t = Generator.generateTermWithId();
+            persistTermIntoCanonicalContainer(t);
+            return t;
+        }).collect(Collectors.toList());
+
+        final int canonicalCount = 3;
+        final List<TermDto> result = sut.findAll(PageRequest.of(0, wsTerms.size() + canonicalCount));
+        wsTerms.sort(Comparator.comparing(Term::getPrimaryLabel));
+        canonicalTerms.sort(Comparator.comparing(Term::getPrimaryLabel));
+        final List<TermDto> expected = wsTerms.stream().map(TermDto::new).collect(Collectors.toList());
+        expected.addAll(canonicalTerms.subList(0, canonicalCount).stream().map(TermDto::new).collect(Collectors.toList()));
+        assertEquals(expected, result);
+    }
+
+    private List<Term> generateRootTerms() {
+        final List<Term> terms = IntStream.range(0, 5).mapToObj(i -> Generator.generateTermWithId()).collect(Collectors.toList());
+        transactional(() -> {
+            final EntityDescriptor descriptor = new EntityDescriptor(vocabulary.getUri());
+            terms.forEach(t -> {
+                t.setGlossary(vocabulary.getGlossary().getUri());
+                vocabulary.getGlossary().addRootTerm(t);
+                em.persist(t, descriptor);
+                Generator.addTermInVocabularyRelationship(t, vocabulary.getUri(), em);
+            });
+        });
+        return terms;
+    }
+
+    @Test
+    void findAllReturnsCorrectPageContent() {
+        final List<Term> wsTerms = generateRootTerms();
+        final List<Term> canonicalTerms = IntStream.range(0, 5).mapToObj(i -> {
+            final Term t = Generator.generateTermWithId();
+            persistTermIntoCanonicalContainer(t);
+            return t;
+        }).collect(Collectors.toList());
+        wsTerms.sort(Comparator.comparing(Term::getPrimaryLabel));
+        canonicalTerms.sort(Comparator.comparing(Term::getPrimaryLabel));
+        final List<Term> allTerms = new ArrayList<>(wsTerms);
+        allTerms.addAll(canonicalTerms);
+        final int pageSize = wsTerms.size() - 1;
+        final List<TermDto> expected = allTerms.subList(pageSize, pageSize * 2).stream().map(TermDto::new).collect(Collectors.toList());
+
+        final List<TermDto> result = sut.findAll(PageRequest.of(1, pageSize));
+        assertEquals(expected, result);
     }
 }
