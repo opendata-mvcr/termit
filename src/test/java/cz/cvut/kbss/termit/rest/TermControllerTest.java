@@ -957,6 +957,21 @@ class TermControllerTest extends BaseControllerTestRunner {
     }
 
     @Test
+    void getAllStandaloneWithOnlyRootsRetrievesPageOfRootTermsFromService() throws Exception {
+        final List<TermDto> terms = termsToDtos(Generator.generateTermsWithIds(5));
+        when(termServiceMock.findAllRoots(any(Pageable.class))).thenReturn(terms);
+        final int pageSize = 300;
+        final MvcResult mvcResult = mockMvc.perform(get("/terms")
+                .queryParam("rootsOnly", Boolean.TRUE.toString())
+                .queryParam(PAGE_SIZE, Integer.toString(pageSize))
+                .accept(MediaType.APPLICATION_JSON)).andExpect(status().isOk()).andReturn();
+        final List<TermDto> result = readValue(mvcResult, new TypeReference<List<TermDto>>() {
+        });
+        assertEquals(terms, result);
+        verify(termServiceMock).findAllRoots(PageRequest.of(0, pageSize));
+    }
+
+    @Test
     void getAllStandaloneRetrievesPageOfTermsFromService() throws Exception {
         final List<TermDto> terms = termsToDtos(Generator.generateTermsWithIds(5));
         when(termServiceMock.findAll(any(Pageable.class))).thenReturn(terms);

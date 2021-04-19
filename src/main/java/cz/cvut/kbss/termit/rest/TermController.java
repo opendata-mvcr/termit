@@ -66,13 +66,14 @@ public class TermController extends BaseController {
      */
     @GetMapping(value = "/terms", produces = {JsonLd.MEDIA_TYPE, MediaType.APPLICATION_JSON_VALUE})
     public List<TermDto> getAll(@RequestParam(required = false) String searchString,
+                                @RequestParam(required = false, defaultValue = "false") boolean rootsOnly,
                                 @RequestParam(name = QueryParams.PAGE_SIZE, required = false) Integer pageSize,
                                 @RequestParam(name = QueryParams.PAGE, required = false) Integer pageNo) {
         if (searchString != null && !searchString.trim().isEmpty()) {
             return termService.findAll(searchString);
         }
         final Pageable pageSpec = createPageRequest(pageSize, pageNo);
-        return termService.findAll(pageSpec);
+        return rootsOnly ? termService.findAllRoots(pageSpec) : termService.findAll(pageSpec);
     }
 
     /**
