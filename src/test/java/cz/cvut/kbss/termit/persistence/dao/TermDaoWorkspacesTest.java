@@ -714,6 +714,7 @@ public class TermDaoWorkspacesTest extends BaseDaoTestRunner {
                 em.persist(t, descriptor);
                 Generator.addTermInVocabularyRelationship(t, vocabulary.getUri(), em);
             });
+            em.merge(vocabulary.getGlossary(), descriptorFactory.glossaryDescriptor(vocabulary));
         });
         return terms;
     }
@@ -734,6 +735,25 @@ public class TermDaoWorkspacesTest extends BaseDaoTestRunner {
         final List<TermDto> expected = allTerms.subList(pageSize, pageSize * 2).stream().map(TermDto::new).collect(Collectors.toList());
 
         final List<TermDto> result = sut.findAll(PageRequest.of(1, pageSize));
+        assertEquals(expected, result);
+    }
+
+    @Test
+    void findAllRootsReturnsCorrectPageContent() {
+        final List<Term> wsTerms = generateRootTerms();
+        final List<Term> canonicalTerms = IntStream.range(0, 5).mapToObj(i -> {
+            final Term t = Generator.generateTermWithId();
+            persistTermIntoCanonicalContainer(t);
+            return t;
+        }).collect(Collectors.toList());
+        wsTerms.sort(Comparator.comparing(Term::getPrimaryLabel));
+        canonicalTerms.sort(Comparator.comparing(Term::getPrimaryLabel));
+        final List<Term> allTerms = new ArrayList<>(wsTerms);
+        allTerms.addAll(canonicalTerms);
+        final int pageSize = wsTerms.size() - 1;
+        final List<TermDto> expected = allTerms.subList(pageSize, pageSize * 2).stream().map(TermDto::new).collect(Collectors.toList());
+
+        final List<TermDto> result = sut.findAllRoots(PageRequest.of(1, pageSize));
         assertEquals(expected, result);
     }
 }

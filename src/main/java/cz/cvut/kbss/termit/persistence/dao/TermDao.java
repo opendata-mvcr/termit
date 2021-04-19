@@ -185,10 +185,34 @@ public class TermDao extends WorkspaceBasedAssetDao<Term> {
      */
     public List<TermDto> findAllRoots(Pageable pageSpec) {
         Objects.requireNonNull(pageSpec);
-        // TODO
-        // TODO How to determine pages after the first page?
-        final Set<URI> vocContexts = persistenceUtils.getCurrentWorkspaceVocabularyContexts();
-        return findAllRootsFrom(vocContexts, pageSpec);
+        final Set<URI> wsContexts = persistenceUtils.getCurrentWorkspaceVocabularyContexts();
+        final int wsCount = countRootTermsIn(wsContexts);
+        final int offset = (int) pageSpec.getOffset();
+        final Set<TermDto> terms = new LinkedHashSet<>();
+        if (wsCount > offset) {
+            terms.addAll(findAllRootsFrom(wsContexts, pageSpec));
+        }
+        if (terms.size() < pageSpec.getPageSize()) {
+            terms.addAll(findAllRootsFrom(persistenceUtils.getCanonicalContainerContexts(), determinePageSpecForCanonical(pageSpec, wsCount, terms.size())));
+        }
+        return new ArrayList<>(terms);
+    }
+
+    private int countRootTermsIn(Set<URI> contexts) {
+        try {
+            return em.createNativeQuery("SELECT (COUNT(?term) as ?count) WHERE {" +
+                    "GRAPH ?g {" +
+                    "?term a ?type ." +
+                    "?vocabulary ?hasGlossary/?hasTerm ?term ." +
+                    "} FILTER (?g in (?graphs)) }", Integer.class)
+                    .setParameter("type", typeUri)
+                    .setParameter("hasGlossary", URI.create(cz.cvut.kbss.termit.util.Vocabulary.s_p_ma_glosar))
+                    .setParameter("hasTerm", URI.create(SKOS.HAS_TOP_CONCEPT))
+                    .setParameter("graphs", contexts)
+                    .getSingleResult();
+        } catch (RuntimeException e) {
+            throw new PersistenceException(e);
+        }
     }
 
     private List<TermDto> findAllRootsFrom(Set<URI> contexts, Pageable pageSpec) {
@@ -207,7 +231,7 @@ public class TermDao extends WorkspaceBasedAssetDao<Term> {
             query = setCommonFindAllRootsQueryParams(query);
             query.setMaxResults(pageSpec.getPageSize()).setFirstResult((int) pageSpec.getOffset());
             final Descriptor descriptor = descriptorFactory.termDescriptor((URI) null);
-            contexts.forEach(descriptor::addContext);
+            resolveWorkspaceAndCanonicalContexts().forEach(descriptor::addContext);
             query.setDescriptor(descriptor);
             return executeQueryAndLoadSubTerms(query, contexts);
         } catch (RuntimeException e) {
@@ -265,6 +289,9 @@ public class TermDao extends WorkspaceBasedAssetDao<Term> {
     }
 
     private Pageable determinePageSpecForCanonical(Pageable original, int wsCount, int alreadyHave) {
+        if (wsCount == 0) {
+            return original;
+        }
         final int newOffset = (original.getPageNumber() + 1) * original.getPageSize() - wsCount;
         return PageRequest.of(newOffset / original.getPageSize(), original.getPageSize() - alreadyHave);
     }
