@@ -213,27 +213,6 @@ class TermServiceTest {
     }
 
     @Test
-    void findAllRootsIncludingImportsRetrievesRootTermsUsingRepositoryService() {
-        final List<TermDto> terms = Collections.singletonList(new TermDto(Generator.generateTermWithId()));
-        when(termRepositoryService
-                .findAllRootsIncludingImported(eq(vocabulary), eq(Constants.DEFAULT_PAGE_SPEC), anyCollection()))
-                .thenReturn(terms);
-        final List<TermDto> result = sut.findAllRootsIncludingImported(vocabulary, Constants.DEFAULT_PAGE_SPEC, Collections.emptyList());
-        assertEquals(terms, result);
-        verify(termRepositoryService).findAllRootsIncludingImported(vocabulary, Constants.DEFAULT_PAGE_SPEC, Collections.emptyList());
-    }
-
-    @Test
-    void findAllIncludingImportedBySearchStringRetrievesMatchingTermsUsingRepositoryService() {
-        final String searchString = "test";
-        final List<TermDto> terms = Collections.singletonList(new TermDto(Generator.generateTermWithId()));
-        when(termRepositoryService.findAllIncludingImported(searchString, vocabulary)).thenReturn(terms);
-        final List<TermDto> result = sut.findAllIncludingImported(searchString, vocabulary);
-        assertEquals(terms, result);
-        verify(termRepositoryService).findAllIncludingImported(searchString, vocabulary);
-    }
-
-    @Test
     void removeRemovesTermViaRepositoryService() {
         final Term toRemove = generateTermWithId();
         sut.remove(toRemove);
@@ -283,12 +262,6 @@ class TermServiceTest {
         final Term asset = Generator.generateTermWithId();
         sut.getChanges(asset);
         verify(changeRecordService).getChanges(asset);
-    }
-
-    @Test
-    void findAllIncludingImportedRetrievesAllTermsFromVocabularyImportsChain() {
-        sut.findAllIncludingImported(vocabulary);
-        verify(termRepositoryService).findAllIncludingImported(vocabulary);
     }
 
     @Test
@@ -359,33 +332,5 @@ class TermServiceTest {
         final List<TermDto> result = sut.findAll(searchString);
         assertEquals(terms, result);
         verify(termRepositoryService).findAll(searchString);
-    }
-
-    @Test
-    void findAllRootsIncludingCanonicalRetrievesTermsFromRepositoryService() {
-        final List<TermDto> terms = Collections.singletonList(new TermDto(generateTermWithId()));
-        when(termRepositoryService.findAllRootsIncludingCanonical(any())).thenReturn(terms);
-        final List<TermDto> result = sut.findAllRootsIncludingCanonical(Constants.DEFAULT_PAGE_SPEC);
-        assertEquals(terms, result);
-        verify(termRepositoryService).findAllRootsIncludingCanonical(Constants.DEFAULT_PAGE_SPEC);
-    }
-
-    @Test
-    void findAllIncludingCanonicalRetrievesTermsFromRepositoryService() {
-        final List<TermDto> terms = Collections.singletonList(new TermDto(generateTermWithId()));
-        when(termRepositoryService.findAllIncludingCanonical(any(Pageable.class))).thenReturn(terms);
-        final List<TermDto> result = sut.findAllIncludingCanonical(Constants.DEFAULT_PAGE_SPEC);
-        assertEquals(terms, result);
-        verify(termRepositoryService).findAllIncludingCanonical(Constants.DEFAULT_PAGE_SPEC);
-    }
-
-    @Test
-    void findAllIncludingCanonicalWithSearchStringInWorkspaceRetrievesTermsFromRepositoryService() {
-        final List<TermDto> terms = Collections.singletonList(new TermDto(generateTermWithId()));
-        when(termRepositoryService.findAllIncludingCanonical(anyString())).thenReturn(terms);
-        final String searchString = "search";
-        final List<TermDto> result = sut.findAllIncludingCanonical(searchString);
-        assertEquals(terms, result);
-        verify(termRepositoryService).findAllIncludingCanonical(searchString);
     }
 }

@@ -1,13 +1,16 @@
 /**
  * TermIt Copyright (C) 2019 Czech Technical University in Prague
  * <p>
- * This program is free software: you can redistribute it and/or modify it under the terms of the GNU General Public License as published by
- * the Free Software Foundation, either version 3 of the License, or (at your option) any later version.
+ * This program is free software: you can redistribute it and/or modify it under the terms of the GNU General Public
+ * License as published by the Free Software Foundation, either version 3 of the License, or (at your option) any later
+ * version.
  * <p>
- * This program is distributed in the hope that it will be useful, but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License for more details.
+ * This program is distributed in the hope that it will be useful, but WITHOUT ANY WARRANTY; without even the implied
+ * warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License for more
+ * details.
  * <p>
- * You should have received a copy of the GNU General Public License along with this program.  If not, see <https://www.gnu.org/licenses/>.
+ * You should have received a copy of the GNU General Public License along with this program.  If not, see
+ * <https://www.gnu.org/licenses/>.
  */
 package cz.cvut.kbss.termit.service.repository;
 
@@ -451,35 +454,7 @@ class TermRepositoryServiceTest extends BaseServiceTestRunner {
     }
 
     @Test
-    void findAllRootsIncludingImportsReturnsRootTermsOnMatchingPage() {
-        final List<Term> terms = Generator.generateTermsWithIds(10);
-        vocabulary.getGlossary().setRootTerms(terms.stream().map(Asset::getUri).collect(Collectors.toSet()));
-        transactional(() -> {
-            terms.forEach(t -> {
-                t.setGlossary(vocabulary.getGlossary().getUri());
-                em.persist(t, descriptorFactory.termDescriptor(vocabulary));
-            });
-            em.merge(vocabulary.getGlossary(), descriptorFactory.glossaryDescriptor(vocabulary));
-        });
-
-        final List<TermDto> resultOne = sut
-                .findAllRootsIncludingImported(vocabulary, PageRequest.of(0, 5), Collections.emptyList());
-        final List<TermDto> resultTwo = sut
-                .findAllRootsIncludingImported(vocabulary, PageRequest.of(1, 5), Collections.emptyList());
-
-        assertEquals(5, resultOne.size());
-        assertEquals(5, resultTwo.size());
-
-        final List<TermDto> expectedDtos = termsToDtos(terms);
-        resultOne.forEach(t -> {
-            assertThat(expectedDtos, hasItem(t));
-            assertThat(resultTwo, not(hasItem(t)));
-        });
-        resultTwo.forEach(t -> assertThat(expectedDtos, hasItem(t)));
-    }
-
-    @Test
-    void findAllIncludingImportedBySearchStringReturnsMatchingTerms() {
+    void findAllBySearchStringReturnsMatchingTerms() {
         final List<Term> terms = Generator.generateTermsWithIds(10);
         final String searchString = "Result";
         final List<Term> matching = terms.subList(0, 5);
@@ -496,7 +471,7 @@ class TermRepositoryServiceTest extends BaseServiceTestRunner {
             em.merge(vocabulary.getGlossary(), descriptorFactory.glossaryDescriptor(vocabulary));
         });
 
-        List<TermDto> result = sut.findAllIncludingImported(searchString, vocabulary);
+        List<TermDto> result = sut.findAll(searchString, vocabulary);
         assertEquals(matching.size(), result.size());
         assertTrue(termsToDtos(matching).containsAll(result));
     }

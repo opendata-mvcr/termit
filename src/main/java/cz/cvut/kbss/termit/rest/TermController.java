@@ -59,28 +59,20 @@ public class TermController extends BaseController {
     /**
      * Used to retrieve terms from the current workspace, regardless of vocabularies.
      *
-     * @param rootsOnly    Whether only root (parent-less) terms should be returned - optional, defaults to {@code
-     *                     false}
      * @param searchString Search string used to filter terms by (using label) - optional
      * @param pageSize     Size of the page to return (applies only if no search string is provided) - optional
      * @param pageNo       Number of the page to return (applies only if no search string is provided) - optional
      * @return List of terms matching the specified parameters
      */
     @GetMapping(value = "/terms", produces = {JsonLd.MEDIA_TYPE, MediaType.APPLICATION_JSON_VALUE})
-    public List<TermDto> getAll(@RequestParam(required = false, defaultValue = "false") boolean rootsOnly,
-                                @RequestParam(required = false) String searchString,
-                                @RequestParam(required = false, defaultValue = "false") boolean includeCanonical,
+    public List<TermDto> getAll(@RequestParam(required = false) String searchString,
+                                @RequestParam(required = false, defaultValue = "false") boolean rootsOnly,
                                 @RequestParam(name = QueryParams.PAGE_SIZE, required = false) Integer pageSize,
                                 @RequestParam(name = QueryParams.PAGE, required = false) Integer pageNo) {
         if (searchString != null && !searchString.trim().isEmpty()) {
-            return includeCanonical ? termService.findAllIncludingCanonical(searchString) :
-                    termService.findAll(searchString);
+            return termService.findAll(searchString);
         }
         final Pageable pageSpec = createPageRequest(pageSize, pageNo);
-        if (includeCanonical) {
-            return rootsOnly ? termService.findAllRootsIncludingCanonical(pageSpec) :
-                    termService.findAllIncludingCanonical(pageSpec);
-        }
         return rootsOnly ? termService.findAllRoots(pageSpec) : termService.findAll(pageSpec);
     }
 
@@ -104,19 +96,15 @@ public class TermController extends BaseController {
     public ResponseEntity<?> getAll(@PathVariable String vocabularyIdFragment,
                                     @RequestParam(name = QueryParams.NAMESPACE, required = false) String namespace,
                                     @RequestParam(name = "searchString", required = false) String searchString,
-                                    @RequestParam(name = "includeImported", required = false) boolean includeImported,
                                     @RequestHeader(value = HttpHeaders.ACCEPT, required = false) String acceptType) {
         final URI vocabularyUri = getVocabularyUri(namespace, vocabularyIdFragment);
         final Vocabulary vocabulary = getVocabulary(vocabularyUri);
         if (searchString != null) {
-            return ResponseEntity.ok(includeImported ?
-                    termService.findAllIncludingImported(searchString, vocabulary) :
-                    termService.findAll(searchString, vocabulary));
+            return ResponseEntity.ok(termService.findAll(searchString, vocabulary));
         }
         final Optional<ResponseEntity<?>> export = exportTerms(vocabulary, vocabularyIdFragment, acceptType);
         return export.orElse(ResponseEntity
-                .ok(includeImported ? termService.findAllIncludingImported(vocabulary) :
-                        termService.findAll(vocabulary)));
+                .ok(termService.findAll(vocabulary)));
     }
 
     /**
@@ -173,8 +161,6 @@ public class TermController extends BaseController {
      * @param namespace            Vocabulary namespace. Optional
      * @param pageSize             Limit the number of elements in the returned page. Optional
      * @param pageNo               Number of the page to return. Optional
-     * @param includeImported      Whether a transitive closure of vocabulary imports should be used when getting the
-     *                             root terms. Optional, defaults to {@code false}
      * @return List of root terms of the specific vocabulary
      */
     @GetMapping(value = "/vocabularies/{vocabularyIdFragment}/terms/roots",
@@ -183,13 +169,9 @@ public class TermController extends BaseController {
                                      @RequestParam(name = QueryParams.NAMESPACE, required = false) String namespace,
                                      @RequestParam(name = QueryParams.PAGE_SIZE, required = false) Integer pageSize,
                                      @RequestParam(name = QueryParams.PAGE, required = false) Integer pageNo,
-                                     @RequestParam(name = "includeImported", required = false) boolean includeImported,
                                      @RequestParam(name = "includeTerms", required = false, defaultValue = "") List<URI> includeTerms) {
         final Vocabulary vocabulary = getVocabulary(getVocabularyUri(namespace, vocabularyIdFragment));
-        return includeImported ?
-                termService
-                        .findAllRootsIncludingImported(vocabulary, createPageRequest(pageSize, pageNo), includeTerms) :
-                termService.findAllRoots(vocabulary, createPageRequest(pageSize, pageNo), includeTerms);
+        return termService.findAllRoots(vocabulary, createPageRequest(pageSize, pageNo), includeTerms);
     }
 
     /**

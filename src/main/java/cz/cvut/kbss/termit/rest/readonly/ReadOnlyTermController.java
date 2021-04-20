@@ -3,7 +3,6 @@ package cz.cvut.kbss.termit.rest.readonly;
 import cz.cvut.kbss.jsonld.JsonLd;
 import cz.cvut.kbss.termit.dto.TermDto;
 import cz.cvut.kbss.termit.dto.readonly.ReadOnlyTerm;
-import cz.cvut.kbss.termit.model.AbstractTerm;
 import cz.cvut.kbss.termit.model.Vocabulary;
 import cz.cvut.kbss.termit.rest.BaseController;
 import cz.cvut.kbss.termit.service.IdentifierResolver;
@@ -37,13 +36,11 @@ public class ReadOnlyTermController extends BaseController {
     @GetMapping(value = "/vocabularies/{vocabularyIdFragment}/terms",
             produces = {MediaType.APPLICATION_JSON_VALUE, JsonLd.MEDIA_TYPE})
     public List<?> getTerms(@PathVariable String vocabularyIdFragment,
-                                       @RequestParam(name = Constants.QueryParams.NAMESPACE, required = false) String namespace,
-                                       @RequestParam(name = "searchString", required = false) String searchString,
-                                       @RequestParam(name = "includeImported", required = false) boolean includeImported) {
+                            @RequestParam(name = Constants.QueryParams.NAMESPACE, required = false) String namespace,
+                            @RequestParam(name = "searchString", required = false) String searchString) {
         final Vocabulary vocabulary = getVocabulary(vocabularyIdFragment, namespace);
         if (searchString != null) {
-            return includeImported ? termService.findAllIncludingImported(searchString, vocabulary) :
-                   termService.findAll(searchString, vocabulary);
+            return termService.findAll(searchString, vocabulary);
         }
         return termService.findAll(vocabulary);
     }
@@ -56,14 +53,12 @@ public class ReadOnlyTermController extends BaseController {
     @GetMapping(value = "/vocabularies/{vocabularyIdFragment}/terms/roots",
             produces = {MediaType.APPLICATION_JSON_VALUE, JsonLd.MEDIA_TYPE})
     public List<TermDto> getAllRoots(@PathVariable String vocabularyIdFragment,
-                                          @RequestParam(name = Constants.QueryParams.NAMESPACE, required = false) String namespace,
-                                          @RequestParam(name = Constants.QueryParams.PAGE_SIZE, required = false) Integer pageSize,
-                                          @RequestParam(name = Constants.QueryParams.PAGE, required = false) Integer pageNo,
-                                          @RequestParam(name = "includeImported", required = false) boolean includeImported) {
+                                     @RequestParam(name = Constants.QueryParams.NAMESPACE, required = false) String namespace,
+                                     @RequestParam(name = Constants.QueryParams.PAGE_SIZE, required = false) Integer pageSize,
+                                     @RequestParam(name = Constants.QueryParams.PAGE, required = false) Integer pageNo) {
         final Vocabulary vocabulary = getVocabulary(vocabularyIdFragment, namespace);
         final Pageable pageSpec = createPageRequest(pageSize, pageNo);
-        return includeImported ? termService.findAllRootsIncludingImported(vocabulary, pageSpec) :
-               termService.findAllRoots(vocabulary, pageSpec);
+        return termService.findAllRoots(vocabulary, pageSpec);
     }
 
     @GetMapping(value = "/vocabularies/{vocabularyIdFragment}/terms/{termIdFragment}",
