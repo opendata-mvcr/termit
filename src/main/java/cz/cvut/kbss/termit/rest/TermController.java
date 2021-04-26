@@ -15,13 +15,10 @@ import cz.cvut.kbss.termit.rest.util.RestUtils;
 import cz.cvut.kbss.termit.security.SecurityConstants;
 import cz.cvut.kbss.termit.service.IdentifierResolver;
 import cz.cvut.kbss.termit.service.business.TermService;
-import cz.cvut.kbss.termit.util.ConfigParam;
-import cz.cvut.kbss.termit.util.Configuration;
+import cz.cvut.kbss.termit.util.*;
 import cz.cvut.kbss.termit.util.Constants.Excel;
 import cz.cvut.kbss.termit.util.Constants.QueryParams;
 import cz.cvut.kbss.termit.util.Constants.Turtle;
-import cz.cvut.kbss.termit.util.CsvUtils;
-import cz.cvut.kbss.termit.util.TypeAwareResource;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -74,6 +71,28 @@ public class TermController extends BaseController {
         }
         final Pageable pageSpec = createPageRequest(pageSize, pageNo);
         return rootsOnly ? termService.findAllRoots(pageSpec) : termService.findAll(pageSpec);
+    }
+
+
+    @GetMapping(value = "/terms/workspace", produces = {JsonLd.MEDIA_TYPE, MediaType.APPLICATION_JSON_VALUE})
+    public List<TermDto> getAllFromWorkspace(@RequestParam(required = false) String searchString,
+                                             @RequestParam(required = false) URI excludeVocabulary,
+                                             @RequestParam(required = false, defaultValue = "false") boolean rootsOnly,
+                                             @RequestParam(name = QueryParams.PAGE_SIZE, required = false) Integer pageSize,
+                                             @RequestParam(name = QueryParams.PAGE, required = false) Integer pageNo) {
+        final Pageable pageSpec = createPageRequest(pageSize, pageNo);
+        return rootsOnly ? termService.findAllRootsInCurrentWorkspace(pageSpec, excludeVocabulary)
+                : termService.findAllInCurrentWorkspace(new PageAndSearchSpecification(pageSpec, searchString), excludeVocabulary);
+    }
+
+    @GetMapping(value = "/terms/canonical", produces = {JsonLd.MEDIA_TYPE, MediaType.APPLICATION_JSON_VALUE})
+    public List<TermDto> getAllFromCanonical(@RequestParam(required = false) String searchString,
+                                             @RequestParam(required = false, defaultValue = "false") boolean rootsOnly,
+                                             @RequestParam(name = QueryParams.PAGE_SIZE, required = false) Integer pageSize,
+                                             @RequestParam(name = QueryParams.PAGE, required = false) Integer pageNo) {
+        final Pageable pageSpec = createPageRequest(pageSize, pageNo);
+        return rootsOnly ? termService.findAllRootsInCanonical(pageSpec)
+                : termService.findAllInCanonical(new PageAndSearchSpecification(createPageRequest(pageSize, pageNo), searchString));
     }
 
     /**

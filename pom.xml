@@ -124,7 +124,7 @@
         <dependency>
             <groupId>com.github.ledsoft</groupId>
             <artifactId>jopa-spring-transaction</artifactId>
-            <version>0.0.11</version>
+            <version>0.0.12</version>
         </dependency>
 
         <!-- Spring -->
