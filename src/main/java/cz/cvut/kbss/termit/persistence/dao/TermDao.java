@@ -451,7 +451,9 @@ public class TermDao extends WorkspaceBasedAssetDao<Term> {
      */
     private void loadAdditionTermMetadata(AbstractTerm term, Set<URI> graphs) {
         term.setSubTerms(loadSubTermInfo(term, graphs));
-        term.setPublished(isPublished(term));
+        if (term instanceof Term) {
+            term.setPublished(isPublished(term));
+        }
     }
 
     /**
