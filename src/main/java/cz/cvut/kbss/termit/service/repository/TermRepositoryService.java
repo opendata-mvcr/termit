@@ -28,6 +28,7 @@ import cz.cvut.kbss.termit.persistence.dao.TermDao;
 import cz.cvut.kbss.termit.service.IdentifierResolver;
 import cz.cvut.kbss.termit.util.ConfigParam;
 import cz.cvut.kbss.termit.util.Configuration;
+import cz.cvut.kbss.termit.util.PageAndSearchSpecification;
 import org.apache.jena.vocabulary.SKOS;
 import org.springframework.data.domain.Pageable;
 import org.springframework.lang.NonNull;
@@ -173,6 +174,22 @@ public class TermRepositoryService extends BaseAssetRepositoryService<Term> {
      */
     public List<TermDto> findAll(Pageable pageSpec) {
         return termDao.findAll(pageSpec);
+    }
+
+    public List<TermDto> findAllRootsInCurrentWorkspace(Pageable pageSpec, URI excludedVocabulary) {
+        return termDao.findAllRootsInCurrentWorkspace(pageSpec, excludedVocabulary);
+    }
+
+    public List<TermDto> findAllInCurrentWorkspace(PageAndSearchSpecification searchSpecification, URI excludedVocabulary) {
+        return termDao.findAllInCurrentWorkspace(searchSpecification, excludedVocabulary);
+    }
+
+    public List<TermDto> findAllRootsInCanonical(Pageable pageSpec) {
+        return termDao.findAllRootsInCanonical(pageSpec);
+    }
+
+    public List<TermDto> findAllInCanonical(PageAndSearchSpecification searchSpecification) {
+        return termDao.findAllInCanonical(searchSpecification);
     }
 
 

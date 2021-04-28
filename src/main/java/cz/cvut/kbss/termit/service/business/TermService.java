@@ -1,5 +1,6 @@
 package cz.cvut.kbss.termit.service.business;
 
+import com.github.jsonldjava.utils.Obj;
 import cz.cvut.kbss.termit.dto.TermDto;
 import cz.cvut.kbss.termit.dto.assignment.TermAssignments;
 import cz.cvut.kbss.termit.exception.NotFoundException;
@@ -15,6 +16,7 @@ import cz.cvut.kbss.termit.service.comment.CommentService;
 import cz.cvut.kbss.termit.service.export.VocabularyExporters;
 import cz.cvut.kbss.termit.service.repository.ChangeRecordService;
 import cz.cvut.kbss.termit.service.repository.TermRepositoryService;
+import cz.cvut.kbss.termit.util.PageAndSearchSpecification;
 import cz.cvut.kbss.termit.util.TypeAwareResource;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.domain.Pageable;
@@ -102,6 +104,30 @@ public class TermService implements RudService<Term>, ChangeRecordProvider<Term>
     public List<TermDto> findAll(Pageable pageSpec) {
         Objects.requireNonNull(pageSpec);
         return repositoryService.findAll(pageSpec);
+    }
+
+    @Transactional(readOnly = true)
+    public List<TermDto> findAllRootsInCurrentWorkspace(Pageable pageSpec, URI excludedVocabulary) {
+        Objects.requireNonNull(pageSpec);
+        return repositoryService.findAllRootsInCurrentWorkspace(pageSpec, excludedVocabulary);
+    }
+
+    @Transactional(readOnly = true)
+    public List<TermDto> findAllInCurrentWorkspace(PageAndSearchSpecification searchSpecification, URI excludedVocabulary) {
+        Objects.requireNonNull(searchSpecification);
+        return repositoryService.findAllInCurrentWorkspace(searchSpecification, excludedVocabulary);
+    }
+
+    @Transactional(readOnly = true)
+    public List<TermDto> findAllRootsInCanonical(Pageable pageSpec) {
+        Objects.requireNonNull(pageSpec);
+        return repositoryService.findAllRootsInCanonical(pageSpec);
+    }
+
+    @Transactional(readOnly = true)
+    public List<TermDto> findAllInCanonical(PageAndSearchSpecification searchSpecification) {
+        Objects.requireNonNull(searchSpecification);
+        return repositoryService.findAllInCanonical(searchSpecification);
     }
 
     /**

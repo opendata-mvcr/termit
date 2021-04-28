@@ -31,6 +31,7 @@ import cz.cvut.kbss.termit.persistence.dao.workspace.WorkspaceBasedAssetDao;
 import cz.cvut.kbss.termit.util.ConfigParam;
 import cz.cvut.kbss.termit.util.Configuration;
 import cz.cvut.kbss.termit.util.Constants;
+import cz.cvut.kbss.termit.util.PageAndSearchSpecification;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
@@ -198,6 +199,21 @@ public class TermDao extends WorkspaceBasedAssetDao<Term> {
         return new ArrayList<>(terms);
     }
 
+    public List<TermDto> findAllRootsInCurrentWorkspace(Pageable pageSpec, URI excludedVocabulary) {
+        Objects.requireNonNull(pageSpec);
+        final Set<URI> wsContexts = persistenceUtils.getCurrentWorkspaceVocabularyContexts();
+        if (excludedVocabulary != null) {
+            wsContexts.remove(persistenceUtils.resolveVocabularyContext(excludedVocabulary));
+        }
+        return findAllRootsFrom(wsContexts, pageSpec);
+    }
+
+    public List<TermDto> findAllRootsInCanonical(Pageable pageSpec) {
+        Objects.requireNonNull(pageSpec);
+        final Set<URI> contexts = persistenceUtils.getCanonicalContainerContexts();
+        return findAllRootsFrom(contexts, pageSpec);
+    }
+
     private int countRootTermsIn(Set<URI> contexts) {
         try {
             return em.createNativeQuery("SELECT (COUNT(?term) as ?count) WHERE {" +
@@ -216,17 +232,14 @@ public class TermDao extends WorkspaceBasedAssetDao<Term> {
     }
 
     private List<TermDto> findAllRootsFrom(Set<URI> contexts, Pageable pageSpec) {
+        final String from = contexts.stream().map(u -> "FROM <" + u + ">").collect(Collectors.joining(" "));
         try {
-            TypedQuery<TermDto> query = em.createNativeQuery("SELECT DISTINCT ?term WHERE {" +
-                    "GRAPH ?g {" +
+            TypedQuery<TermDto> query = em.createNativeQuery("SELECT DISTINCT ?term " + from + " WHERE {" +
                     "?term a ?type ;" +
                     "?hasLabel ?label ." +
                     "?vocabulary ?hasGlossary/?hasTerm ?term ." +
                     "FILTER (lang(?label) = ?labelLang)" +
-                    "}" +
-                    "FILTER (?g IN (?graphs))" +
                     "} ORDER BY LCASE(?label)", TermDto.class)
-                    .setParameter("graphs", contexts)
                     .setParameter("labelLang", config.get(ConfigParam.LANGUAGE));
             query = setCommonFindAllRootsQueryParams(query);
             query.setMaxResults(pageSpec.getPageSize()).setFirstResult((int) pageSpec.getOffset());
@@ -297,18 +310,15 @@ public class TermDao extends WorkspaceBasedAssetDao<Term> {
     }
 
     private <T extends AbstractTerm> List<T> findAllFrom(Set<URI> contexts, Pageable pageSpec, Class<T> resultType) {
+        final String from = contexts.stream().map(u -> "FROM <" + u + ">").collect(Collectors.joining(" "));
         try {
-            TypedQuery<T> query = em.createNativeQuery("SELECT DISTINCT ?term WHERE {" +
-                    "GRAPH ?g {" +
+            TypedQuery<T> query = em.createNativeQuery("SELECT DISTINCT ?term " + from + " WHERE {" +
                     "?term a ?type ;" +
                     "?hasLabel ?label ." +
                     "FILTER (lang(?label) = ?labelLang)" +
-                    "}" +
-                    "FILTER (?g IN (?graphs))" +
                     "} ORDER BY LCASE(?label)", resultType)
                     .setParameter("type", typeUri)
                     .setParameter("hasLabel", LABEL_PROP)
-                    .setParameter("graphs", contexts)
                     .setParameter("labelLang", config.get(ConfigParam.LANGUAGE));
             query.setMaxResults(pageSpec.getPageSize()).setFirstResult((int) pageSpec.getOffset());
             final Descriptor descriptor = descriptorFactory.termDescriptor((URI) null);
@@ -365,25 +375,37 @@ public class TermDao extends WorkspaceBasedAssetDao<Term> {
     public List<TermDto> findAll(String searchString) {
         Objects.requireNonNull(searchString);
         final Set<URI> vocContexts = persistenceUtils.getCurrentWorkspaceVocabularyContexts();
-        final Set<TermDto> terms = new LinkedHashSet<>(findAllFrom(vocContexts, searchString));
-        terms.addAll(findAllFrom(persistenceUtils.getCanonicalContainerContexts(), searchString));
+        final Set<TermDto> terms = new LinkedHashSet<>(findAllFrom(vocContexts, searchString, Constants.DEFAULT_PAGE_SPEC));
+        terms.addAll(findAllFrom(persistenceUtils.getCanonicalContainerContexts(), searchString, Constants.DEFAULT_PAGE_SPEC));
         return new ArrayList<>(terms);
     }
 
-    private List<TermDto> findAllFrom(Set<URI> contexts, String searchString) {
+    public List<TermDto> findAllInCurrentWorkspace(PageAndSearchSpecification searchSpecification, URI excludedVocabulary) {
+        final Set<URI> wsContexts = persistenceUtils.getCurrentWorkspaceVocabularyContexts();
+        if (excludedVocabulary != null) {
+            wsContexts.remove(persistenceUtils.resolveVocabularyContext(excludedVocabulary));
+        }
+        return searchSpecification.getSearchString().isPresent() ? findAllFrom(wsContexts, searchSpecification.getSearchString().get(), searchSpecification.getPageSpec()) : findAllFrom(wsContexts, searchSpecification.getPageSpec(), TermDto.class);
+    }
+
+    public List<TermDto> findAllInCanonical(PageAndSearchSpecification searchSpecification) {
+        final Set<URI> contexts = persistenceUtils.getCanonicalContainerContexts();
+        return searchSpecification.getSearchString().isPresent() ? findAllFrom(contexts, searchSpecification.getSearchString().get(), searchSpecification.getPageSpec()) : findAllFrom(contexts, searchSpecification.getPageSpec(), TermDto.class);
+    }
+
+    private List<TermDto> findAllFrom(Set<URI> contexts, String searchString, Pageable pageSpec) {
+        final String from = contexts.stream().map(u -> "FROM <" + u + ">").collect(Collectors.joining(" "));
         try {
-            TypedQuery<TermDto> query = em.createNativeQuery("SELECT DISTINCT ?term WHERE {" +
-                    "GRAPH ?g {" +
+            TypedQuery<TermDto> query = em.createNativeQuery("SELECT DISTINCT ?term " + from + " WHERE {" +
                     "?term a ?type ;" +
                     "?hasLabel ?label ." +
                     "FILTER CONTAINS(LCASE(?label), LCASE(?searchString)) ." +
-                    "}" +
-                    "FILTER (?g IN (?graphs))" +
                     "} ORDER BY LCASE(?label)", TermDto.class)
                     .setParameter("type", typeUri)
                     .setParameter("hasLabel", LABEL_PROP)
-                    .setParameter("graphs", contexts)
-                    .setParameter("searchString", searchString, config.get(ConfigParam.LANGUAGE));
+                    .setParameter("searchString", searchString, config.get(ConfigParam.LANGUAGE))
+                    .setFirstResult((int) pageSpec.getOffset())
+                    .setMaxResults(pageSpec.getPageSize());
             final Descriptor descriptor = descriptorFactory.termDescriptor((URI) null);
             contexts.forEach(descriptor::addContext);
             query.setDescriptor(descriptor);
@@ -419,9 +441,7 @@ public class TermDao extends WorkspaceBasedAssetDao<Term> {
     }
 
     private <T extends AbstractTerm> List<T> executeQueryAndLoadSubTerms(TypedQuery<T> query, Set<URI> contexts) {
-        final List<T> terms = query.getResultList();
-        terms.forEach(t -> loadAdditionTermMetadata(t, contexts));
-        return terms;
+        return query.getResultStream().peek(t -> loadAdditionTermMetadata(t, contexts)).collect(Collectors.toList());
     }
 
     /**
@@ -429,7 +449,9 @@ public class TermDao extends WorkspaceBasedAssetDao<Term> {
      */
     private void loadAdditionTermMetadata(AbstractTerm term, Set<URI> graphs) {
         term.setSubTerms(loadSubTermInfo(term, graphs));
-        term.setPublished(isPublished(term));
+        if (term instanceof Term) {
+            term.setPublished(isPublished(term));
+        }
     }
 
     /**
