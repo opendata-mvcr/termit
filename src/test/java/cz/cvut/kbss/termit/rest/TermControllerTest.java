@@ -996,4 +996,61 @@ class TermControllerTest extends BaseControllerTestRunner {
         assertEquals(terms, result);
         verify(termServiceMock).findAll(searchString);
     }
+
+    @Test
+    void getAllFromWorkspaceRetrievesRootTermsWhenRootsOnlyAreSpecified() throws Exception {
+        final List<TermDto> terms = termsToDtos(Generator.generateTermsWithIds(5));
+        when(termServiceMock.findAllRootsInCurrentWorkspace(any(Pageable.class), any(URI.class))).thenReturn(terms);
+        final URI excludeVocabulary = Generator.generateUri();
+        final MvcResult mvcResult = mockMvc.perform(get("/terms/workspace")
+                .queryParam("rootsOnly", Boolean.TRUE.toString())
+                .queryParam("excludeVocabulary", excludeVocabulary.toString())
+                .accept(MediaType.APPLICATION_JSON)).andExpect(status().isOk()).andReturn();
+        final List<TermDto> result = readValue(mvcResult, new TypeReference<List<TermDto>>() {
+        });
+        assertEquals(terms, result);
+        verify(termServiceMock).findAllRootsInCurrentWorkspace(DEFAULT_PAGE_SPEC, excludeVocabulary);
+    }
+
+    @Test
+    void getAllFromCurrentWorkspaceWithSearchStringRetrievesMatchingTermsFromService() throws Exception {
+        final List<TermDto> terms = termsToDtos(Generator.generateTermsWithIds(5));
+        when(termServiceMock.findAllInCurrentWorkspace(any(), any())).thenReturn(terms);
+        final String searchString = "search string";
+        final MvcResult mvcResult = mockMvc.perform(get("/terms/workspace")
+                .queryParam("searchString", searchString)
+                .accept(MediaType.APPLICATION_JSON)).andExpect(status().isOk()).andReturn();
+        final List<TermDto> result = readValue(mvcResult, new TypeReference<List<TermDto>>() {
+        });
+        assertEquals(terms, result);
+        verify(termServiceMock).findAllInCurrentWorkspace(new PageAndSearchSpecification(DEFAULT_PAGE_SPEC, searchString), null);
+    }
+
+    @Test
+    void getAllFromCanonicalRetrievesRootTermsWhenRootsOnlyAreSpecified() throws Exception {
+        final List<TermDto> terms = termsToDtos(Generator.generateTermsWithIds(5));
+        when(termServiceMock.findAllRootsInCanonical(any(Pageable.class))).thenReturn(terms);
+        final URI excludeVocabulary = Generator.generateUri();
+        final MvcResult mvcResult = mockMvc.perform(get("/terms/canonical")
+                .queryParam("rootsOnly", Boolean.TRUE.toString())
+                .accept(MediaType.APPLICATION_JSON)).andExpect(status().isOk()).andReturn();
+        final List<TermDto> result = readValue(mvcResult, new TypeReference<List<TermDto>>() {
+        });
+        assertEquals(terms, result);
+        verify(termServiceMock).findAllRootsInCanonical(DEFAULT_PAGE_SPEC);
+    }
+
+    @Test
+    void getAllFromCanonicalWithSearchStringRetrievesMatchingTermsFromService() throws Exception {
+        final List<TermDto> terms = termsToDtos(Generator.generateTermsWithIds(5));
+        when(termServiceMock.findAllInCanonical(any())).thenReturn(terms);
+        final String searchString = "search string";
+        final MvcResult mvcResult = mockMvc.perform(get("/terms/canonical")
+                .queryParam("searchString", searchString)
+                .accept(MediaType.APPLICATION_JSON)).andExpect(status().isOk()).andReturn();
+        final List<TermDto> result = readValue(mvcResult, new TypeReference<List<TermDto>>() {
+        });
+        assertEquals(terms, result);
+        verify(termServiceMock).findAllInCanonical(new PageAndSearchSpecification(DEFAULT_PAGE_SPEC, searchString));
+    }
 }
