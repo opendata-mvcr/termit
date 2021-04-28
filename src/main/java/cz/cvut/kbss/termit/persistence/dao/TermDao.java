@@ -441,9 +441,7 @@ public class TermDao extends WorkspaceBasedAssetDao<Term> {
     }
 
     private <T extends AbstractTerm> List<T> executeQueryAndLoadSubTerms(TypedQuery<T> query, Set<URI> contexts) {
-        final List<T> terms = query.getResultList();
-        terms.forEach(t -> loadAdditionTermMetadata(t, contexts));
-        return terms;
+        return query.getResultStream().peek(t -> loadAdditionTermMetadata(t, contexts)).collect(Collectors.toList());
     }
 
     /**
