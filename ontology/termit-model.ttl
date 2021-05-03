@@ -264,3 +264,7 @@ termit-pojem:je-publikován
         a               owl:DatatypeProperty , <https://slovník.gov.cz/základní/pojem/typ-vlastnosti> ;
         rdfs:domain         <http://onto.fel.cvut.cz/ontologies/slovník/agendový/popis-dat/pojem/term> ;
         rdfs:subPropertyOf  <https://slovník.gov.cz/základní/pojem/vlastnost> .
+
+rdfs:subClassOf
+        a rdf:Property ;
+        rdfs:subPropertyOf  <http://www.w3.org/2004/02/skos/core#broader> .
