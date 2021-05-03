@@ -91,10 +91,10 @@ V projektu GAČR ve spolupráci s FA se chystáme vytvořit slovník popisujíc�
 Pracovní skupina okolo JVF DTM vytváří ontologii a následně se jí pokouší připojit ke slovníkům vycházejícím z platné legislativy (asi?). Bylo by lepší projít s Petrem, případně doplním po schůzce s JVF DTM dne 30. 4. 2021.
 
 ### Cíle
-TBD
+- Existují dvě ontologie, jedna popisuje reálný svět, druhá "metodiku" pořizování dat pro DTM. Skutečná data pak je potřeba mapovat na metodiku, která bude nějakým způsobem napojená na reálný svět.
 
 ### Problémy
-TBD
+- uživatelé vyžadují pojmy s více definicemi (hierarchicky), technicky to musí být řešeno hyperkategoriemi
 
 ### Featury
 TBD
