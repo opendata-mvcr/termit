@@ -161,4 +161,18 @@ class DescriptorFactoryTest extends BaseDaoTestRunner {
         });
         return statements.stream().map(s -> URI.create(s.getObject().stringValue())).collect(Collectors.toSet());
     }
+
+    @Test
+    void termDescriptorCreatesDescriptorWithSuperTypesContextsContainingWorkspaceVocabulariesAndCanonicalCacheContainerContexts() throws Exception {
+        final FieldSpecification<Term, Term> superTypesFieldSpec = mock(FieldSpecification.class);
+        when(superTypesFieldSpec.getJavaField()).thenReturn(Term.class.getDeclaredField("superTypes"));
+        final Set<URI> workspaceVocabularies = IntStream.range(0, 3).mapToObj(i -> Generator.generateUri()).collect(Collectors.toSet());
+        final WorkspaceMetadata wsMetadata = workspaceMetadataProvider.getCurrentWorkspaceMetadata();
+        doReturn(workspaceVocabularies).when(wsMetadata).getVocabularyContexts();
+        final Set<URI> canonicalVocabularies = generateCanonicalContainer();
+        final Descriptor result = sut.termDescriptor(term);
+        final Set<URI> parentContexts = result.getAttributeDescriptor(superTypesFieldSpec).getContexts();
+        assertThat(parentContexts, hasItems(workspaceVocabularies.toArray(new URI[]{})));
+        assertThat(parentContexts, hasItems(canonicalVocabularies.toArray(new URI[]{})));
+    }
 }

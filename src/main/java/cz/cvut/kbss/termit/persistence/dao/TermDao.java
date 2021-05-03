@@ -641,19 +641,17 @@ public class TermDao extends WorkspaceBasedAssetDao<Term> {
         graphs.forEach(descriptor::addContext);
         final TypedQuery<Term> query = em.createNativeQuery("SELECT DISTINCT ?term WHERE {" +
                 "GRAPH ?g { " +
-                "?term ?broader ?parent ;" +
-                "a ?type ;" +
-                "?hasLabel ?label . " +
-                "FILTER (lang(?label) = ?labelLang) ." +
+                "?term a ?type ." +
                 "}" +
+                "?term ?broader ?parent ." +
                 "FILTER (?g in (?graphs))" +
-                "} ORDER BY LCASE(?label)", Term.class).setParameter("type", typeUri)
+                "}", Term.class).setParameter("type", typeUri)
                 .setParameter("broader", URI.create(SKOS.BROADER))
                 .setParameter("parent", parent)
-                .setParameter("hasLabel", LABEL_PROP)
                 .setParameter("graphs", graphs)
-                .setParameter("labelLang", config.get(ConfigParam.LANGUAGE))
                 .setDescriptor(descriptor);
-        return executeQueryAndLoadSubTerms(query, graphs);
+        final List<Term> terms = executeQueryAndLoadSubTerms(query, graphs);
+        terms.sort(Comparator.comparing(t -> t.getLabel().get(config.get(ConfigParam.LANGUAGE))));
+        return terms;
     }
 }

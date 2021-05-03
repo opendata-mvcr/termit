@@ -847,4 +847,25 @@ public class TermDaoWorkspacesTest extends BaseDaoTestRunner {
         final List<TermDto> result = sut.findAllRoots(PageRequest.of(1, pageSize));
         assertEquals(expected, result);
     }
+
+    @Test
+    void updateSupportsTermWithSupertypeInCanonicalContainer() {
+        final Term term = Generator.generateTermWithId();
+        final Term superType = Generator.generateTermWithId();
+        persistTermIntoCanonicalContainer(superType);
+        final EntityDescriptor termDescriptor = new EntityDescriptor(vocabulary.getUri());
+        transactional(() -> {
+            em.persist(term, termDescriptor);
+            Generator.addTermInVocabularyRelationship(term, vocabulary.getUri(), em);
+        });
+
+        term.setSuperTypes(Collections.singleton(superType));
+        // This is normally inferred
+        term.setVocabulary(vocabulary.getUri());
+        transactional(() -> sut.update(term));
+        final Term result = em.find(Term.class, term.getUri());
+        assertEquals(term, result);
+        assertEquals(term, result);
+        assertThat(result.getSuperTypes(), hasItem(superType));
+    }
 }
