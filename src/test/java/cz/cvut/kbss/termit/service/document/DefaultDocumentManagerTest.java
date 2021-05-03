@@ -11,8 +11,20 @@
  */
 package cz.cvut.kbss.termit.service.document;
 
+import static cz.cvut.kbss.termit.environment.Environment.loadFile;
+import static cz.cvut.kbss.termit.util.ConfigParam.FILE_STORAGE;
+import static org.hamcrest.MatcherAssert.assertThat;
+import static org.hamcrest.Matchers.greaterThan;
+import static org.hamcrest.Matchers.startsWith;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.junit.jupiter.api.Assertions.assertTrue;
+
 import cz.cvut.kbss.termit.environment.Generator;
 import cz.cvut.kbss.termit.environment.PropertyMockingApplicationContextInitializer;
+import cz.cvut.kbss.termit.event.DocumentRenameEvent;
 import cz.cvut.kbss.termit.event.FileRenameEvent;
 import cz.cvut.kbss.termit.exception.NotFoundException;
 import cz.cvut.kbss.termit.model.resource.Document;
@@ -22,6 +34,13 @@ import cz.cvut.kbss.termit.service.BaseServiceTestRunner;
 import cz.cvut.kbss.termit.service.IdentifierResolver;
 import cz.cvut.kbss.termit.util.ConfigParam;
 import cz.cvut.kbss.termit.util.TypeAwareResource;
+import java.io.ByteArrayInputStream;
+import java.io.InputStream;
+import java.nio.file.Files;
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.List;
+import java.util.Optional;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -30,21 +49,6 @@ import org.springframework.http.MediaType;
 import org.springframework.mock.env.MockEnvironment;
 import org.springframework.test.context.ContextConfiguration;
 import org.springframework.util.MimeTypeUtils;
-
-import java.io.ByteArrayInputStream;
-import java.io.InputStream;
-import java.nio.file.Files;
-import java.util.ArrayList;
-import java.util.Collections;
-import java.util.List;
-import java.util.Optional;
-
-import static cz.cvut.kbss.termit.environment.Environment.loadFile;
-import static cz.cvut.kbss.termit.util.ConfigParam.FILE_STORAGE;
-import static org.hamcrest.MatcherAssert.assertThat;
-import static org.hamcrest.Matchers.greaterThan;
-import static org.hamcrest.Matchers.startsWith;
-import static org.junit.jupiter.api.Assertions.*;
 
 @ContextConfiguration(initializers = {PropertyMockingApplicationContextInitializer.class})
 class DefaultDocumentManagerTest extends BaseServiceTestRunner {
@@ -68,16 +72,25 @@ class DefaultDocumentManagerTest extends BaseServiceTestRunner {
     }
 
     private java.io.File generateFile() throws Exception {
+        return generateFile("test", ".html", CONTENT);
+    }
+
+    private java.io.File generateDirectory() throws Exception {
         final java.io.File dir = Files.createTempDirectory("termit").toFile();
         dir.deleteOnExit();
         ((MockEnvironment) environment).setProperty(ConfigParam.FILE_STORAGE.toString(), dir.getAbsolutePath());
         final java.io.File docDir = new java.io.File(dir.getAbsolutePath() + java.io.File.separator +
-                document.getDirectoryName());
+            document.getDirectoryName());
         docDir.mkdir();
         docDir.deleteOnExit();
-        final java.io.File content = Files.createTempFile(docDir.toPath(), "test", ".html").toFile();
+        return docDir;
+    }
+
+    private java.io.File generateFile(String filePrefix, String fileSuffix, String fileContent) throws Exception {
+        final java.io.File docDir = generateDirectory();
+        final java.io.File content = Files.createTempFile(docDir.toPath(), filePrefix, fileSuffix).toFile();
         content.deleteOnExit();
-        Files.write(content.toPath(), Collections.singletonList(CONTENT));
+        Files.write(content.toPath(), Collections.singletonList(fileContent));
         return content;
     }
 
@@ -243,15 +256,24 @@ class DefaultDocumentManagerTest extends BaseServiceTestRunner {
     }
 
     @Test
-    void getContentTypeResolvesContentTypeOfSpecifiedFileFromDisk() throws Exception {
+    void getContentTypeResolvesHtmlContentTypeFromFileNameFromDisk() throws Exception {
+        testContentType("test", ".html", CONTENT, MimeTypeUtils.TEXT_HTML_VALUE);
+    }
+
+    @Test
+    void getContentTypeResolvesHtmlContentTypeFromContentFromDisk() throws Exception {
+        testContentType("test", "", CONTENT, MimeTypeUtils.TEXT_HTML_VALUE);
+    }
+
+    void testContentType(final String prefix, String suffix, String content, String mimeType) throws Exception {
         final File file = new File();
-        final java.io.File physicalFile = generateFile();
+        final java.io.File physicalFile = generateFile(prefix, suffix, content);
         file.setLabel(physicalFile.getName());
         document.addFile(file);
         file.setDocument(document);
         final Optional<String> result = sut.getContentType(file);
         assertTrue(result.isPresent());
-        assertEquals(MimeTypeUtils.TEXT_HTML_VALUE, result.get());
+        assertEquals(mimeType, result.get());
     }
 
     @Test
@@ -530,5 +552,22 @@ class DefaultDocumentManagerTest extends BaseServiceTestRunner {
         newFile.deleteOnExit();
         assertFalse(physicalOriginal.getParentFile().exists());
         assertFalse(physicalOriginal.exists());
+    }
+
+    @Test
+    void onDocumentRenameMovesWholeDirectory() throws Exception {
+        final String oldDirLabel = document.getLabel();
+        final java.io.File oldDirectory = generateDirectory();
+
+        final String newDirLabel = "mpp";
+        document.setLabel(newDirLabel);
+        sut.onDocumentRename(new DocumentRenameEvent(document, oldDirLabel, document.getLabel()));
+
+        final java.io.File newDirectory = new java.io.File(
+            environment.getProperty(FILE_STORAGE.toString()) + java.io.File.separator + document.getDirectoryName());
+
+        assertTrue(newDirectory.exists());
+        newDirectory.deleteOnExit();
+        assertFalse(oldDirectory.exists());
     }
 }
