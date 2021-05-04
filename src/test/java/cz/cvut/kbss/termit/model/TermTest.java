@@ -297,4 +297,16 @@ class TermTest {
                                               .forEach(v -> assertThat(row.getCell(3).getStringCellValue(),
                                                       containsString(v))));
     }
+
+    @Test
+    void hasParentInSameVocabularyIncludesSuperTypesAsParents() {
+        final Term sut = Generator.generateTermWithId();
+        final URI vocabularyUri = Generator.generateUri();
+        sut.setGlossary(vocabularyUri);
+        final Term parent = Generator.generateTermWithId();
+        parent.setGlossary(vocabularyUri);
+        sut.setSuperTypes(Collections.singleton(parent));
+
+        assertTrue(sut.hasParentInSameVocabulary());
+    }
 }

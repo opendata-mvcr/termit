@@ -282,7 +282,8 @@ public class Term extends AbstractTerm implements HasTypes {
      * term at all
      */
     public boolean hasParentInSameVocabulary() {
-        return parentTerms != null && parentTerms.stream().anyMatch(p -> p.getGlossary().equals(getGlossary()));
+        return parentTerms != null && parentTerms.stream().anyMatch(p -> p.getGlossary().equals(getGlossary()))
+                || superTypes != null && superTypes.stream().anyMatch(p -> p.getGlossary().equals(getGlossary()));
     }
 
     @Override
