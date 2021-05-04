@@ -469,3 +469,12 @@ termit-pojem:je-publikován
                 termit:glosář ;
         <http://www.w3.org/2004/02/skos/core#prefLabel>
                 "Is published"@en , "Je publikován"@cs .
+
+termit-pojem:má-můj-poslední-komentář
+        a       <http://www.w3.org/2004/02/skos/core#Concept> ;
+        <http://www.w3.org/2004/02/skos/core#broader>
+                <https://slovník.gov.cz/základní/pojem/vlastnost> , <https://slovník.gov.cz/základní/pojem/typ-vlastnosti> ;
+        <http://www.w3.org/2004/02/skos/core#inScheme>
+                termit:glosář ;
+        <http://www.w3.org/2004/02/skos/core#prefLabel>
+                "Has my last comment"@en , "Má můj poslední komentář"@cs .

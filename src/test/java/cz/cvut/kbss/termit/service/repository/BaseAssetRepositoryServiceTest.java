@@ -13,8 +13,8 @@ package cz.cvut.kbss.termit.service.repository;
 
 import cz.cvut.kbss.jopa.model.EntityManager;
 import cz.cvut.kbss.jopa.model.MultilingualString;
-import cz.cvut.kbss.termit.dto.RecentlyCommentedAsset;
 import cz.cvut.kbss.jopa.model.descriptors.EntityDescriptor;
+import cz.cvut.kbss.termit.dto.RecentlyCommentedAsset;
 import cz.cvut.kbss.termit.dto.RecentlyModifiedAsset;
 import cz.cvut.kbss.termit.dto.workspace.WorkspaceMetadata;
 import cz.cvut.kbss.termit.environment.Environment;
@@ -31,7 +31,6 @@ import cz.cvut.kbss.termit.persistence.dao.VocabularyDao;
 import cz.cvut.kbss.termit.persistence.dao.workspace.WorkspaceMetadataProvider;
 import cz.cvut.kbss.termit.service.BaseServiceTestRunner;
 import cz.cvut.kbss.termit.service.security.SecurityUtils;
-import java.util.concurrent.atomic.AtomicInteger;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -46,12 +45,12 @@ import java.time.Instant;
 import java.util.Collections;
 import java.util.Comparator;
 import java.util.List;
+import java.util.concurrent.atomic.AtomicInteger;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 
 import static cz.cvut.kbss.termit.environment.config.WorkspaceTestConfig.DEFAULT_VOCABULARY_CTX;
-import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.Mockito.doReturn;
 
 @DirtiesContext(classMode = DirtiesContext.ClassMode.BEFORE_EACH_TEST_METHOD)
@@ -225,32 +224,9 @@ class BaseAssetRepositoryServiceTest extends BaseServiceTestRunner {
         final int count = 2;
         final List<RecentlyCommentedAsset> result = sut.findLastCommentedInReaction(author, count);
         assertEquals(count, result.size());
-    }
-
-    @Test
-    void findLastCommentedByMeLoadsLastCommentedByMe() {
-        enableRdfsInference(em);
-        final List<Term> terms = IntStream.range(0, 5).mapToObj(i -> Generator.generateTermWithId())
-            .collect(Collectors.toList());
-        AtomicInteger i = new AtomicInteger(0);
-        terms.forEach( t -> t.setLabel(MultilingualString.create("Term " + i.incrementAndGet(),"cs")));
-        transactional(() -> terms.forEach(em::persist));
-
-        final List<PersistChangeRecord> persistRecords = terms.stream().map(Generator::generatePersistChange)
-            .collect(
-                Collectors.toList());
-        setCreated(persistRecords);
-        transactional(() -> persistRecords.forEach(em::persist));
-
-        final List<Comment> comments = terms.stream().map(t -> Generator.generateComment(author,t)).collect(
-            Collectors.toList());
-        transactional(() -> comments.forEach(em::persist));
-
-        em.getEntityManagerFactory().getCache().evictAll();
-
-        final int count = 2;
-        final List<RecentlyCommentedAsset> result = sut.findLastCommentedByMe(author, count);
-        assertEquals(count, result.size());
+        result.stream().forEach(a ->
+            assertNotNull(a.getMyLastComment())
+        );
     }
 
     @Test
