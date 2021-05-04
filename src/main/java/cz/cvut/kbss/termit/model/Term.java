@@ -34,7 +34,7 @@ import java.util.stream.Collectors;
 @Configurable
 @Audited
 @OWLClass(iri = SKOS.CONCEPT)
-@JsonLdAttributeOrder({"uri", "label", "description", "subTerms"})
+@JsonLdAttributeOrder({"uri", "label", "description", "parentTerms", "superTypes", "subTerms"})
 public class Term extends AbstractTerm implements HasTypes {
 
     /**
