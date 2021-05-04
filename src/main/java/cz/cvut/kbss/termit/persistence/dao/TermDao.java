@@ -324,7 +324,15 @@ public class TermDao extends WorkspaceBasedAssetDao<Term> {
             final Descriptor descriptor = descriptorFactory.termDescriptor((URI) null);
             resolveWorkspaceAndCanonicalContexts().forEach(descriptor::addContext);
             query.setDescriptor(descriptor);
-            return executeQueryAndLoadSubTerms(query, contexts);
+            final List<T> result = executeQueryAndLoadSubTerms(query, contexts);
+            if (TermDto.class.isAssignableFrom(resultType)) {
+                result.forEach(t -> {
+                    final TermDto dto = (TermDto) t;
+                    initParentTerms(dto);
+                    dto.getParentTerms().addAll(loadInferredParentTerms(dto, contexts, dto.getParentTerms()));
+                });
+            }
+            return result;
         } catch (RuntimeException e) {
             throw new PersistenceException(e);
         }
@@ -409,10 +417,37 @@ public class TermDao extends WorkspaceBasedAssetDao<Term> {
             final Descriptor descriptor = descriptorFactory.termDescriptor((URI) null);
             contexts.forEach(descriptor::addContext);
             query.setDescriptor(descriptor);
-            return executeQueryAndLoadSubTerms(query, contexts);
+            final List<TermDto> result = executeQueryAndLoadSubTerms(query, contexts);
+            result.forEach(t -> {
+                initParentTerms(t);
+                t.getParentTerms().addAll(loadInferredParentTerms(t, contexts, t.getParentTerms()));
+            });
+            return result;
         } catch (RuntimeException e) {
             throw new PersistenceException(e);
         }
+    }
+
+    private void initParentTerms(TermDto t) {
+        if (t.getParentTerms() == null) {
+            t.setParentTerms(new LinkedHashSet<>());
+        }
+    }
+
+    private List<TermDto> loadInferredParentTerms(TermDto term, Set<URI> graphs, Set<TermDto> exclude) {
+        return em.createNativeQuery("SELECT DISTINCT ?parent WHERE {" +
+                "GRAPH ?g { " +
+                "?parent a ?type ." +
+                "}" +
+                "?term ?broader ?parent ." +    // Let broader be outside of the graph to include inference
+                "FILTER (?g IN (?graphs))" +
+                "FILTER (?parent NOT IN (?exclude))" +
+                "}", TermDto.class).setParameter("type", typeUri)
+                .setParameter("term", term)
+                .setParameter("broader", URI.create(SKOS.BROADER))
+                .setParameter("graphs", graphs)
+                .setParameter("exclude", exclude)
+                .getResultList();
     }
 
     /**
@@ -463,12 +498,13 @@ public class TermDao extends WorkspaceBasedAssetDao<Term> {
      */
     private Set<TermInfo> loadSubTermInfo(AbstractTerm parent, Set<URI> graphs) {
         final Stream<TermInfo> subTermsStream = em.createNativeQuery("SELECT ?entity ?label ?vocabulary WHERE {" +
-                "GRAPH ?g { ?entity ?broader ?parent ;" +
-                "a ?type ;" +
+                "GRAPH ?g { " +
+                "?entity a ?type ;" +
                 "?hasLabel ?label ." +
                 "FILTER (lang(?label) = ?labelLang) ." +
                 "}" +
-                "?entity ?inVocabulary ?vocabulary ." +
+                "?entity ?broader ?parent ; " + // Let broader be outside of the graph to allow including inferences
+                "?inVocabulary ?vocabulary ." +
                 "FILTER (?g in (?graphs))" +
                 "} ORDER BY LCASE(?label)", "TermInfo")
                 .setParameter("type", typeUri)
@@ -582,7 +618,11 @@ public class TermDao extends WorkspaceBasedAssetDao<Term> {
                     .setParameter("searchString", searchString, config.get(ConfigParam.LANGUAGE));
             query.setDescriptor(descriptorFactory.termDescriptor(vocabularyIri));
             final List<TermDto> terms = executeQueryAndLoadSubTerms(query, Collections.singleton(vocabularyCtx));
-            terms.forEach(t -> loadParentSubTerms(t, vocabularyCtx));
+            terms.forEach(t -> {
+                loadParentSubTerms(t, vocabularyCtx);
+                initParentTerms(t);
+                t.getParentTerms().addAll(loadInferredParentTerms(t, Collections.singleton(vocabularyCtx), t.getParentTerms()));
+            });
             return terms;
         } catch (RuntimeException e) {
             throw new PersistenceException(e);
@@ -643,7 +683,7 @@ public class TermDao extends WorkspaceBasedAssetDao<Term> {
                 "GRAPH ?g { " +
                 "?term a ?type ." +
                 "}" +
-                "?term ?broader ?parent ." +
+                "?term ?broader ?parent ." +    // Let broader be outside of the graph to include inference
                 "FILTER (?g in (?graphs))" +
                 "}", Term.class).setParameter("type", typeUri)
                 .setParameter("broader", URI.create(SKOS.BROADER))

@@ -868,4 +868,53 @@ public class TermDaoWorkspacesTest extends BaseDaoTestRunner {
         assertEquals(term, result);
         assertThat(result.getSuperTypes(), hasItem(superType));
     }
+
+    @Test
+    void findAllInCurrentWorkspaceBySearchStringLoadsInferredParentTerms() {
+        final String searchString = "search";
+        final Term term = Generator.generateTermWithId();
+        final Term parent = Generator.generateTermWithId();
+        term.getLabel().set(Constants.DEFAULT_LANGUAGE, searchString + " string label");
+        term.setGlossary(vocabulary.getGlossary().getUri());
+        final Vocabulary anotherVocabularyInWs = Generator.generateVocabularyWithId();
+        saveVocabulary(anotherVocabularyInWs);
+        parent.setGlossary(anotherVocabularyInWs.getGlossary().getUri());
+        transactional(() -> {
+            em.persist(term, new EntityDescriptor(vocabulary.getUri()));
+            vocabulary.getGlossary().addRootTerm(term);
+            em.merge(vocabulary.getGlossary(), descriptorFactory.glossaryDescriptor(vocabulary));
+            Generator.addTermInVocabularyRelationship(term, vocabulary.getUri(), em);
+            em.persist(parent, new EntityDescriptor(anotherVocabularyInWs.getUri()));
+            Generator.addTermInVocabularyRelationship(parent, anotherVocabularyInWs.getUri(), em);
+            TermDaoTest.insertInferredBroaderRelationship(term, parent, em);
+        });
+
+        final List<TermDto> result = sut.findAll(searchString);
+        assertEquals(1, result.size());
+        assertThat(result.get(0).getParentTerms(), hasItem(new TermDto(parent)));
+    }
+
+    @Test
+    void findAllByPageableLoadsInferredParentTerms() {
+        final Term term = Generator.generateTermWithId();
+        final Term parent = Generator.generateTermWithId();
+        term.setGlossary(vocabulary.getGlossary().getUri());
+        final Vocabulary anotherVocabularyInWs = Generator.generateVocabularyWithId();
+        saveVocabulary(anotherVocabularyInWs);
+        parent.setGlossary(anotherVocabularyInWs.getGlossary().getUri());
+        transactional(() -> {
+            em.persist(term, new EntityDescriptor(vocabulary.getUri()));
+            vocabulary.getGlossary().addRootTerm(term);
+            em.merge(vocabulary.getGlossary(), descriptorFactory.glossaryDescriptor(vocabulary));
+            Generator.addTermInVocabularyRelationship(term, vocabulary.getUri(), em);
+            em.persist(parent, new EntityDescriptor(anotherVocabularyInWs.getUri()));
+            Generator.addTermInVocabularyRelationship(parent, anotherVocabularyInWs.getUri(), em);
+            TermDaoTest.insertInferredBroaderRelationship(term, parent, em);
+        });
+
+        final List<TermDto> results = sut.findAll(Constants.DEFAULT_PAGE_SPEC);
+        final Optional<TermDto> res = results.stream().filter(t -> t.getUri().equals(term.getUri())).findFirst();
+        assertTrue(res.isPresent());
+        assertThat(res.get().getParentTerms(), hasItem(new TermDto(parent)));
+    }
 }
