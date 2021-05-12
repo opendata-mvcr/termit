@@ -328,8 +328,7 @@ public class TermDao extends WorkspaceBasedAssetDao<Term> {
             if (TermDto.class.isAssignableFrom(resultType)) {
                 result.forEach(t -> {
                     final TermDto dto = (TermDto) t;
-                    initParentTerms(dto);
-                    dto.getParentTerms().addAll(loadInferredParentTerms(dto, contexts, dto.getParentTerms()));
+                    dto.addParentTerms(loadInferredParentTerms(dto, contexts, dto.getParentTerms()));
                 });
             }
             return result;
@@ -419,18 +418,11 @@ public class TermDao extends WorkspaceBasedAssetDao<Term> {
             query.setDescriptor(descriptor);
             final List<TermDto> result = executeQueryAndLoadSubTerms(query, contexts);
             result.forEach(t -> {
-                initParentTerms(t);
-                t.getParentTerms().addAll(loadInferredParentTerms(t, contexts, t.getParentTerms()));
+                t.addParentTerms(loadInferredParentTerms(t, contexts, t.getParentTerms()));
             });
             return result;
         } catch (RuntimeException e) {
             throw new PersistenceException(e);
-        }
-    }
-
-    private void initParentTerms(TermDto t) {
-        if (t.getParentTerms() == null) {
-            t.setParentTerms(new LinkedHashSet<>());
         }
     }
 
@@ -446,7 +438,7 @@ public class TermDao extends WorkspaceBasedAssetDao<Term> {
                 .setParameter("term", term)
                 .setParameter("broader", URI.create(SKOS.BROADER))
                 .setParameter("graphs", graphs)
-                .setParameter("exclude", exclude)
+                .setParameter("exclude", exclude != null ? exclude : Collections.emptyList())
                 .getResultList();
     }
 
@@ -620,8 +612,7 @@ public class TermDao extends WorkspaceBasedAssetDao<Term> {
             final List<TermDto> terms = executeQueryAndLoadSubTerms(query, Collections.singleton(vocabularyCtx));
             terms.forEach(t -> {
                 loadParentSubTerms(t, vocabularyCtx);
-                initParentTerms(t);
-                t.getParentTerms().addAll(loadInferredParentTerms(t, Collections.singleton(vocabularyCtx), t.getParentTerms()));
+                t.addParentTerms(loadInferredParentTerms(t, Collections.singleton(vocabularyCtx), t.getParentTerms()));
             });
             return terms;
         } catch (RuntimeException e) {
