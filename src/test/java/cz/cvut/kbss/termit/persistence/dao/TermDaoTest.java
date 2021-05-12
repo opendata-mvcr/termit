@@ -727,4 +727,33 @@ class TermDaoTest extends BaseDaoTestRunner {
             assertEquals(child.getUri(), next.getUri());
         }
     }
+
+    @Test
+    void findAllBySearchStringAndVocabularyLoadsInferredParentTerms() {
+        final Term term = Generator.generateTermWithId(vocabulary.getUri());
+        final String searchString = "test";
+        term.getLabel().set(Constants.DEFAULT_LANGUAGE, searchString + " value");
+        final Term parent = Generator.generateTermWithId(vocabulary.getUri());
+        vocabulary.getGlossary().addRootTerm(parent);
+        transactional(() -> {
+            em.persist(term, descriptorFactory.termDescriptor(vocabulary));
+            em.persist(parent, descriptorFactory.termDescriptor(vocabulary));
+            em.merge(vocabulary.getGlossary(), descriptorFactory.glossaryDescriptor(vocabulary));
+            addTermInVocabularyRelationship(term, vocabulary.getUri());
+            addTermInVocabularyRelationship(parent, vocabulary.getUri());
+            insertInferredBroaderRelationship(term, parent, em);
+        });
+
+        final List<TermDto> result = sut.findAll(searchString, vocabulary);
+        assertEquals(1, result.size());
+        assertThat(result.get(0).getParentTerms(), hasItem(new TermDto(parent)));
+    }
+
+    static void insertInferredBroaderRelationship(Term child, Term parent, EntityManager em) {
+        final Repository repo = em.unwrap(Repository.class);
+        try (final RepositoryConnection conn = repo.getConnection()) {
+            final ValueFactory vf = conn.getValueFactory();
+            conn.add(vf.createIRI(child.getUri().toString()), vf.createIRI(SKOS.BROADER), vf.createIRI(parent.getUri().toString()));
+        }
+    }
 }

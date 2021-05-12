@@ -267,3 +267,7 @@ termit-pojem:je-publikován
 
 termit-pojem:má-můj-poslední-komentář
         a               owl:ObjectProperty.
+
+rdfs:subClassOf
+        a rdf:Property ;
+        rdfs:subPropertyOf  <http://www.w3.org/2004/02/skos/core#broader> .

@@ -248,7 +248,9 @@ public class DescriptorFactory {
         persistenceUtils.getCanonicalContainerContexts().forEach(parentDescriptor::addContext);
         // Allow indefinite length of the ancestor chain
         parentDescriptor.addAttributeDescriptor(fieldSpec(Term.class, "parentTerms"), parentDescriptor);
+        parentDescriptor.addAttributeDescriptor(fieldSpec(Term.class, "superTypes"), parentDescriptor);
         descriptor.addAttributeDescriptor(fieldSpec(Term.class, "parentTerms"), parentDescriptor);
+        descriptor.addAttributeDescriptor(fieldSpec(Term.class, "superTypes"), parentDescriptor);
         // Definition source is inferred. That means it is in a special context in GraphDB. Therefore, we need to use
         // the default context to prevent JOPA from thinking the value has changed on merge
         descriptor.addAttributeContext(fieldSpec(Term.class, "definitionSource"), null);

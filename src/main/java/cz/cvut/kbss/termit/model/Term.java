@@ -6,6 +6,7 @@ import cz.cvut.kbss.jopa.model.annotations.Properties;
 import cz.cvut.kbss.jopa.model.annotations.*;
 import cz.cvut.kbss.jopa.model.descriptors.Descriptor;
 import cz.cvut.kbss.jopa.vocabulary.DC;
+import cz.cvut.kbss.jopa.vocabulary.RDFS;
 import cz.cvut.kbss.jopa.vocabulary.SKOS;
 import cz.cvut.kbss.jsonld.annotation.JsonLdAttributeOrder;
 import cz.cvut.kbss.termit.dto.TermInfo;
@@ -33,7 +34,7 @@ import java.util.stream.Collectors;
 @Configurable
 @Audited
 @OWLClass(iri = SKOS.CONCEPT)
-@JsonLdAttributeOrder({"uri", "label", "description", "subTerms"})
+@JsonLdAttributeOrder({"uri", "label", "description", "parentTerms", "superTypes", "subTerms"})
 public class Term extends AbstractTerm implements HasTypes {
 
     /**
@@ -42,8 +43,7 @@ public class Term extends AbstractTerm implements HasTypes {
     public static final List<String> EXPORT_COLUMNS = Collections
             .unmodifiableList(
                     Arrays.asList("IRI", "Label", "Alternative Labels", "Hidden Labels", "Definition", "Description",
-                            "Types", "Sources", "Parent term",
-                            "SubTerms", "Draft"));
+                            "Types", "Sources", "Parent term", "SubTerms", "Draft"));
 
     @Autowired
     @Transient
@@ -63,6 +63,10 @@ public class Term extends AbstractTerm implements HasTypes {
 
     @OWLObjectProperty(iri = SKOS.BROADER, fetch = FetchType.EAGER)
     private Set<Term> parentTerms;
+
+    @OWLObjectProperty(iri = RDFS.SUB_CLASS_OF, fetch = FetchType.EAGER)
+    // TODO Replace with TermInfo when new the new model with TermInfo being entity is merged from KBSS
+    private Set<Term> superTypes;
 
     @Inferred
     @OWLObjectProperty(iri = Vocabulary.s_p_ma_zdroj_definice_termu, fetch = FetchType.EAGER)
@@ -142,6 +146,14 @@ public class Term extends AbstractTerm implements HasTypes {
             this.parentTerms = new HashSet<>();
         }
         parentTerms.add(term);
+    }
+
+    public Set<Term> getSuperTypes() {
+        return superTypes;
+    }
+
+    public void setSuperTypes(Set<Term> superTypes) {
+        this.superTypes = superTypes;
     }
 
     public Set<String> getSources() {
@@ -270,7 +282,8 @@ public class Term extends AbstractTerm implements HasTypes {
      * term at all
      */
     public boolean hasParentInSameVocabulary() {
-        return parentTerms != null && parentTerms.stream().anyMatch(p -> p.getGlossary().equals(getGlossary()));
+        return parentTerms != null && parentTerms.stream().anyMatch(p -> p.getGlossary().equals(getGlossary()))
+                || superTypes != null && superTypes.stream().anyMatch(p -> p.getGlossary().equals(getGlossary()));
     }
 
     @Override
