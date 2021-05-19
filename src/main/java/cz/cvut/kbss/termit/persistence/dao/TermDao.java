@@ -82,12 +82,16 @@ public class TermDao extends WorkspaceBasedAssetDao<Term> {
     public Optional<Term> getReference(URI id) {
         try {
             final Set<URI> graphs = resolveWorkspaceAndCanonicalContexts();
-            final Descriptor descriptor = descriptorFactory.termDescriptor((URI) null);
-            graphs.forEach(descriptor::addContext);
-            return Optional.ofNullable(em.getReference(Term.class, id, descriptor));
+            return Optional.ofNullable(em.getReference(Term.class, id, createDescriptor(graphs)));
         } catch (RuntimeException e) {
             throw new PersistenceException(e);
         }
+    }
+
+    private Descriptor createDescriptor(Collection<URI> contexts) {
+        final Descriptor descriptor = descriptorFactory.termDescriptor((URI) null);
+        contexts.forEach(descriptor::addContext);
+        return descriptor;
     }
 
     /**
@@ -243,9 +247,7 @@ public class TermDao extends WorkspaceBasedAssetDao<Term> {
                     .setParameter("labelLang", config.get(ConfigParam.LANGUAGE));
             query = setCommonFindAllRootsQueryParams(query);
             query.setMaxResults(pageSpec.getPageSize()).setFirstResult((int) pageSpec.getOffset());
-            final Descriptor descriptor = descriptorFactory.termDescriptor((URI) null);
-            resolveWorkspaceAndCanonicalContexts().forEach(descriptor::addContext);
-            query.setDescriptor(descriptor);
+            query.setDescriptor(createDescriptor(resolveWorkspaceAndCanonicalContexts()));
             return executeQueryAndLoadSubTerms(query, contexts);
         } catch (RuntimeException e) {
             throw new PersistenceException(e);
@@ -321,9 +323,7 @@ public class TermDao extends WorkspaceBasedAssetDao<Term> {
                     .setParameter("hasLabel", LABEL_PROP)
                     .setParameter("labelLang", config.get(ConfigParam.LANGUAGE));
             query.setMaxResults(pageSpec.getPageSize()).setFirstResult((int) pageSpec.getOffset());
-            final Descriptor descriptor = descriptorFactory.termDescriptor((URI) null);
-            resolveWorkspaceAndCanonicalContexts().forEach(descriptor::addContext);
-            query.setDescriptor(descriptor);
+            query.setDescriptor(createDescriptor(resolveWorkspaceAndCanonicalContexts()));
             final List<T> result = executeQueryAndLoadSubTerms(query, contexts);
             if (TermDto.class.isAssignableFrom(resultType)) {
                 result.forEach(t -> {
@@ -413,11 +413,10 @@ public class TermDao extends WorkspaceBasedAssetDao<Term> {
                     .setParameter("searchString", searchString, config.get(ConfigParam.LANGUAGE))
                     .setFirstResult((int) pageSpec.getOffset())
                     .setMaxResults(pageSpec.getPageSize());
-            final Descriptor descriptor = descriptorFactory.termDescriptor((URI) null);
-            contexts.forEach(descriptor::addContext);
-            query.setDescriptor(descriptor);
+            query.setDescriptor(createDescriptor(contexts));
             final List<TermDto> result = executeQueryAndLoadSubTerms(query, contexts);
             result.forEach(t -> {
+                em.detach(t);
                 t.addParentTerms(loadInferredParentTerms(t, contexts, t.getParentTerms()));
             });
             return result;
@@ -439,6 +438,7 @@ public class TermDao extends WorkspaceBasedAssetDao<Term> {
                 .setParameter("broader", URI.create(SKOS.BROADER))
                 .setParameter("graphs", graphs)
                 .setParameter("exclude", exclude != null ? exclude : Collections.emptyList())
+                .setDescriptor(createDescriptor(graphs))
                 .getResultList();
     }
 

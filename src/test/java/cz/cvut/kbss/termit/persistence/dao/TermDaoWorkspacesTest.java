@@ -917,4 +917,28 @@ public class TermDaoWorkspacesTest extends BaseDaoTestRunner {
         assertTrue(res.isPresent());
         assertThat(res.get().getParentTerms(), hasItem(new TermDto(parent)));
     }
+
+    /**
+     * Bug #87
+     */
+    @Test
+    void findAllInCanonicalBySearchStringDetachesResultsBeforeLoadingParentsForThemToPreventAccidentalMergeAttempts() {
+        final Term term = Generator.generateTermWithId();
+        final Term parent = Generator.generateTermWithId();
+        persistTermIntoCanonicalContainer(term);
+        persistTermIntoCanonicalContainer(parent);
+        transactional(() -> {
+            final Repository repository = em.unwrap(Repository.class);
+            try (final RepositoryConnection con = repository.getConnection()) {
+                final ValueFactory vf = con.getValueFactory();
+                // Simulate inferred broader relationship
+                con.add(vf.createIRI(term.getUri().toString()), vf.createIRI(SKOS.BROADER), vf.createIRI(parent.getUri().toString()));
+            }
+        });
+
+        transactional(() -> {
+            final List<TermDto> result = sut.findAllInCanonical(new PageAndSearchSpecification(Constants.DEFAULT_PAGE_SPEC, term.getPrimaryLabel()));
+            assertThat(result, hasItem(new TermDto(term)));
+        });
+    }
 }
