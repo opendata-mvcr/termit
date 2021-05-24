@@ -39,10 +39,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 import javax.validation.Validator;
 import java.net.URI;
-import java.util.Collection;
-import java.util.List;
-import java.util.Objects;
-import java.util.Set;
+import java.util.*;
 
 import static java.util.stream.Collectors.joining;
 import static java.util.stream.Collectors.toList;
@@ -113,8 +110,7 @@ public class TermRepositoryService extends BaseAssetRepositoryService<Term> {
 
     @Override
     protected void postUpdate(Term instance) {
-        final Vocabulary vocabulary =
-            vocabularyService.getRequiredReference(instance.getVocabulary());
+        final Vocabulary vocabulary = vocabularyService.getRequiredReference(instance.getVocabulary());
         if (instance.hasParentInSameVocabulary()) {
             vocabulary.getGlossary().removeRootTerm(instance);
         } else {

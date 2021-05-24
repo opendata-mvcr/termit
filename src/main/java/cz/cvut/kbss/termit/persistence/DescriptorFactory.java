@@ -262,7 +262,7 @@ public class DescriptorFactory {
         // Vocabulary field is inferred, so it cannot be in any specific context
         descriptor.addAttributeDescriptor(fieldSpec(Term.class, "vocabulary"),
                 new FieldDescriptor((URI) null, fieldSpec(Term.class, "vocabulary")));
-        final EntityDescriptor relatedDescriptor = new EntityDescriptor(vocabularyUri);
+        final EntityDescriptor relatedDescriptor = assetDescriptor(vocabularyUri);
         relatedDescriptor.addAttributeDescriptor(fieldSpec(TermInfo.class, "vocabulary"), new FieldDescriptor((URI) null, fieldSpec(TermInfo.class, "vocabulary")));
         descriptor.addAttributeDescriptor(fieldSpec(Term.class, "related"), relatedDescriptor);
         descriptor.addAttributeContext(fieldSpec(Term.class, "relatedMatch"), null);

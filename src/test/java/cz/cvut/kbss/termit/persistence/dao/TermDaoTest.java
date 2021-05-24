@@ -47,6 +47,7 @@ import static org.hamcrest.Matchers.hasItem;
 import static org.hamcrest.Matchers.hasKey;
 import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.Mockito.doReturn;
+import static org.mockito.Mockito.when;
 
 class TermDaoTest extends BaseDaoTestRunner {
 
@@ -78,6 +79,7 @@ class TermDaoTest extends BaseDaoTestRunner {
                 .getVocabularyInfo(
                         vocabulary
                                 .getUri());
+        when(wsMetadata.getVocabularyContexts()).thenReturn(Collections.singleton(vocabulary.getUri()));
         doReturn(Collections.singleton(vocabulary.getUri())).when(wsMetadata).getChangeTrackingContexts();
         transactional(() -> {
             em.persist(vocabulary, descriptorFactory.vocabularyDescriptor(vocabulary));
@@ -561,6 +563,7 @@ class TermDaoTest extends BaseDaoTestRunner {
 
     @Test
     void findLoadsSubTermsForResult() {
+
         final Term parent = persistParentWithChild();
         final Optional<Term> result = sut.find(parent.getUri());
         assertTrue(result.isPresent());

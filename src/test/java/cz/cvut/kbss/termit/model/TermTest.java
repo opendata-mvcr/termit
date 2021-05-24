@@ -339,10 +339,10 @@ class TermTest {
     void hasParentInSameVocabularyIncludesSuperTypesAsParents() {
         final Term sut = Generator.generateTermWithId();
         final URI vocabularyUri = Generator.generateUri();
-        sut.setGlossary(vocabularyUri);
+        sut.setVocabulary(vocabularyUri);
         final Term parent = Generator.generateTermWithId();
-        parent.setGlossary(vocabularyUri);
-        sut.setSuperTypes(Collections.singleton(parent));
+        parent.setVocabulary(vocabularyUri);
+        sut.setSuperTypes(Collections.singleton(new TermInfo(parent)));
 
         assertTrue(sut.hasParentInSameVocabulary());
     }

@@ -3,10 +3,14 @@ package cz.cvut.kbss.termit.persistence.dao;
 import cz.cvut.kbss.jopa.model.EntityManager;
 import cz.cvut.kbss.jopa.vocabulary.SKOS;
 import cz.cvut.kbss.termit.dto.TermInfo;
+import cz.cvut.kbss.termit.dto.workspace.VocabularyInfo;
+import cz.cvut.kbss.termit.dto.workspace.WorkspaceMetadata;
 import cz.cvut.kbss.termit.environment.Generator;
+import cz.cvut.kbss.termit.model.AbstractTerm;
 import cz.cvut.kbss.termit.model.Term;
 import cz.cvut.kbss.termit.model.Vocabulary;
 import cz.cvut.kbss.termit.persistence.DescriptorFactory;
+import cz.cvut.kbss.termit.persistence.dao.workspace.WorkspaceMetadataProvider;
 import org.eclipse.rdf4j.model.ValueFactory;
 import org.eclipse.rdf4j.repository.Repository;
 import org.eclipse.rdf4j.repository.RepositoryConnection;
@@ -21,6 +25,8 @@ import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.hasItem;
 import static org.hamcrest.Matchers.not;
 import static org.junit.jupiter.api.Assertions.*;
+import static org.mockito.Mockito.doReturn;
+import static org.mockito.Mockito.when;
 
 public class TermDaoRelatedTermsTest extends BaseDaoTestRunner {
 
@@ -31,20 +37,30 @@ public class TermDaoRelatedTermsTest extends BaseDaoTestRunner {
     private DescriptorFactory descriptorFactory;
 
     @Autowired
+    private WorkspaceMetadataProvider wsMetadataProvider;
+
+    @Autowired
     private TermDao sut;
 
     private Vocabulary vocabulary;
 
     @BeforeEach
     void setUp() {
-        this.vocabulary = Generator.generateVocabulary();
-        vocabulary.setUri(Generator.generateUri());
+        this.vocabulary = Generator.generateVocabularyWithId();
+        final WorkspaceMetadata wsMetadata = wsMetadataProvider.getCurrentWorkspaceMetadata();
+        doReturn(new VocabularyInfo(vocabulary.getUri(), vocabulary.getUri(), vocabulary.getUri())).when(wsMetadata)
+            .getVocabularyInfo(
+                vocabulary
+                    .getUri());
+        when(wsMetadata.getVocabularyContexts()).thenReturn(Collections.singleton(vocabulary.getUri()));
+        doReturn(Collections.singleton(vocabulary.getUri())).when(wsMetadata).getChangeTrackingContexts();
         transactional(() -> em.persist(vocabulary, descriptorFactory.vocabularyDescriptor(vocabulary)));
     }
 
     @Test
     void findLoadsInferredInverseRelatedTerms() {
         final Term term = Generator.generateTermWithId(vocabulary.getUri());
+        term.setGlossary(vocabulary.getGlossary().getUri());
         final List<Term> related = Arrays.asList(Generator.generateTermWithId(vocabulary.getUri()), Generator.generateTermWithId(vocabulary.getUri()), Generator.generateTermWithId(vocabulary.getUri()));
         transactional(() -> {
             em.persist(term, descriptorFactory.termDescriptor(vocabulary));
@@ -68,8 +84,7 @@ public class TermDaoRelatedTermsTest extends BaseDaoTestRunner {
             final ValueFactory vf = conn.getValueFactory();
             conn.begin();
             for (Term r : related) {
-                // Don't put it into any specific context to make it look like inference
-                conn.add(vf.createIRI(r.getUri().toString()), vf.createIRI(relationship), vf.createIRI(term.getUri().toString()));
+                conn.add(vf.createIRI(r.getUri().toString()), vf.createIRI(relationship), vf.createIRI(term.getUri().toString()), vf.createIRI(r.getVocabulary().toString()));
             }
             conn.commit();
         }
@@ -78,6 +93,7 @@ public class TermDaoRelatedTermsTest extends BaseDaoTestRunner {
     @Test
     void loadingInferredInverseRelatedExcludesRelatedAssertedFromSubject() {
         final Term term = Generator.generateTermWithId(vocabulary.getUri());
+        term.setGlossary(vocabulary.getGlossary().getUri());
         final List<Term> related = Arrays.asList(Generator.generateTermWithId(vocabulary.getUri()), Generator.generateTermWithId(vocabulary.getUri()));
         final List<Term> inverseRelated = new ArrayList<>(Arrays.asList(Generator.generateTermWithId(vocabulary.getUri()), Generator.generateTermWithId(vocabulary.getUri())));
         inverseRelated.addAll(related);
@@ -102,7 +118,11 @@ public class TermDaoRelatedTermsTest extends BaseDaoTestRunner {
     @Test
     void findLoadsInferredInverseRelatedMatchTerms() {
         final Term term = Generator.generateTermWithId(vocabulary.getUri());
+        term.setGlossary(vocabulary.getGlossary().getUri());
         final List<Term> relatedMatch = Arrays.asList(Generator.generateTermWithId(Generator.generateUri()), Generator.generateTermWithId(Generator.generateUri()));
+        final WorkspaceMetadata wsMetadata = wsMetadataProvider.getCurrentWorkspaceMetadata();
+        when(wsMetadata.getVocabularyContexts()).thenReturn(relatedMatch.stream().map(AbstractTerm::getVocabulary).collect(Collectors.toSet()));
+        relatedMatch.forEach(t -> doReturn(new VocabularyInfo(t.getVocabulary(), t.getVocabulary(), t.getVocabulary())).when(wsMetadata).getVocabularyInfo(t.getVocabulary()));
         transactional(() -> {
             em.persist(term, descriptorFactory.termDescriptor(vocabulary));
             Generator.addTermInVocabularyRelationship(term, vocabulary.getUri(), em);
@@ -122,9 +142,13 @@ public class TermDaoRelatedTermsTest extends BaseDaoTestRunner {
     @Test
     void loadingInferredInverseRelatedMatchExcludesRelatedMatchAssertedFromSubject() {
         final Term term = Generator.generateTermWithId(vocabulary.getUri());
+        term.setGlossary(vocabulary.getGlossary().getUri());
         final List<Term> relatedMatch = Arrays.asList(Generator.generateTermWithId(Generator.generateUri()), Generator.generateTermWithId(Generator.generateUri()));
         final List<Term> inverseRelatedMatch = new ArrayList<>(Collections.singletonList(Generator.generateTermWithId(Generator.generateUri())));
         inverseRelatedMatch.addAll(relatedMatch);
+        final WorkspaceMetadata wsMetadata = wsMetadataProvider.getCurrentWorkspaceMetadata();
+        when(wsMetadata.getVocabularyContexts()).thenReturn(inverseRelatedMatch.stream().map(AbstractTerm::getVocabulary).collect(Collectors.toSet()));
+        inverseRelatedMatch.forEach(t -> doReturn(new VocabularyInfo(t.getVocabulary(), t.getVocabulary(), t.getVocabulary())).when(wsMetadata).getVocabularyInfo(t.getVocabulary()));
         transactional(() -> {
             em.persist(term, descriptorFactory.termDescriptor(vocabulary));
             Generator.addTermInVocabularyRelationship(term, vocabulary.getUri(), em);

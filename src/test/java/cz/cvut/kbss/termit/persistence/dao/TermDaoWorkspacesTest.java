@@ -5,8 +5,8 @@ import cz.cvut.kbss.jopa.model.MultilingualString;
 import cz.cvut.kbss.jopa.model.descriptors.EntityDescriptor;
 import cz.cvut.kbss.jopa.model.descriptors.FieldDescriptor;
 import cz.cvut.kbss.jopa.vocabulary.SKOS;
-import cz.cvut.kbss.termit.dto.TermDto;
 import cz.cvut.kbss.termit.dto.TermInfo;
+import cz.cvut.kbss.termit.dto.listing.TermDto;
 import cz.cvut.kbss.termit.dto.workspace.VocabularyInfo;
 import cz.cvut.kbss.termit.dto.workspace.WorkspaceMetadata;
 import cz.cvut.kbss.termit.environment.Generator;
@@ -19,7 +19,6 @@ import cz.cvut.kbss.termit.util.ConfigParam;
 import cz.cvut.kbss.termit.util.Configuration;
 import cz.cvut.kbss.termit.util.Constants;
 import cz.cvut.kbss.termit.util.PageAndSearchSpecification;
-import org.apache.tomcat.util.bcel.Const;
 import org.eclipse.rdf4j.model.IRI;
 import org.eclipse.rdf4j.model.Statement;
 import org.eclipse.rdf4j.model.ValueFactory;
@@ -859,14 +858,14 @@ public class TermDaoWorkspacesTest extends BaseDaoTestRunner {
             Generator.addTermInVocabularyRelationship(term, vocabulary.getUri(), em);
         });
 
-        term.setSuperTypes(Collections.singleton(superType));
+        term.setSuperTypes(Collections.singleton(new TermInfo(superType)));
         // This is normally inferred
         term.setVocabulary(vocabulary.getUri());
         transactional(() -> sut.update(term));
         final Term result = em.find(Term.class, term.getUri());
         assertEquals(term, result);
         assertEquals(term, result);
-        assertThat(result.getSuperTypes(), hasItem(superType));
+        assertThat(result.getSuperTypes(), hasItem(new TermInfo(superType)));
     }
 
     @Test

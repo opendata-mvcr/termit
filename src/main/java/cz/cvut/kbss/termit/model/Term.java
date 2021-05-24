@@ -4,7 +4,6 @@ import com.fasterxml.jackson.annotation.JsonIgnore;
 import cz.cvut.kbss.jopa.model.MultilingualString;
 import cz.cvut.kbss.jopa.model.annotations.Properties;
 import cz.cvut.kbss.jopa.model.annotations.*;
-import cz.cvut.kbss.jopa.model.descriptors.Descriptor;
 import cz.cvut.kbss.jopa.vocabulary.DC;
 import cz.cvut.kbss.jopa.vocabulary.RDFS;
 import cz.cvut.kbss.jopa.vocabulary.SKOS;
@@ -14,7 +13,6 @@ import cz.cvut.kbss.termit.exception.TermItException;
 import cz.cvut.kbss.termit.model.assignment.TermDefinitionSource;
 import cz.cvut.kbss.termit.model.changetracking.Audited;
 import cz.cvut.kbss.termit.model.util.HasTypes;
-import cz.cvut.kbss.termit.persistence.DescriptorFactory;
 import cz.cvut.kbss.termit.util.ConfigParam;
 import cz.cvut.kbss.termit.util.Configuration;
 import cz.cvut.kbss.termit.util.CsvUtils;
@@ -71,8 +69,7 @@ public class Term extends AbstractTerm implements HasTypes {
     private Set<Term> parentTerms;
 
     @OWLObjectProperty(iri = RDFS.SUB_CLASS_OF, fetch = FetchType.EAGER)
-    // TODO Replace with TermInfo when new the new model with TermInfo being entity is merged from KBSS
-    private Set<Term> superTypes;
+    private Set<TermInfo> superTypes;
 
     @OWLObjectProperty(iri = SKOS.RELATED, fetch = FetchType.EAGER)
     private Set<TermInfo> related;
@@ -173,11 +170,11 @@ public class Term extends AbstractTerm implements HasTypes {
         parentTerms.add(term);
     }
 
-    public Set<Term> getSuperTypes() {
+    public Set<TermInfo> getSuperTypes() {
         return superTypes;
     }
 
-    public void setSuperTypes(Set<Term> superTypes) {
+    public void setSuperTypes(Set<TermInfo> superTypes) {
         this.superTypes = superTypes;
     }
 
@@ -380,7 +377,7 @@ public class Term extends AbstractTerm implements HasTypes {
      */
     public boolean hasParentInSameVocabulary() {
         return parentTerms != null && parentTerms.stream().anyMatch(p -> p.getGlossary().equals(getGlossary()))
-                || superTypes != null && superTypes.stream().anyMatch(p -> p.getGlossary().equals(getGlossary()));
+                || superTypes != null && superTypes.stream().anyMatch(p -> p.getVocabulary().equals(getVocabulary()));
     }
 
     /**

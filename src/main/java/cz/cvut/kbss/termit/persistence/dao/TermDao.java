@@ -19,16 +19,16 @@ import cz.cvut.kbss.jopa.model.descriptors.Descriptor;
 import cz.cvut.kbss.jopa.model.query.TypedQuery;
 import cz.cvut.kbss.jopa.vocabulary.SKOS;
 import cz.cvut.kbss.termit.asset.provenance.ModifiesData;
-import cz.cvut.kbss.termit.dto.listing.TermDto;
 import cz.cvut.kbss.termit.dto.TermInfo;
+import cz.cvut.kbss.termit.dto.listing.TermDto;
 import cz.cvut.kbss.termit.exception.PersistenceException;
 import cz.cvut.kbss.termit.model.AbstractTerm;
 import cz.cvut.kbss.termit.model.Term;
 import cz.cvut.kbss.termit.model.Vocabulary;
 import cz.cvut.kbss.termit.persistence.DescriptorFactory;
 import cz.cvut.kbss.termit.persistence.PersistenceUtils;
-import cz.cvut.kbss.termit.persistence.dao.workspace.WorkspaceBasedAssetDao;
 import cz.cvut.kbss.termit.persistence.dao.util.SparqlResultToTermInfoMapper;
+import cz.cvut.kbss.termit.persistence.dao.workspace.WorkspaceBasedAssetDao;
 import cz.cvut.kbss.termit.util.ConfigParam;
 import cz.cvut.kbss.termit.util.Configuration;
 import cz.cvut.kbss.termit.util.Constants;
@@ -65,9 +65,9 @@ public class TermDao extends WorkspaceBasedAssetDao<Term> {
         try {
             final URI vocabularyIri = resolveVocabularyIri(id);
             final Optional<Term> result = Optional.ofNullable(
-                    em.find(Term.class, id, descriptorFactory.termDescriptor(vocabularyIri)));
+                em.find(Term.class, id, descriptorFactory.termDescriptor(vocabularyIri)));
             result.ifPresent(r -> {
-                r.setSubTerms(loadSubTerms(r));
+                loadAdditionTermMetadata(r, resolveWorkspaceAndCanonicalContexts());
                 r.setInverseRelated(loadInverseRelatedTerms(r));
                 r.setInverseRelatedMatch(loadInverseRelatedMatchTerms(r));
                 r.setInverseExactMatchTerms(loadInverseExactMatchTerms(r));
@@ -80,9 +80,9 @@ public class TermDao extends WorkspaceBasedAssetDao<Term> {
 
     private URI resolveVocabularyIri(URI termIri) {
         return em.createNativeQuery("SELECT ?vocabulary WHERE { ?term ?inVocabulary ?vocabulary . }", URI.class)
-                .setParameter("term", termIri)
-                .setParameter("inVocabulary", URI.create(cz.cvut.kbss.termit.util.Vocabulary.s_p_je_pojmem_ze_slovniku))
-                .getSingleResult();
+            .setParameter("term", termIri)
+            .setParameter("inVocabulary", URI.create(cz.cvut.kbss.termit.util.Vocabulary.s_p_je_pojmem_ze_slovniku))
+            .getSingleResult();
     }
 
     @Override
@@ -117,18 +117,22 @@ public class TermDao extends WorkspaceBasedAssetDao<Term> {
 
     private Set<TermInfo> loadTermInfo(Term term, String property, Collection<TermInfo> exclude) {
         final List<?> inverse = em.createNativeQuery("SELECT ?inverse ?label ?vocabulary WHERE {" +
-                "?inverse ?property ?term ;" +
-                "a ?type ;" +
-                "?hasLabel ?label ;" +
-                "?inVocabulary ?vocabulary . " +
-                "FILTER (?inverse NOT IN (?exclude))" +
-                "} ORDER BY ?inverse").setParameter("property", URI.create(property))
-                .setParameter("term", term)
-                .setParameter("type", typeUri)
-                .setParameter("hasLabel", labelProperty())
-                .setParameter("inVocabulary", URI.create(cz.cvut.kbss.termit.util.Vocabulary.s_p_je_pojmem_ze_slovniku))
-                .setParameter("exclude", exclude)
-                .getResultList();
+            "GRAPH ?g {" +
+            "?inverse ?property ?term ;" +
+            "a ?type ;" +
+            "?hasLabel ?label ." +
+            "} " +
+            "?inverse ?inVocabulary ?vocabulary . " +
+            "FILTER (?inverse NOT IN (?exclude))" +
+            "FILTER (?g IN (?graphs))" +
+            "} ORDER BY ?inverse").setParameter("property", URI.create(property))
+            .setParameter("term", term)
+            .setParameter("type", typeUri)
+            .setParameter("hasLabel", labelProperty())
+            .setParameter("inVocabulary", URI.create(cz.cvut.kbss.termit.util.Vocabulary.s_p_je_pojmem_ze_slovniku))
+            .setParameter("exclude", exclude)
+            .setParameter("graphs", resolveWorkspaceAndCanonicalContexts())
+            .getResultList();
         final List<TermInfo> result = new SparqlResultToTermInfoMapper().map(inverse);
         result.sort(termInfoComparator);
         return new LinkedHashSet<>(result);
@@ -158,7 +162,7 @@ public class TermDao extends WorkspaceBasedAssetDao<Term> {
     @Override
     public void persist(Term entity) {
         throw new UnsupportedOperationException(
-                "Persisting term by itself is not supported. It has to be persisted into a vocabulary.");
+            "Persisting term by itself is not supported. It has to be persisted into a vocabulary.");
     }
 
     /**
@@ -191,9 +195,10 @@ public class TermDao extends WorkspaceBasedAssetDao<Term> {
             // Evict possibly cached instance loaded from default context
             em.getEntityManagerFactory().getCache().evict(Term.class, entity.getUri(), null);
             em.getEntityManagerFactory().getCache().evict(TermDto.class, entity.getUri(), null);
-            final Term original = em.find(Term.class, entity.getUri(),descriptorFactory.termDescriptor(entity));
+            em.getEntityManagerFactory().getCache().evict(TermDto.class, entity.getUri(), persistenceUtils.resolveVocabularyContext(entity.getVocabulary()));
+            final Term original = em.find(Term.class, entity.getUri(), descriptorFactory.termDescriptor(entity));
             entity.setDefinitionSource(original.getDefinitionSource());
-            return em.merge(entity, descriptorFactory.termDescriptor(entity.getVocabulary()));
+            return em.merge(entity, descriptorFactory.termDescriptor(entity));
         } catch (RuntimeException e) {
             throw new PersistenceException(e);
         }
@@ -280,15 +285,15 @@ public class TermDao extends WorkspaceBasedAssetDao<Term> {
     private int countRootTermsIn(Set<URI> contexts) {
         try {
             return em.createNativeQuery("SELECT (COUNT(?term) as ?count) WHERE {" +
-                    "GRAPH ?g {" +
-                    "?term a ?type ." +
-                    "?vocabulary ?hasGlossary/?hasTerm ?term ." +
-                    "} FILTER (?g in (?graphs)) }", Integer.class)
-                    .setParameter("type", typeUri)
-                    .setParameter("hasGlossary", URI.create(cz.cvut.kbss.termit.util.Vocabulary.s_p_ma_glosar))
-                    .setParameter("hasTerm", URI.create(SKOS.HAS_TOP_CONCEPT))
-                    .setParameter("graphs", contexts)
-                    .getSingleResult();
+                "GRAPH ?g {" +
+                "?term a ?type ." +
+                "?vocabulary ?hasGlossary/?hasTerm ?term ." +
+                "} FILTER (?g in (?graphs)) }", Integer.class)
+                .setParameter("type", typeUri)
+                .setParameter("hasGlossary", URI.create(cz.cvut.kbss.termit.util.Vocabulary.s_p_ma_glosar))
+                .setParameter("hasTerm", URI.create(SKOS.HAS_TOP_CONCEPT))
+                .setParameter("graphs", contexts)
+                .getSingleResult();
         } catch (RuntimeException e) {
             throw new PersistenceException(e);
         }
@@ -298,12 +303,12 @@ public class TermDao extends WorkspaceBasedAssetDao<Term> {
         final String from = contexts.stream().map(u -> "FROM <" + u + ">").collect(Collectors.joining(" "));
         try {
             TypedQuery<TermDto> query = em.createNativeQuery("SELECT DISTINCT ?term " + from + " WHERE {" +
-                    "?term a ?type ;" +
-                    "?hasLabel ?label ." +
-                    "?vocabulary ?hasGlossary/?hasTerm ?term ." +
-                    "FILTER (lang(?label) = ?labelLang)" +
-                    "} ORDER BY LCASE(?label)", TermDto.class)
-                    .setParameter("labelLang", config.get(ConfigParam.LANGUAGE));
+                "?term a ?type ;" +
+                "?hasLabel ?label ." +
+                "?vocabulary ?hasGlossary/?hasTerm ?term ." +
+                "FILTER (lang(?label) = ?labelLang)" +
+                "} ORDER BY LCASE(?label)", TermDto.class)
+                .setParameter("labelLang", config.get(ConfigParam.LANGUAGE));
             query = setCommonFindAllRootsQueryParams(query);
             query.setMaxResults(pageSpec.getPageSize()).setFirstResult((int) pageSpec.getOffset());
             query.setDescriptor(createDescriptor(resolveWorkspaceAndCanonicalContexts()));
@@ -351,12 +356,12 @@ public class TermDao extends WorkspaceBasedAssetDao<Term> {
     private int countTermsIn(Set<URI> contexts) {
         try {
             return em.createNativeQuery("SELECT (COUNT(?term) as ?count) WHERE {" +
-                    "GRAPH ?g {" +
-                    "?term a ?type ." +
-                    "} FILTER (?g in (?graphs)) }", Integer.class)
-                    .setParameter("type", typeUri)
-                    .setParameter("graphs", contexts)
-                    .getSingleResult();
+                "GRAPH ?g {" +
+                "?term a ?type ." +
+                "} FILTER (?g in (?graphs)) }", Integer.class)
+                .setParameter("type", typeUri)
+                .setParameter("graphs", contexts)
+                .getSingleResult();
         } catch (RuntimeException e) {
             throw new PersistenceException(e);
         }
@@ -374,13 +379,13 @@ public class TermDao extends WorkspaceBasedAssetDao<Term> {
         final String from = contexts.stream().map(u -> "FROM <" + u + ">").collect(Collectors.joining(" "));
         try {
             TypedQuery<T> query = em.createNativeQuery("SELECT DISTINCT ?term " + from + " WHERE {" +
-                    "?term a ?type ;" +
-                    "?hasLabel ?label ." +
-                    "FILTER (lang(?label) = ?labelLang)" +
-                    "} ORDER BY LCASE(?label)", resultType)
-                    .setParameter("type", typeUri)
-                    .setParameter("hasLabel", LABEL_PROP)
-                    .setParameter("labelLang", config.get(ConfigParam.LANGUAGE));
+                "?term a ?type ;" +
+                "?hasLabel ?label ." +
+                "FILTER (lang(?label) = ?labelLang)" +
+                "} ORDER BY LCASE(?label)", resultType)
+                .setParameter("type", typeUri)
+                .setParameter("hasLabel", LABEL_PROP)
+                .setParameter("labelLang", config.get(ConfigParam.LANGUAGE));
             query.setMaxResults(pageSpec.getPageSize()).setFirstResult((int) pageSpec.getOffset());
             query.setDescriptor(createDescriptor(resolveWorkspaceAndCanonicalContexts()));
             final List<T> result = executeQueryAndLoadSubTerms(query, contexts);
@@ -409,19 +414,19 @@ public class TermDao extends WorkspaceBasedAssetDao<Term> {
         try {
             final URI vocabularyCtx = persistenceUtils.resolveVocabularyContext(vocabulary.getUri());
             final TypedQuery<Term> query = em.createNativeQuery("SELECT DISTINCT ?term WHERE {" +
-                    "GRAPH ?g { " +
-                    "?term a ?type ;" +
-                    "?hasLabel ?label ." +
-                    "FILTER (lang(?label) = ?labelLang) ." +
-                    "}" +
-                    "?term ?inVocabulary ?vocabulary. } ORDER BY LCASE(?label)", Term.class)
-                    .setParameter("type", typeUri)
-                    .setParameter("vocabulary", vocabulary.getUri())
-                    .setParameter("g", vocabularyCtx)
-                    .setParameter("hasLabel", LABEL_PROP)
-                    .setParameter("inVocabulary",
-                            URI.create(cz.cvut.kbss.termit.util.Vocabulary.s_p_je_pojmem_ze_slovniku))
-                    .setParameter("labelLang", config.get(ConfigParam.LANGUAGE));
+                "GRAPH ?g { " +
+                "?term a ?type ;" +
+                "?hasLabel ?label ." +
+                "FILTER (lang(?label) = ?labelLang) ." +
+                "}" +
+                "?term ?inVocabulary ?vocabulary. } ORDER BY LCASE(?label)", Term.class)
+                .setParameter("type", typeUri)
+                .setParameter("vocabulary", vocabulary.getUri())
+                .setParameter("g", vocabularyCtx)
+                .setParameter("hasLabel", LABEL_PROP)
+                .setParameter("inVocabulary",
+                    URI.create(cz.cvut.kbss.termit.util.Vocabulary.s_p_je_pojmem_ze_slovniku))
+                .setParameter("labelLang", config.get(ConfigParam.LANGUAGE));
             query.setDescriptor(descriptorFactory.termDescriptor(vocabulary));
             return executeQueryAndLoadSubTerms(query, Collections.singleton(vocabularyCtx));
         } catch (RuntimeException e) {
@@ -463,15 +468,15 @@ public class TermDao extends WorkspaceBasedAssetDao<Term> {
         final String from = contexts.stream().map(u -> "FROM <" + u + ">").collect(Collectors.joining(" "));
         try {
             TypedQuery<TermDto> query = em.createNativeQuery("SELECT DISTINCT ?term " + from + " WHERE {" +
-                    "?term a ?type ;" +
-                    "?hasLabel ?label ." +
-                    "FILTER CONTAINS(LCASE(?label), LCASE(?searchString)) ." +
-                    "} ORDER BY LCASE(?label)", TermDto.class)
-                    .setParameter("type", typeUri)
-                    .setParameter("hasLabel", LABEL_PROP)
-                    .setParameter("searchString", searchString, config.get(ConfigParam.LANGUAGE))
-                    .setFirstResult((int) pageSpec.getOffset())
-                    .setMaxResults(pageSpec.getPageSize());
+                "?term a ?type ;" +
+                "?hasLabel ?label ." +
+                "FILTER CONTAINS(LCASE(?label), LCASE(?searchString)) ." +
+                "} ORDER BY LCASE(?label)", TermDto.class)
+                .setParameter("type", typeUri)
+                .setParameter("hasLabel", LABEL_PROP)
+                .setParameter("searchString", searchString, config.get(ConfigParam.LANGUAGE))
+                .setFirstResult((int) pageSpec.getOffset())
+                .setMaxResults(pageSpec.getPageSize());
             query.setDescriptor(createDescriptor(contexts));
             final List<TermDto> result = executeQueryAndLoadSubTerms(query, contexts);
             result.forEach(t -> {
@@ -486,19 +491,19 @@ public class TermDao extends WorkspaceBasedAssetDao<Term> {
 
     private List<TermDto> loadInferredParentTerms(TermDto term, Set<URI> graphs, Set<TermDto> exclude) {
         return em.createNativeQuery("SELECT DISTINCT ?parent WHERE {" +
-                "GRAPH ?g { " +
-                "?parent a ?type ." +
-                "}" +
-                "?term ?broader ?parent ." +    // Let broader be outside of the graph to include inference
-                "FILTER (?g IN (?graphs))" +
-                "FILTER (?parent NOT IN (?exclude))" +
-                "}", TermDto.class).setParameter("type", typeUri)
-                .setParameter("term", term)
-                .setParameter("broader", URI.create(SKOS.BROADER))
-                .setParameter("graphs", graphs)
-                .setParameter("exclude", exclude != null ? exclude : Collections.emptyList())
-                .setDescriptor(createDescriptor(graphs))
-                .getResultList();
+            "GRAPH ?g { " +
+            "?parent a ?type ." +
+            "}" +
+            "?term ?broader ?parent ." +    // Let broader be outside of the graph to include inference
+            "FILTER (?g IN (?graphs))" +
+            "FILTER (?parent NOT IN (?exclude))" +
+            "}", TermDto.class).setParameter("type", typeUri)
+            .setParameter("term", term)
+            .setParameter("broader", URI.create(SKOS.BROADER))
+            .setParameter("graphs", graphs)
+            .setParameter("exclude", exclude != null ? exclude : Collections.emptyList())
+            .setDescriptor(createDescriptor(graphs))
+            .getResultList();
     }
 
     /**
@@ -511,16 +516,16 @@ public class TermDao extends WorkspaceBasedAssetDao<Term> {
         Objects.requireNonNull(vocabulary);
         try {
             return !em.createNativeQuery("ASK WHERE {" +
-                    "GRAPH ?g { " +
-                    "?term a ?type ;" +
-                    "}" +
-                    "?term ?inVocabulary ?vocabulary ." +
-                    " }", Boolean.class)
-                    .setParameter("type", typeUri)
-                    .setParameter("vocabulary", vocabulary.getUri())
-                    .setParameter("g", persistenceUtils.resolveVocabularyContext(vocabulary.getUri()))
-                    .setParameter("inVocabulary", URI.create(cz.cvut.kbss.termit.util.Vocabulary.s_p_je_pojmem_ze_slovniku))
-                    .getSingleResult();
+                "GRAPH ?g { " +
+                "?term a ?type ;" +
+                "}" +
+                "?term ?inVocabulary ?vocabulary ." +
+                " }", Boolean.class)
+                .setParameter("type", typeUri)
+                .setParameter("vocabulary", vocabulary.getUri())
+                .setParameter("g", persistenceUtils.resolveVocabularyContext(vocabulary.getUri()))
+                .setParameter("inVocabulary", URI.create(cz.cvut.kbss.termit.util.Vocabulary.s_p_je_pojmem_ze_slovniku))
+                .getSingleResult();
         } catch (RuntimeException e) {
             throw new PersistenceException(e);
         }
@@ -548,22 +553,22 @@ public class TermDao extends WorkspaceBasedAssetDao<Term> {
      * @param parent Parent term
      */
     private Set<TermInfo> loadSubTermInfo(AbstractTerm parent, Set<URI> graphs) {
-        final List<?> subTermsStream = em.createNativeQuery("SELECT ?entity ?label ?vocabulary WHERE {" +
-                "GRAPH ?g { " +
-                "?entity a ?type ;" +
-                "?hasLabel ?label ." +
-                "}" +
-                "?entity ?broader ?parent ; " + // Let broader be outside of the graph to allow including inferences
-                "?inVocabulary ?vocabulary ." +
-                "FILTER (?g in (?graphs))" +
-                "} ORDER BY ?entity")
-                .setParameter("type", typeUri)
-                .setParameter("broader", URI.create(SKOS.BROADER))
-                .setParameter("parent", parent)
-                .setParameter("hasLabel", LABEL_PROP)
-                .setParameter("inVocabulary", URI.create(cz.cvut.kbss.termit.util.Vocabulary.s_p_je_pojmem_ze_slovniku))
-                .setParameter("graphs", graphs)
-                .getResultList();
+        final List<?> subTerms = em.createNativeQuery("SELECT ?entity ?label ?vocabulary WHERE {" +
+            "GRAPH ?g { " +
+            "?entity a ?type ;" +
+            "?hasLabel ?label ." +
+            "}" +
+            "?entity ?broader ?parent ; " + // Let broader be outside of the graph to allow including inferences
+            "?inVocabulary ?vocabulary ." +
+            "FILTER (?g in (?graphs))" +
+            "} ORDER BY ?entity")
+            .setParameter("type", typeUri)
+            .setParameter("broader", URI.create(SKOS.BROADER))
+            .setParameter("parent", parent)
+            .setParameter("hasLabel", LABEL_PROP)
+            .setParameter("inVocabulary", URI.create(cz.cvut.kbss.termit.util.Vocabulary.s_p_je_pojmem_ze_slovniku))
+            .setParameter("graphs", graphs)
+            .getResultList();
         // Use LinkedHashSet to preserve term order
         final List<TermInfo> result = new SparqlResultToTermInfoMapper().map(subTerms);
         result.sort(termInfoComparator);
@@ -573,14 +578,14 @@ public class TermDao extends WorkspaceBasedAssetDao<Term> {
     private boolean isPublished(AbstractTerm term) {
         // Note that this can be moved into Term once SPARQL-based attributes (https://github.com/kbss-cvut/jopa/issues/65) are supported
         return em.createNativeQuery("ASK WHERE {" +
-                "    SELECT (count(?g) as ?cnt) WHERE {" +
-                "    GRAPH ?g {" +
-                "    ?term ?inScheme ?glossary ." +
-                "    }" +
-                "    } HAVING (?cnt > 1) }", Boolean.class)
-                .setParameter("term", term)
-                .setParameter("inScheme", URI.create(SKOS.IN_SCHEME))
-                .setParameter("glossary", term.getGlossary()).getSingleResult();
+            "    SELECT (count(?g) as ?cnt) WHERE {" +
+            "    GRAPH ?g {" +
+            "    ?term ?inScheme ?glossary ." +
+            "    }" +
+            "    } HAVING (?cnt > 1) }", Boolean.class)
+            .setParameter("term", term)
+            .setParameter("inScheme", URI.create(SKOS.IN_SCHEME))
+            .setParameter("glossary", term.getGlossary()).getSingleResult();
     }
 
     /**
@@ -599,21 +604,21 @@ public class TermDao extends WorkspaceBasedAssetDao<Term> {
 
     private List<TermDto> findAllRootsImpl(URI vocabularyIri, Pageable pageSpec, Collection<URI> includeTerms) {
         TypedQuery<TermDto> query = em.createNativeQuery("SELECT DISTINCT ?term WHERE {" +
-                "GRAPH ?g { " +
-                "?term a ?type ;" +
-                "?hasLabel ?label ." +
-                "?vocabulary ?hasGlossary/?hasTerm ?term ." +
-                "FILTER (lang(?label) = ?labelLang) ." +
-                "}} ORDER BY LCASE(?label)", TermDto.class);
+            "GRAPH ?g { " +
+            "?term a ?type ;" +
+            "?hasLabel ?label ." +
+            "?vocabulary ?hasGlossary/?hasTerm ?term ." +
+            "FILTER (lang(?label) = ?labelLang) ." +
+            "}} ORDER BY LCASE(?label)", TermDto.class);
         query = setCommonFindAllRootsQueryParams(query);
         query.setDescriptor(descriptorFactory.termDescriptor(vocabularyIri));
         try {
             final URI vocabularyCtx = persistenceUtils.resolveVocabularyContext(vocabularyIri);
             final List<TermDto> result = executeQueryAndLoadSubTerms(query.setParameter("vocabulary", vocabularyIri)
-                    .setParameter("g", vocabularyCtx)
-                    .setParameter("labelLang", config.get(ConfigParam.LANGUAGE))
-                    .setMaxResults(pageSpec.getPageSize())
-                    .setFirstResult((int) pageSpec.getOffset()), Collections.singleton(vocabularyCtx));
+                .setParameter("g", vocabularyCtx)
+                .setParameter("labelLang", config.get(ConfigParam.LANGUAGE))
+                .setMaxResults(pageSpec.getPageSize())
+                .setFirstResult((int) pageSpec.getOffset()), Collections.singleton(vocabularyCtx));
             result.addAll(loadIncludedTerms(includeTerms));
             return result;
         } catch (RuntimeException e) {
@@ -623,16 +628,16 @@ public class TermDao extends WorkspaceBasedAssetDao<Term> {
 
     private <T> TypedQuery<T> setCommonFindAllRootsQueryParams(TypedQuery<T> query) {
         return query.setParameter("type", typeUri)
-                .setParameter("hasLabel", LABEL_PROP)
-                .setParameter("hasGlossary", URI.create(cz.cvut.kbss.termit.util.Vocabulary.s_p_ma_glosar))
-                .setParameter("hasTerm", URI.create(SKOS.HAS_TOP_CONCEPT));
+            .setParameter("hasLabel", LABEL_PROP)
+            .setParameter("hasGlossary", URI.create(cz.cvut.kbss.termit.util.Vocabulary.s_p_ma_glosar))
+            .setParameter("hasTerm", URI.create(SKOS.HAS_TOP_CONCEPT));
     }
 
     private List<TermDto> loadIncludedTerms(Collection<URI> includeTerms) {
         return includeTerms.stream()
-                .map(u -> em.find(TermDto.class, u, descriptorFactory.termDescriptor(resolveVocabularyIri(u))))
-                .filter(Objects::nonNull)
-                .collect(Collectors.toList());
+            .map(u -> em.find(TermDto.class, u, descriptorFactory.termDescriptor(resolveVocabularyIri(u))))
+            .filter(Objects::nonNull)
+            .collect(Collectors.toList());
     }
 
     /**
@@ -654,19 +659,19 @@ public class TermDao extends WorkspaceBasedAssetDao<Term> {
         try {
             final URI vocabularyCtx = persistenceUtils.resolveVocabularyContext(vocabularyIri);
             final TypedQuery<TermDto> query = em.createNativeQuery("SELECT DISTINCT ?term WHERE {" +
-                    "GRAPH ?g { " +
-                    "?term a ?type ; " +
-                    "      ?hasLabel ?label . " +
-                    "FILTER CONTAINS(LCASE(?label), LCASE(?searchString)) ." +
-                    "}" +
-                    "?term ?inVocabulary ?vocabulary ." +
-                    "} ORDER BY LCASE(?label)", TermDto.class)
-                    .setParameter("type", typeUri)
-                    .setParameter("hasLabel", LABEL_PROP)
-                    .setParameter("inVocabulary", URI.create(cz.cvut.kbss.termit.util.Vocabulary.s_p_je_pojmem_ze_slovniku))
-                    .setParameter("vocabulary", vocabularyIri)
-                    .setParameter("g", vocabularyCtx)
-                    .setParameter("searchString", searchString, config.get(ConfigParam.LANGUAGE));
+                "GRAPH ?g { " +
+                "?term a ?type ; " +
+                "      ?hasLabel ?label . " +
+                "FILTER CONTAINS(LCASE(?label), LCASE(?searchString)) ." +
+                "}" +
+                "?term ?inVocabulary ?vocabulary ." +
+                "} ORDER BY LCASE(?label)", TermDto.class)
+                .setParameter("type", typeUri)
+                .setParameter("hasLabel", LABEL_PROP)
+                .setParameter("inVocabulary", URI.create(cz.cvut.kbss.termit.util.Vocabulary.s_p_je_pojmem_ze_slovniku))
+                .setParameter("vocabulary", vocabularyIri)
+                .setParameter("g", vocabularyCtx)
+                .setParameter("searchString", searchString, config.get(ConfigParam.LANGUAGE));
             query.setDescriptor(descriptorFactory.termDescriptor(vocabularyIri));
             final List<TermDto> terms = executeQueryAndLoadSubTerms(query, Collections.singleton(vocabularyCtx));
             terms.forEach(t -> {
@@ -701,18 +706,18 @@ public class TermDao extends WorkspaceBasedAssetDao<Term> {
         Objects.requireNonNull(vocabulary);
         try {
             return em.createNativeQuery("ASK { GRAPH ?g {" +
-                    "?term a ?type ; " +
-                    "?hasLabel ?label ." +
-                    "}" +
-                    "?term ?inVocabulary ?vocabulary ." +
-                    "FILTER (LCASE(?label) = LCASE(?searchString)) . }", Boolean.class)
-                    .setParameter("type", typeUri)
-                    .setParameter("hasLabel", LABEL_PROP)
-                    .setParameter("inVocabulary", URI.create(cz.cvut.kbss.termit.util.Vocabulary.s_p_je_pojmem_ze_slovniku))
-                    .setParameter("vocabulary", vocabulary)
-                    .setParameter("g", persistenceUtils.resolveVocabularyContext(vocabulary.getUri()))
-                    .setParameter("searchString", label, languageTag != null ? languageTag : config.get(ConfigParam.LANGUAGE))
-                    .getSingleResult();
+                "?term a ?type ; " +
+                "?hasLabel ?label ." +
+                "}" +
+                "?term ?inVocabulary ?vocabulary ." +
+                "FILTER (LCASE(?label) = LCASE(?searchString)) . }", Boolean.class)
+                .setParameter("type", typeUri)
+                .setParameter("hasLabel", LABEL_PROP)
+                .setParameter("inVocabulary", URI.create(cz.cvut.kbss.termit.util.Vocabulary.s_p_je_pojmem_ze_slovniku))
+                .setParameter("vocabulary", vocabulary)
+                .setParameter("g", persistenceUtils.resolveVocabularyContext(vocabulary.getUri()))
+                .setParameter("searchString", label, languageTag != null ? languageTag : config.get(ConfigParam.LANGUAGE))
+                .getSingleResult();
         } catch (RuntimeException e) {
             throw new PersistenceException(e);
         }
@@ -730,16 +735,16 @@ public class TermDao extends WorkspaceBasedAssetDao<Term> {
         final Descriptor descriptor = descriptorFactory.termDescriptor((URI) null);
         graphs.forEach(descriptor::addContext);
         final TypedQuery<Term> query = em.createNativeQuery("SELECT DISTINCT ?term WHERE {" +
-                "GRAPH ?g { " +
-                "?term a ?type ." +
-                "}" +
-                "?term ?broader ?parent ." +    // Let broader be outside of the graph to include inference
-                "FILTER (?g in (?graphs))" +
-                "}", Term.class).setParameter("type", typeUri)
-                .setParameter("broader", URI.create(SKOS.BROADER))
-                .setParameter("parent", parent)
-                .setParameter("graphs", graphs)
-                .setDescriptor(descriptor);
+            "GRAPH ?g { " +
+            "?term a ?type ." +
+            "}" +
+            "?term ?broader ?parent ." +    // Let broader be outside of the graph to include inference
+            "FILTER (?g in (?graphs))" +
+            "}", Term.class).setParameter("type", typeUri)
+            .setParameter("broader", URI.create(SKOS.BROADER))
+            .setParameter("parent", parent)
+            .setParameter("graphs", graphs)
+            .setDescriptor(descriptor);
         final List<Term> terms = executeQueryAndLoadSubTerms(query, graphs);
         terms.sort(Comparator.comparing(t -> t.getLabel().get(config.get(ConfigParam.LANGUAGE))));
         return terms;
