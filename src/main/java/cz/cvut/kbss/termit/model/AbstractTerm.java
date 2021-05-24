@@ -11,8 +11,10 @@ import cz.cvut.kbss.termit.validation.PrimaryNotBlank;
 
 import java.io.Serializable;
 import java.net.URI;
+import java.util.LinkedHashSet;
 import java.util.Objects;
 import java.util.Set;
+import java.util.stream.Collectors;
 
 @MappedSuperclass
 public abstract class AbstractTerm extends Asset<MultilingualString> implements Serializable {
@@ -42,6 +44,26 @@ public abstract class AbstractTerm extends Asset<MultilingualString> implements 
     @Transient
     @OWLDataProperty(iri = Vocabulary.s_p_je_publikovan)
     private Boolean published;
+
+    public AbstractTerm() {
+    }
+
+    protected AbstractTerm(AbstractTerm other) {
+        Objects.requireNonNull(other);
+        setUri(other.getUri());
+        if (other.getLabel() != null) {
+            this.label = new MultilingualString(other.getLabel().getValue());
+        }
+        if (other.getDefinition() != null) {
+            this.definition = new MultilingualString(other.getDefinition().getValue());
+        }
+        this.draft = other.draft;
+        this.glossary = other.glossary;
+        this.vocabulary = other.vocabulary;
+        if (other.getSubTerms() != null) {
+            this.subTerms = other.getSubTerms().stream().map(TermInfo::new).collect(Collectors.toCollection(LinkedHashSet::new));
+        }
+    }
 
     @Override
     public MultilingualString getLabel() {

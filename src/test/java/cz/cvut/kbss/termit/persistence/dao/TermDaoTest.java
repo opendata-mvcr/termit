@@ -7,7 +7,7 @@ import cz.cvut.kbss.jopa.model.query.TypedQuery;
 import cz.cvut.kbss.jopa.vocabulary.DC;
 import cz.cvut.kbss.jopa.vocabulary.SKOS;
 import cz.cvut.kbss.termit.dto.RecentlyModifiedAsset;
-import cz.cvut.kbss.termit.dto.TermDto;
+import cz.cvut.kbss.termit.dto.listing.TermDto;
 import cz.cvut.kbss.termit.dto.TermInfo;
 import cz.cvut.kbss.termit.dto.workspace.VocabularyInfo;
 import cz.cvut.kbss.termit.dto.workspace.WorkspaceMetadata;
@@ -755,5 +755,31 @@ class TermDaoTest extends BaseDaoTestRunner {
             final ValueFactory vf = conn.getValueFactory();
             conn.add(vf.createIRI(child.getUri().toString()), vf.createIRI(SKOS.BROADER), vf.createIRI(parent.getUri().toString()));
         }
+    }
+
+    /**
+     * Bug #1576
+     */
+    @Test
+    void updateClearsPossiblyStaleTermDtoFromCache() {
+        final Term term = Generator.generateTermWithId(vocabulary.getUri());
+        final String originalLabel = "Uppercase Test";
+        term.getLabel().set(Constants.DEFAULT_LANGUAGE, originalLabel);
+        term.setGlossary(vocabulary.getGlossary().getUri());
+        vocabulary.getGlossary().addRootTerm(term);
+        transactional(() -> {
+            em.merge(vocabulary.getGlossary(), descriptorFactory.glossaryDescriptor(vocabulary));
+            em.persist(term, descriptorFactory.termDescriptor(vocabulary));
+            addTermInVocabularyRelationship(term, vocabulary.getUri());
+        });
+        final List<TermDto> dto = sut.findAllRoots(vocabulary, Constants.DEFAULT_PAGE_SPEC, Collections.emptyList());
+        assertEquals(1, dto.size());
+        assertEquals(originalLabel, dto.get(0).getLabel().get(Constants.DEFAULT_LANGUAGE));
+        final String newLabel = originalLabel.toLowerCase();
+        term.setLabel(MultilingualString.create(newLabel, Constants.DEFAULT_LANGUAGE));
+        transactional(() -> sut.update(term));
+        final List<TermDto> result = sut.findAllRoots(vocabulary, Constants.DEFAULT_PAGE_SPEC, Collections.emptyList());
+        assertEquals(1, result.size());
+        assertEquals(newLabel, result.get(0).getLabel().get(Constants.DEFAULT_LANGUAGE));
     }
 }

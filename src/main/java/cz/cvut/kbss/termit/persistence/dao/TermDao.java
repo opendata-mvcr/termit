@@ -19,7 +19,7 @@ import cz.cvut.kbss.jopa.model.descriptors.Descriptor;
 import cz.cvut.kbss.jopa.model.query.TypedQuery;
 import cz.cvut.kbss.jopa.vocabulary.SKOS;
 import cz.cvut.kbss.termit.asset.provenance.ModifiesData;
-import cz.cvut.kbss.termit.dto.TermDto;
+import cz.cvut.kbss.termit.dto.listing.TermDto;
 import cz.cvut.kbss.termit.dto.TermInfo;
 import cz.cvut.kbss.termit.exception.PersistenceException;
 import cz.cvut.kbss.termit.model.AbstractTerm;
@@ -28,6 +28,7 @@ import cz.cvut.kbss.termit.model.Vocabulary;
 import cz.cvut.kbss.termit.persistence.DescriptorFactory;
 import cz.cvut.kbss.termit.persistence.PersistenceUtils;
 import cz.cvut.kbss.termit.persistence.dao.workspace.WorkspaceBasedAssetDao;
+import cz.cvut.kbss.termit.persistence.dao.util.SparqlResultToTermInfoMapper;
 import cz.cvut.kbss.termit.util.ConfigParam;
 import cz.cvut.kbss.termit.util.Configuration;
 import cz.cvut.kbss.termit.util.Constants;
@@ -40,17 +41,18 @@ import org.springframework.stereotype.Repository;
 import java.net.URI;
 import java.util.*;
 import java.util.stream.Collectors;
-import java.util.stream.Stream;
 
 @Repository
 public class TermDao extends WorkspaceBasedAssetDao<Term> {
 
     private static final URI LABEL_PROP = URI.create(SKOS.PREF_LABEL);
 
+    private final Comparator<TermInfo> termInfoComparator;
 
     @Autowired
     public TermDao(EntityManager em, Configuration config, DescriptorFactory descriptorFactory, PersistenceUtils persistenceUtils) {
         super(Term.class, em, config, descriptorFactory, persistenceUtils);
+        this.termInfoComparator = Comparator.comparing(t -> t.getLabel().get(config.get(ConfigParam.LANGUAGE)));
     }
 
     @Override
@@ -64,7 +66,12 @@ public class TermDao extends WorkspaceBasedAssetDao<Term> {
             final URI vocabularyIri = resolveVocabularyIri(id);
             final Optional<Term> result = Optional.ofNullable(
                     em.find(Term.class, id, descriptorFactory.termDescriptor(vocabularyIri)));
-            result.ifPresent(t -> loadAdditionTermMetadata(t, Collections.singleton(persistenceUtils.resolveVocabularyContext(vocabularyIri))));
+            result.ifPresent(r -> {
+                r.setSubTerms(loadSubTerms(r));
+                r.setInverseRelated(loadInverseRelatedTerms(r));
+                r.setInverseRelatedMatch(loadInverseRelatedMatchTerms(r));
+                r.setInverseExactMatchTerms(loadInverseExactMatchTerms(r));
+            });
             return result;
         } catch (RuntimeException e) {
             throw new PersistenceException(e);
@@ -92,6 +99,57 @@ public class TermDao extends WorkspaceBasedAssetDao<Term> {
         final Descriptor descriptor = descriptorFactory.termDescriptor((URI) null);
         contexts.forEach(descriptor::addContext);
         return descriptor;
+    }
+
+    public void detach(Term term) {
+        Objects.requireNonNull(term);
+        em.detach(term);
+    }
+
+    /**
+     * Loads terms whose relatedness to the specified term is inferred due to the symmetric of SKOS related.
+     *
+     * @param term Term to load related terms for
+     */
+    private Set<TermInfo> loadInverseRelatedTerms(Term term) {
+        return loadTermInfo(term, SKOS.RELATED, term.getRelated() != null ? term.getRelated() : Collections.emptySet());
+    }
+
+    private Set<TermInfo> loadTermInfo(Term term, String property, Collection<TermInfo> exclude) {
+        final List<?> inverse = em.createNativeQuery("SELECT ?inverse ?label ?vocabulary WHERE {" +
+                "?inverse ?property ?term ;" +
+                "a ?type ;" +
+                "?hasLabel ?label ;" +
+                "?inVocabulary ?vocabulary . " +
+                "FILTER (?inverse NOT IN (?exclude))" +
+                "} ORDER BY ?inverse").setParameter("property", URI.create(property))
+                .setParameter("term", term)
+                .setParameter("type", typeUri)
+                .setParameter("hasLabel", labelProperty())
+                .setParameter("inVocabulary", URI.create(cz.cvut.kbss.termit.util.Vocabulary.s_p_je_pojmem_ze_slovniku))
+                .setParameter("exclude", exclude)
+                .getResultList();
+        final List<TermInfo> result = new SparqlResultToTermInfoMapper().map(inverse);
+        result.sort(termInfoComparator);
+        return new LinkedHashSet<>(result);
+    }
+
+    /**
+     * Loads terms whose relatedness to the specified term is inferred due to the symmetric of SKOS relatedMatch.
+     *
+     * @param term Term to load related terms for
+     */
+    private Set<TermInfo> loadInverseRelatedMatchTerms(Term term) {
+        return loadTermInfo(term, SKOS.RELATED_MATCH, term.getRelatedMatch() != null ? term.getRelatedMatch() : Collections.emptySet());
+    }
+
+    /**
+     * Loads terms whose exact match to the specified term is inferred due to the symmetric of SKOS exactMatch.
+     *
+     * @param term Term to load related terms for
+     */
+    private Set<TermInfo> loadInverseExactMatchTerms(Term term) {
+        return loadTermInfo(term, SKOS.EXACT_MATCH, term.getExactMatchTerms() != null ? term.getExactMatchTerms() : Collections.emptySet());
     }
 
     /**
@@ -132,7 +190,8 @@ public class TermDao extends WorkspaceBasedAssetDao<Term> {
         try {
             // Evict possibly cached instance loaded from default context
             em.getEntityManagerFactory().getCache().evict(Term.class, entity.getUri(), null);
-            final Term original = em.find(Term.class, entity.getUri(), descriptorFactory.termDescriptor(entity));
+            em.getEntityManagerFactory().getCache().evict(TermDto.class, entity.getUri(), null);
+            final Term original = em.find(Term.class, entity.getUri(),descriptorFactory.termDescriptor(entity));
             entity.setDefinitionSource(original.getDefinitionSource());
             return em.merge(entity, descriptorFactory.termDescriptor(entity.getVocabulary()));
         } catch (RuntimeException e) {
@@ -489,26 +548,26 @@ public class TermDao extends WorkspaceBasedAssetDao<Term> {
      * @param parent Parent term
      */
     private Set<TermInfo> loadSubTermInfo(AbstractTerm parent, Set<URI> graphs) {
-        final Stream<TermInfo> subTermsStream = em.createNativeQuery("SELECT ?entity ?label ?vocabulary WHERE {" +
+        final List<?> subTermsStream = em.createNativeQuery("SELECT ?entity ?label ?vocabulary WHERE {" +
                 "GRAPH ?g { " +
                 "?entity a ?type ;" +
                 "?hasLabel ?label ." +
-                "FILTER (lang(?label) = ?labelLang) ." +
                 "}" +
                 "?entity ?broader ?parent ; " + // Let broader be outside of the graph to allow including inferences
                 "?inVocabulary ?vocabulary ." +
                 "FILTER (?g in (?graphs))" +
-                "} ORDER BY LCASE(?label)", "TermInfo")
+                "} ORDER BY ?entity")
                 .setParameter("type", typeUri)
                 .setParameter("broader", URI.create(SKOS.BROADER))
                 .setParameter("parent", parent)
                 .setParameter("hasLabel", LABEL_PROP)
                 .setParameter("inVocabulary", URI.create(cz.cvut.kbss.termit.util.Vocabulary.s_p_je_pojmem_ze_slovniku))
                 .setParameter("graphs", graphs)
-                .setParameter("labelLang", config.get(ConfigParam.LANGUAGE))
-                .getResultStream();
+                .getResultList();
         // Use LinkedHashSet to preserve term order
-        return subTermsStream.collect(Collectors.toCollection(LinkedHashSet::new));
+        final List<TermInfo> result = new SparqlResultToTermInfoMapper().map(subTerms);
+        result.sort(termInfoComparator);
+        return new LinkedHashSet<>(result);
     }
 
     private boolean isPublished(AbstractTerm term) {
