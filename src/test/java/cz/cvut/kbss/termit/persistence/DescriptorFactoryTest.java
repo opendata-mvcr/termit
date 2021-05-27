@@ -1,13 +1,16 @@
 /**
  * TermIt Copyright (C) 2019 Czech Technical University in Prague
  * <p>
- * This program is free software: you can redistribute it and/or modify it under the terms of the GNU General Public License as published by
- * the Free Software Foundation, either version 3 of the License, or (at your option) any later version.
+ * This program is free software: you can redistribute it and/or modify it under the terms of the GNU General Public
+ * License as published by the Free Software Foundation, either version 3 of the License, or (at your option) any later
+ * version.
  * <p>
- * This program is distributed in the hope that it will be useful, but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License for more details.
+ * This program is distributed in the hope that it will be useful, but WITHOUT ANY WARRANTY; without even the implied
+ * warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License for more
+ * details.
  * <p>
- * You should have received a copy of the GNU General Public License along with this program.  If not, see <https://www.gnu.org/licenses/>.
+ * You should have received a copy of the GNU General Public License along with this program.  If not, see
+ * <https://www.gnu.org/licenses/>.
  */
 package cz.cvut.kbss.termit.persistence;
 
@@ -80,9 +83,9 @@ class DescriptorFactoryTest extends BaseDaoTestRunner {
     void termDescriptorCreatesSimpleTermDescriptorWhenNoParentsAreProvided() {
         final Descriptor result = sut.termDescriptor(term);
         assertEquals(Collections.singleton(persistenceUtils.resolveVocabularyContext(vocabulary.getUri())),
-                result.getContexts());
+            result.getContexts());
         assertEquals(Collections.singleton(persistenceUtils.resolveVocabularyContext(vocabulary.getUri())),
-                result.getAttributeContexts(parentFieldSpec));
+            result.getAttributeContexts(parentFieldSpec));
     }
 
     @Test
@@ -92,20 +95,32 @@ class DescriptorFactoryTest extends BaseDaoTestRunner {
         term.addParentTerm(parent);
         final Descriptor result = sut.termDescriptor(term);
         assertEquals(Collections.singleton(persistenceUtils.resolveVocabularyContext(vocabulary.getUri())),
-                result.getContexts());
+            result.getContexts());
         assertEquals(Collections.singleton(persistenceUtils.resolveVocabularyContext(vocabulary.getUri())),
-                result.getAttributeContexts(parentFieldSpec));
+            result.getAttributeContexts(parentFieldSpec));
     }
 
     @Test
     void termDescriptorCreatesDescriptorWithParentTermContextsCorrespondingToContextsOfVocabulariesInWorkspace() {
         final Set<URI> vocabUris =
-                IntStream.range(0, 5).mapToObj(i -> Generator.generateUri()).collect(Collectors.toSet());
+            IntStream.range(0, 5).mapToObj(i -> Generator.generateUri()).collect(Collectors.toSet());
         final WorkspaceMetadata wsMetadata = workspaceMetadataProvider.getCurrentWorkspaceMetadata();
         doReturn(vocabUris).when(wsMetadata).getVocabularyContexts();
         final Descriptor result = sut.termDescriptor(term);
         assertEquals(Collections.singleton(persistenceUtils.resolveVocabularyContext(vocabulary.getUri())),
-                result.getContexts());
+            result.getContexts());
+        assertEquals(vocabUris, result.getAttributeDescriptor(parentFieldSpec).getContexts());
+    }
+
+    @Test
+    void termDescriptorCreatesDescriptorWithExactMatchesContextCorrespondingToContextsOfVocabulariesInWorkspace() {
+        final Set<URI> vocabUris =
+            IntStream.range(0, 5).mapToObj(i -> Generator.generateUri()).collect(Collectors.toSet());
+        final WorkspaceMetadata wsMetadata = workspaceMetadataProvider.getCurrentWorkspaceMetadata();
+        doReturn(vocabUris).when(wsMetadata).getVocabularyContexts();
+        final Descriptor result = sut.termDescriptor(term);
+        assertEquals(Collections.singleton(persistenceUtils.resolveVocabularyContext(vocabulary.getUri())),
+            result.getContexts());
         assertEquals(vocabUris, result.getAttributeDescriptor(parentFieldSpec).getContexts());
     }
 
@@ -126,7 +141,7 @@ class DescriptorFactoryTest extends BaseDaoTestRunner {
     @Test
     void termDescriptorCreatesDescriptorWithVocabularyAndParentTermsVocabularyFieldInDefaultContext() throws Exception {
         final Set<URI> vocabUris =
-                IntStream.range(0, 5).mapToObj(i -> Generator.generateUri()).collect(Collectors.toSet());
+            IntStream.range(0, 5).mapToObj(i -> Generator.generateUri()).collect(Collectors.toSet());
         final WorkspaceMetadata wsMetadata = workspaceMetadataProvider.getCurrentWorkspaceMetadata();
         doReturn(vocabUris).when(wsMetadata).getVocabularyContexts();
         final Descriptor result = sut.termDescriptor(term);

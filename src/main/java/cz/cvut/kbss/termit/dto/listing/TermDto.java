@@ -1,6 +1,5 @@
-package cz.cvut.kbss.termit.dto;
+package cz.cvut.kbss.termit.dto.listing;
 
-import cz.cvut.kbss.jopa.model.MultilingualString;
 import cz.cvut.kbss.jopa.model.annotations.FetchType;
 import cz.cvut.kbss.jopa.model.annotations.OWLClass;
 import cz.cvut.kbss.jopa.model.annotations.OWLObjectProperty;
@@ -31,22 +30,9 @@ public class TermDto extends AbstractTerm {
     }
 
     public TermDto(Term other) {
-        // This copy constructor is used mainly in tests to allow seamless transformation between the two classes
-        Objects.requireNonNull(other);
-        setUri(other.getUri());
-        if (other.getLabel() != null) {
-            setLabel(new MultilingualString(other.getLabel().getValue()));
-        }
-        if (other.getDefinition() != null) {
-            setDefinition(new MultilingualString(other.getDefinition().getValue()));
-        }
-        setDraft(other.isDraft());
-        setGlossary(other.getGlossary());
+        super(other);
         if (other.getParentTerms() != null) {
             setParentTerms(other.getParentTerms().stream().map(TermDto::new).collect(Collectors.toSet()));
-        }
-        if (other.getSubTerms() != null) {
-            setSubTerms(new LinkedHashSet<>(other.getSubTerms()));
         }
     }
 

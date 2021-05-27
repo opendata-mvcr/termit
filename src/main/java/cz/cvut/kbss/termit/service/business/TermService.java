@@ -1,7 +1,6 @@
 package cz.cvut.kbss.termit.service.business;
 
-import com.github.jsonldjava.utils.Obj;
-import cz.cvut.kbss.termit.dto.TermDto;
+import cz.cvut.kbss.termit.dto.listing.TermDto;
 import cz.cvut.kbss.termit.dto.assignment.TermAssignments;
 import cz.cvut.kbss.termit.exception.NotFoundException;
 import cz.cvut.kbss.termit.model.Term;

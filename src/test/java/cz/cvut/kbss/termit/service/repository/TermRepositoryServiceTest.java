@@ -16,8 +16,12 @@ package cz.cvut.kbss.termit.service.repository;
 
 import cz.cvut.kbss.jopa.model.EntityManager;
 import cz.cvut.kbss.jopa.model.descriptors.Descriptor;
-import cz.cvut.kbss.termit.dto.TermDto;
+import cz.cvut.kbss.jopa.vocabulary.SKOS;
+import cz.cvut.kbss.termit.dto.TermInfo;
 import cz.cvut.kbss.termit.dto.assignment.TermAssignments;
+import cz.cvut.kbss.termit.dto.listing.TermDto;
+import cz.cvut.kbss.termit.dto.workspace.VocabularyInfo;
+import cz.cvut.kbss.termit.dto.workspace.WorkspaceMetadata;
 import cz.cvut.kbss.termit.environment.Environment;
 import cz.cvut.kbss.termit.environment.Generator;
 import cz.cvut.kbss.termit.exception.ResourceExistsException;
@@ -27,15 +31,22 @@ import cz.cvut.kbss.termit.model.assignment.Target;
 import cz.cvut.kbss.termit.model.assignment.TermAssignment;
 import cz.cvut.kbss.termit.model.resource.Resource;
 import cz.cvut.kbss.termit.persistence.DescriptorFactory;
+import cz.cvut.kbss.termit.persistence.dao.workspace.WorkspaceMetadataProvider;
 import cz.cvut.kbss.termit.service.BaseServiceTestRunner;
 import cz.cvut.kbss.termit.util.Constants;
+import org.eclipse.rdf4j.model.ValueFactory;
+import org.eclipse.rdf4j.repository.Repository;
+import org.eclipse.rdf4j.repository.RepositoryConnection;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.domain.PageRequest;
+import org.springframework.test.annotation.DirtiesContext;
 
 import java.net.URI;
+import java.util.Arrays;
 import java.util.Collections;
+import java.util.HashSet;
 import java.util.List;
 import java.util.stream.Collectors;
 
@@ -43,7 +54,10 @@ import static cz.cvut.kbss.termit.environment.Environment.termsToDtos;
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.*;
 import static org.junit.jupiter.api.Assertions.*;
+import static org.mockito.Mockito.doReturn;
+import static org.mockito.Mockito.when;
 
+@DirtiesContext(classMode = DirtiesContext.ClassMode.AFTER_EACH_TEST_METHOD)
 class TermRepositoryServiceTest extends BaseServiceTestRunner {
 
     @Autowired
@@ -51,6 +65,9 @@ class TermRepositoryServiceTest extends BaseServiceTestRunner {
 
     @Autowired
     private DescriptorFactory descriptorFactory;
+
+    @Autowired
+    private WorkspaceMetadataProvider wsMetadataProvider;
 
     @Autowired
     private TermRepositoryService sut;
@@ -68,6 +85,7 @@ class TermRepositoryServiceTest extends BaseServiceTestRunner {
         this.vocabulary = Generator.generateVocabularyWithId();
         this.childVocabulary = Generator.generateVocabularyWithId();
         childVocabulary.setDependencies(Collections.singleton(vocabulary.getUri()));
+        setUpWorkspace();
         transactional(() -> {
             em.persist(vocabulary, descriptorFactory.vocabularyDescriptor(vocabulary));
             em.persist(childVocabulary, descriptorFactory.vocabularyDescriptor(childVocabulary));
@@ -120,8 +138,8 @@ class TermRepositoryServiceTest extends BaseServiceTestRunner {
         term.getLabel().remove(Constants.DEFAULT_LANGUAGE);
 
         final ValidationException exception =
-                assertThrows(
-                        ValidationException.class, () -> sut.addRootTermToVocabulary(term, vocabulary));
+            assertThrows(
+                ValidationException.class, () -> sut.addRootTermToVocabulary(term, vocabulary));
         assertThat(exception.getMessage(), containsString("label must not be blank"));
     }
 
@@ -135,7 +153,7 @@ class TermRepositoryServiceTest extends BaseServiceTestRunner {
         final Term term2 = Generator.generateTerm();
         term2.setUri(uri);
         assertThrows(
-                ResourceExistsException.class, () -> sut.addRootTermToVocabulary(term2, vocabulary));
+            ResourceExistsException.class, () -> sut.addRootTermToVocabulary(term2, vocabulary));
     }
 
     @Test
@@ -315,7 +333,7 @@ class TermRepositoryServiceTest extends BaseServiceTestRunner {
         });
 
         assertTrue(sut.existsInVocabulary(t.getLabel().get(Constants.DEFAULT_LANGUAGE), vocabulary,
-                Constants.DEFAULT_LANGUAGE));
+            Constants.DEFAULT_LANGUAGE));
     }
 
     @Test
@@ -422,7 +440,7 @@ class TermRepositoryServiceTest extends BaseServiceTestRunner {
         sut.update(child);
 
         final Glossary result = em.find(Glossary.class, vocabulary.getGlossary().getUri(),
-                descriptorFactory.glossaryDescriptor(vocabulary));
+            descriptorFactory.glossaryDescriptor(vocabulary));
         assertTrue(result.getRootTerms().contains(parent.getUri()));
         assertFalse(result.getRootTerms().contains(child.getUri()));
     }
@@ -448,7 +466,7 @@ class TermRepositoryServiceTest extends BaseServiceTestRunner {
         sut.update(child);
 
         final Glossary result = em.find(Glossary.class, vocabulary.getGlossary().getUri(),
-                descriptorFactory.glossaryDescriptor(vocabulary));
+            descriptorFactory.glossaryDescriptor(vocabulary));
         assertTrue(result.getRootTerms().contains(parent.getUri()));
         assertTrue(result.getRootTerms().contains(child.getUri()));
     }
@@ -487,7 +505,7 @@ class TermRepositoryServiceTest extends BaseServiceTestRunner {
         assertEquals(childTerm, result);
         assertEquals(childVocabulary.getGlossary().getUri(), childTerm.getGlossary());
         final Glossary childGlossary = em.find(Glossary.class, childVocabulary.getGlossary().getUri(),
-                descriptorFactory.glossaryDescriptor(childVocabulary));
+            descriptorFactory.glossaryDescriptor(childVocabulary));
         assertThat(childGlossary.getRootTerms(), hasItem(childTerm.getUri()));
     }
 
@@ -551,7 +569,7 @@ class TermRepositoryServiceTest extends BaseServiceTestRunner {
         childTerm.setParentTerms(Collections.singleton(newParentTerm));
         sut.update(childTerm);
         assertTrue(sut.findAllRoots(childVocabulary, Constants.DEFAULT_PAGE_SPEC, Collections.emptyList())
-                .contains(new TermDto(childTerm)));
+            .contains(new TermDto(childTerm)));
         em.getEntityManagerFactory().getCache().evictAll();
         final Glossary result = em.find(Glossary.class, childVocabulary.getGlossary().getUri());
         assertTrue(result.getRootTerms().contains(childTerm.getUri()));
@@ -584,5 +602,140 @@ class TermRepositoryServiceTest extends BaseServiceTestRunner {
         });
         term.getLabel().set(Constants.DEFAULT_LANGUAGE, "updated label");
         assertThrows(ValidationException.class, () -> transactional(() -> sut.update(term)));
+    }
+
+    @Test
+    void findConsolidatesRelatedAndRelatedMatchTerms() {
+        final Term term = Generator.generateTermWithId(vocabulary.getUri());
+        final Term related = Generator.generateTermWithId(vocabulary.getUri());
+        final Term inverseRelated = Generator.generateTermWithId(vocabulary.getUri());
+        setUpWorkspace();
+        term.setGlossary(vocabulary.getGlossary().getUri());
+        related.setGlossary(vocabulary.getGlossary().getUri());
+        term.addRelatedTerm(new TermInfo(related));
+        vocabulary.getGlossary().addRootTerm(term);
+        transactional(() -> {
+            em.persist(related, descriptorFactory.termDescriptor(vocabulary));
+            em.persist(term, descriptorFactory.termDescriptor(vocabulary));
+            em.persist(inverseRelated, descriptorFactory.termDescriptor(vocabulary));
+            em.merge(vocabulary.getGlossary(), descriptorFactory.glossaryDescriptor(vocabulary));
+            Generator.addTermInVocabularyRelationship(term, vocabulary.getUri(), em);
+            Generator.addTermInVocabularyRelationship(related, vocabulary.getUri(), em);
+            generateRelatedInverse(term, inverseRelated, SKOS.RELATED);
+        });
+
+        final Term result = sut.findRequired(term.getUri());
+        assertThat(result.getRelated(), hasItems(new TermInfo(related), new TermInfo(inverseRelated)));
+    }
+
+    private void setUpWorkspace() {
+        final WorkspaceMetadata wsMetadata = wsMetadataProvider.getCurrentWorkspaceMetadata();
+        doReturn(new VocabularyInfo(vocabulary.getUri(), vocabulary.getUri(), vocabulary.getUri())).when(wsMetadata)
+            .getVocabularyInfo(vocabulary.getUri());
+        doReturn(new VocabularyInfo(childVocabulary.getUri(), childVocabulary.getUri(), childVocabulary.getUri())).when(wsMetadata)
+            .getVocabularyInfo(childVocabulary.getUri());
+        when(wsMetadata.getVocabularyContexts()).thenReturn(new HashSet<>(Arrays.asList(vocabulary.getUri(), childVocabulary.getUri())));
+        doReturn(new HashSet<>(Arrays.asList(vocabulary.getUri(), childVocabulary.getUri()))).when(wsMetadata).getChangeTrackingContexts();
+    }
+
+    private void generateRelatedInverse(Term term, Term related, String property) {
+        final Repository repo = em.unwrap(Repository.class);
+        try (final RepositoryConnection conn = repo.getConnection()) {
+            final ValueFactory vf = conn.getValueFactory();
+            conn.add(vf.createIRI(related.getUri().toString()), vf.createIRI(property), vf.createIRI(term.getUri().toString()), vf.createIRI(related.getVocabulary().toString()));
+        }
+    }
+
+    @Test
+    void updateDifferentiatesAssertedAndInverseRelatedTermsBeforeMergingStateIntoRepository() {
+        final Term term = Generator.generateTermWithId(vocabulary.getUri());
+        final Term related = Generator.generateTermWithId(vocabulary.getUri());
+        final Term inverseRelated = Generator.generateTermWithId(vocabulary.getUri());
+        term.setGlossary(vocabulary.getGlossary().getUri());
+        related.setGlossary(vocabulary.getGlossary().getUri());
+        term.addRelatedTerm(new TermInfo(related));
+        vocabulary.getGlossary().addRootTerm(term);
+        transactional(() -> {
+            em.persist(related, descriptorFactory.termDescriptor(vocabulary));
+            em.persist(term, descriptorFactory.termDescriptor(vocabulary));
+            em.persist(inverseRelated, descriptorFactory.termDescriptor(vocabulary));
+            em.merge(vocabulary.getGlossary(), descriptorFactory.glossaryDescriptor(vocabulary));
+            Generator.addTermInVocabularyRelationship(term, vocabulary.getUri(), em);
+            Generator.addTermInVocabularyRelationship(related, vocabulary.getUri(), em);
+            generateRelatedInverse(term, inverseRelated, SKOS.RELATED);
+        });
+
+        term.addRelatedTerm(new TermInfo(inverseRelated));
+        term.getLabel().set("cs", "Test aktualizace");
+        sut.update(term);
+
+        final Term result = em.find(Term.class, term.getUri());
+        assertEquals(Collections.singleton(new TermInfo(related)), result.getRelated());
+    }
+
+    @Test
+    void updateDeletesRelatedRelationshipFromOtherSideWhenItWasRemovedFromTargetTerm() {
+        final Term term = Generator.generateTermWithId(vocabulary.getUri());
+        term.setGlossary(vocabulary.getGlossary().getUri());
+        final Term inverseRelated = Generator.generateTermWithId(vocabulary.getUri());
+        inverseRelated.setGlossary(vocabulary.getGlossary().getUri());
+        vocabulary.getGlossary().addRootTerm(term);
+        transactional(() -> {
+            em.persist(term, descriptorFactory.termDescriptor(vocabulary));
+            em.persist(inverseRelated, descriptorFactory.termDescriptor(vocabulary));
+            em.merge(vocabulary.getGlossary(), descriptorFactory.glossaryDescriptor(vocabulary));
+            Generator.addTermInVocabularyRelationship(term, vocabulary.getUri(), em);
+            Generator.addTermInVocabularyRelationship(inverseRelated, vocabulary.getUri(), em);
+            generateRelatedInverse(term, inverseRelated, SKOS.RELATED);
+        });
+
+        term.setRelated(Collections.emptySet());
+        sut.update(term);
+        final Term inverseResult = em.find(Term.class, inverseRelated.getUri());
+        assertThat(inverseResult.getRelated(), anyOf(emptyCollectionOf(TermInfo.class), nullValue()));
+    }
+
+    @Test
+    void updatesDeletesRelatedMatchRelationshipFromOtherSideWhenItWasRemovedFromTargetTerm() {
+        final Term term = Generator.generateTermWithId(vocabulary.getUri());
+        final Term inverseRelatedMatch = Generator.generateTermWithId(childVocabulary.getUri());
+        term.setGlossary(vocabulary.getGlossary().getUri());
+        inverseRelatedMatch.setGlossary(childVocabulary.getGlossary().getUri());
+        vocabulary.getGlossary().addRootTerm(term);
+        transactional(() -> {
+            em.persist(term, descriptorFactory.termDescriptor(vocabulary));
+            em.persist(inverseRelatedMatch, descriptorFactory.termDescriptor(childVocabulary));
+            em.merge(vocabulary.getGlossary(), descriptorFactory.glossaryDescriptor(vocabulary));
+            Generator.addTermInVocabularyRelationship(term, vocabulary.getUri(), em);
+            Generator.addTermInVocabularyRelationship(inverseRelatedMatch, childVocabulary.getUri(), em);
+            generateRelatedInverse(term, inverseRelatedMatch, SKOS.RELATED_MATCH);
+        });
+
+        term.setRelatedMatch(Collections.emptySet());
+        sut.update(term);
+        final Term inverseResult = em.find(Term.class, inverseRelatedMatch.getUri());
+        assertThat(inverseResult.getRelatedMatch(), anyOf(emptyCollectionOf(TermInfo.class), nullValue()));
+    }
+
+    @Test
+    void updateDeletesExactMatchRelationshipsFromOtherSideWhenItWasRemovedFromTargetTerm() {
+        final Term term = Generator.generateTermWithId(vocabulary.getUri());
+        final Term inverseExactMatch = Generator.generateTermWithId(childVocabulary.getUri());
+        term.setGlossary(vocabulary.getGlossary().getUri());
+        inverseExactMatch.setGlossary(childVocabulary.getGlossary().getUri());
+        vocabulary.getGlossary().addRootTerm(term);
+        transactional(() -> {
+            em.persist(term, descriptorFactory.termDescriptor(vocabulary));
+            em.persist(inverseExactMatch, descriptorFactory.termDescriptor(childVocabulary));
+            em.merge(vocabulary.getGlossary(), descriptorFactory.glossaryDescriptor(vocabulary));
+            Generator.addTermInVocabularyRelationship(term, vocabulary.getUri(), em);
+            Generator.addTermInVocabularyRelationship(inverseExactMatch, childVocabulary.getUri(), em);
+            generateRelatedInverse(term, inverseExactMatch, SKOS.EXACT_MATCH);
+        });
+
+        term.setExactMatchTerms(Collections.emptySet());
+        sut.update(term);
+        final Term inverseResult = em.find(Term.class, inverseExactMatch.getUri());
+        assertThat(inverseResult.getExactMatchTerms(), anyOf(emptyCollectionOf(TermInfo.class), nullValue()));
     }
 }
