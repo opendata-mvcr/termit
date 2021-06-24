@@ -1,20 +1,25 @@
 /**
  * TermIt Copyright (C) 2019 Czech Technical University in Prague
  * <p>
- * This program is free software: you can redistribute it and/or modify it under the terms of the GNU General Public License as published by
- * the Free Software Foundation, either version 3 of the License, or (at your option) any later version.
+ * This program is free software: you can redistribute it and/or modify it under the terms of the GNU General Public
+ * License as published by the Free Software Foundation, either version 3 of the License, or (at your option) any later
+ * version.
  * <p>
- * This program is distributed in the hope that it will be useful, but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License for more details.
+ * This program is distributed in the hope that it will be useful, but WITHOUT ANY WARRANTY; without even the implied
+ * warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License for more
+ * details.
  * <p>
- * You should have received a copy of the GNU General Public License along with this program.  If not, see <https://www.gnu.org/licenses/>.
+ * You should have received a copy of the GNU General Public License along with this program.  If not, see
+ * <https://www.gnu.org/licenses/>.
  */
 package cz.cvut.kbss.termit.service.repository;
 
 import cz.cvut.kbss.jopa.model.EntityManager;
 import cz.cvut.kbss.jopa.model.descriptors.Descriptor;
-import cz.cvut.kbss.termit.dto.TermDto;
+import cz.cvut.kbss.jopa.vocabulary.SKOS;
+import cz.cvut.kbss.termit.dto.TermInfo;
 import cz.cvut.kbss.termit.dto.assignment.TermAssignments;
+import cz.cvut.kbss.termit.dto.listing.TermDto;
 import cz.cvut.kbss.termit.environment.Environment;
 import cz.cvut.kbss.termit.environment.Generator;
 import cz.cvut.kbss.termit.exception.ResourceExistsException;
@@ -26,10 +31,14 @@ import cz.cvut.kbss.termit.model.resource.Resource;
 import cz.cvut.kbss.termit.persistence.DescriptorFactory;
 import cz.cvut.kbss.termit.service.BaseServiceTestRunner;
 import cz.cvut.kbss.termit.util.Constants;
+import org.eclipse.rdf4j.model.ValueFactory;
+import org.eclipse.rdf4j.repository.Repository;
+import org.eclipse.rdf4j.repository.RepositoryConnection;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.domain.PageRequest;
+import org.springframework.test.annotation.DirtiesContext;
 
 import java.net.URI;
 import java.util.Collections;
@@ -41,6 +50,7 @@ import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.*;
 import static org.junit.jupiter.api.Assertions.*;
 
+@DirtiesContext(classMode = DirtiesContext.ClassMode.AFTER_EACH_TEST_METHOD)
 class TermRepositoryServiceTest extends BaseServiceTestRunner {
 
     @Autowired
@@ -114,7 +124,7 @@ class TermRepositoryServiceTest extends BaseServiceTestRunner {
     void addTermToVocabularyThrowsValidationExceptionWhenTermNameIsBlank() {
         final Term term = Generator.generateTerm();
         term.setUri(Generator.generateUri());
-        term.getLabel().remove(Constants.DEFAULT_LANGUAGE);
+        term.getLabel().remove(Environment.LANGUAGE);
 
         final ValidationException exception =
                 assertThrows(
@@ -282,7 +292,7 @@ class TermRepositoryServiceTest extends BaseServiceTestRunner {
         final List<Term> terms = Generator.generateTermsWithIds(10);
         terms.forEach(t -> t.setVocabulary(vocabulary.getUri()));
         final List<Term> matching = terms.subList(0, 5);
-        matching.forEach(t -> t.getLabel().set(Constants.DEFAULT_LANGUAGE, "Result + " + t.getLabel()));
+        matching.forEach(t -> t.getLabel().set(Environment.LANGUAGE, "Result + " + t.getLabel()));
 
         vocabulary.getGlossary().setRootTerms(terms.stream().map(Asset::getUri).collect(Collectors.toSet()));
         final Descriptor termDescriptor = descriptorFactory.termDescriptor(vocabulary);
@@ -306,8 +316,8 @@ class TermRepositoryServiceTest extends BaseServiceTestRunner {
             em.merge(vocabulary.getGlossary(), descriptorFactory.glossaryDescriptor(vocabulary));
         });
 
-        assertTrue(sut.existsInVocabulary(t.getLabel().get(Constants.DEFAULT_LANGUAGE), vocabulary,
-                Constants.DEFAULT_LANGUAGE));
+        assertTrue(sut.existsInVocabulary(t.getLabel().get(Environment.LANGUAGE), vocabulary,
+                Environment.LANGUAGE));
     }
 
     @Test
@@ -349,12 +359,12 @@ class TermRepositoryServiceTest extends BaseServiceTestRunner {
 
         childOne.setParentTerms(Collections.singleton(termTwo));
         final String newLabel = "new term label";
-        childOne.getLabel().set(Constants.DEFAULT_LANGUAGE, newLabel);
+        childOne.getLabel().set(Environment.LANGUAGE, newLabel);
         // This is normally inferred
         childOne.setVocabulary(vocabulary.getUri());
         transactional(() -> sut.update(childOne));
         final Term result = em.find(Term.class, childOne.getUri());
-        assertEquals(newLabel, result.getLabel().get(Constants.DEFAULT_LANGUAGE));
+        assertEquals(newLabel, result.getLabel().get(Environment.LANGUAGE));
         assertEquals(Collections.singleton(termTwo), result.getParentTerms());
     }
 
@@ -368,7 +378,7 @@ class TermRepositoryServiceTest extends BaseServiceTestRunner {
             em.merge(vocabulary);
         });
 
-        t.getLabel().remove(Constants.DEFAULT_LANGUAGE);
+        t.getLabel().remove(Environment.LANGUAGE);
         assertThrows(ValidationException.class, () -> sut.update(t));
     }
 
@@ -476,7 +486,7 @@ class TermRepositoryServiceTest extends BaseServiceTestRunner {
         final List<Term> terms = Generator.generateTermsWithIds(10);
         final String searchString = "Result";
         final List<Term> matching = terms.subList(0, 5);
-        matching.forEach(t -> t.getLabel().set(Constants.DEFAULT_LANGUAGE, searchString + " " + t.getLabel()));
+        matching.forEach(t -> t.getLabel().set(Environment.LANGUAGE, searchString + " " + t.getLabel()));
 
         vocabulary.getGlossary().setRootTerms(terms.stream().map(Asset::getUri).collect(Collectors.toSet()));
         terms.forEach(t -> t.setVocabulary(vocabulary.getUri()));
@@ -489,6 +499,27 @@ class TermRepositoryServiceTest extends BaseServiceTestRunner {
         List<TermDto> result = sut.findAllIncludingImported(searchString, vocabulary);
         assertEquals(matching.size(), result.size());
         assertTrue(termsToDtos(matching).containsAll(result));
+    }
+
+    @Test
+    void findAllWithSearchStringReturnsMatchingTerms() {
+        final List<TermDto> terms = Generator
+            .generateTermsWithIds(10)
+            .stream().map(TermDto::new).collect(Collectors.toList());
+        final String searchString = "Result";
+        final List<TermDto> matching = terms.subList(0, 5);
+        matching.forEach(t -> t.getLabel().set(Environment.LANGUAGE, searchString + " " + t.getLabel()));
+
+        vocabulary.getGlossary().setRootTerms(terms.stream().map(Asset::getUri).collect(Collectors.toSet()));
+        terms.forEach(t -> t.setVocabulary(vocabulary.getUri()));
+        final Descriptor termDescriptor = descriptorFactory.termDescriptor(vocabulary);
+        transactional(() -> {
+            terms.forEach(t -> em.persist(t, termDescriptor));
+        });
+
+        List<TermDto> result = sut.findAll(searchString);
+        assertEquals(matching.size(), result.size());
+        assertTrue(matching.containsAll(result));
     }
 
     @Test
@@ -582,5 +613,126 @@ class TermRepositoryServiceTest extends BaseServiceTestRunner {
         sut.remove(term);
         final Term result = em.find(Term.class, term.getUri());
         assertNull(result);
+    }
+
+    @Test
+    void findConsolidatesRelatedAndRelatedMatchTerms() {
+        final Term term = Generator.generateTermWithId(vocabulary.getUri());
+        final Term related = Generator.generateTermWithId(vocabulary.getUri());
+        final Term inverseRelated = Generator.generateTermWithId(vocabulary.getUri());
+        term.setGlossary(vocabulary.getGlossary().getUri());
+        related.setGlossary(vocabulary.getGlossary().getUri());
+        term.addRelatedTerm(new TermInfo(related));
+        vocabulary.getGlossary().addRootTerm(term);
+        transactional(() -> {
+            em.persist(related, descriptorFactory.termDescriptor(vocabulary));
+            em.persist(term, descriptorFactory.termDescriptor(vocabulary));
+            em.persist(inverseRelated, descriptorFactory.termDescriptor(vocabulary));
+            em.merge(vocabulary.getGlossary(), descriptorFactory.glossaryDescriptor(vocabulary));
+            Generator.addTermInVocabularyRelationship(term, vocabulary.getUri(), em);
+            Generator.addTermInVocabularyRelationship(related, vocabulary.getUri(), em);
+            generateRelatedInverse(term, inverseRelated, SKOS.RELATED);
+        });
+
+        final Term result = sut.findRequired(term.getUri());
+        assertThat(result.getRelated(), hasItems(new TermInfo(related), new TermInfo(inverseRelated)));
+    }
+
+    private void generateRelatedInverse(Term term, Term related, String property) {
+        final Repository repo = em.unwrap(Repository.class);
+        try (final RepositoryConnection conn = repo.getConnection()) {
+            final ValueFactory vf = conn.getValueFactory();
+            conn.add(vf.createIRI(related.getUri().toString()), vf.createIRI(property), vf.createIRI(term.getUri().toString()));
+        }
+    }
+
+    @Test
+    void updateDifferentiatesAssertedAndInverseRelatedTermsBeforeMergingStateIntoRepository() {
+        final Term term = Generator.generateTermWithId(vocabulary.getUri());
+        final Term related = Generator.generateTermWithId(vocabulary.getUri());
+        final Term inverseRelated = Generator.generateTermWithId(vocabulary.getUri());
+        term.setGlossary(vocabulary.getGlossary().getUri());
+        related.setGlossary(vocabulary.getGlossary().getUri());
+        term.addRelatedTerm(new TermInfo(related));
+        vocabulary.getGlossary().addRootTerm(term);
+        transactional(() -> {
+            em.persist(related, descriptorFactory.termDescriptor(vocabulary));
+            em.persist(term, descriptorFactory.termDescriptor(vocabulary));
+            em.persist(inverseRelated, descriptorFactory.termDescriptor(vocabulary));
+            em.merge(vocabulary.getGlossary(), descriptorFactory.glossaryDescriptor(vocabulary));
+            Generator.addTermInVocabularyRelationship(term, vocabulary.getUri(), em);
+            Generator.addTermInVocabularyRelationship(related, vocabulary.getUri(), em);
+            generateRelatedInverse(term, inverseRelated, SKOS.RELATED);
+        });
+
+        term.addRelatedTerm(new TermInfo(inverseRelated));
+        term.getLabel().set("cs", "Test aktualizace");
+        sut.update(term);
+
+        final Term result = em.find(Term.class, term.getUri());
+        assertEquals(Collections.singleton(new TermInfo(related)), result.getRelated());
+    }
+
+    @Test
+    void updateDeletesRelatedRelationshipFromOtherSideWhenItWasRemovedFromTargetTerm() {
+        final Term term = Generator.generateTermWithId(vocabulary.getUri());
+        final Term inverseRelated = Generator.generateTermWithId(vocabulary.getUri());
+        term.setGlossary(vocabulary.getGlossary().getUri());
+        vocabulary.getGlossary().addRootTerm(term);
+        transactional(() -> {
+            em.persist(term, descriptorFactory.termDescriptor(vocabulary));
+            em.persist(inverseRelated, descriptorFactory.termDescriptor(vocabulary));
+            em.merge(vocabulary.getGlossary(), descriptorFactory.glossaryDescriptor(vocabulary));
+            Generator.addTermInVocabularyRelationship(term, vocabulary.getUri(), em);
+            Generator.addTermInVocabularyRelationship(inverseRelated, vocabulary.getUri(), em);
+            generateRelatedInverse(term, inverseRelated, SKOS.RELATED);
+        });
+
+        term.setRelated(Collections.emptySet());
+        sut.update(term);
+        final Term inverseResult = em.find(Term.class, inverseRelated.getUri());
+        assertThat(inverseResult.getRelated(), anyOf(emptyCollectionOf(TermInfo.class), nullValue()));
+    }
+
+    @Test
+    void updatesDeletesRelatedMatchRelationshipFromOtherSideWhenItWasRemovedFromTargetTerm() {
+        final Term term = Generator.generateTermWithId(vocabulary.getUri());
+        final Term inverseRelatedMatch = Generator.generateTermWithId(childVocabulary.getUri());
+        term.setGlossary(vocabulary.getGlossary().getUri());
+        vocabulary.getGlossary().addRootTerm(term);
+        transactional(() -> {
+            em.persist(term, descriptorFactory.termDescriptor(vocabulary));
+            em.persist(inverseRelatedMatch, descriptorFactory.termDescriptor(childVocabulary));
+            em.merge(vocabulary.getGlossary(), descriptorFactory.glossaryDescriptor(vocabulary));
+            Generator.addTermInVocabularyRelationship(term, vocabulary.getUri(), em);
+            Generator.addTermInVocabularyRelationship(inverseRelatedMatch, childVocabulary.getUri(), em);
+            generateRelatedInverse(term, inverseRelatedMatch, SKOS.RELATED_MATCH);
+        });
+
+        term.setRelatedMatch(Collections.emptySet());
+        sut.update(term);
+        final Term inverseResult = em.find(Term.class, inverseRelatedMatch.getUri());
+        assertThat(inverseResult.getRelatedMatch(), anyOf(emptyCollectionOf(TermInfo.class), nullValue()));
+    }
+
+    @Test
+    void updateDeletesExactMatchRelationshipsFromOtherSideWhenItWasRemovedFromTargetTerm() {
+        final Term term = Generator.generateTermWithId(vocabulary.getUri());
+        final Term inverseExactMatch = Generator.generateTermWithId(childVocabulary.getUri());
+        term.setGlossary(vocabulary.getGlossary().getUri());
+        vocabulary.getGlossary().addRootTerm(term);
+        transactional(() -> {
+            em.persist(term, descriptorFactory.termDescriptor(vocabulary));
+            em.persist(inverseExactMatch, descriptorFactory.termDescriptor(childVocabulary));
+            em.merge(vocabulary.getGlossary(), descriptorFactory.glossaryDescriptor(vocabulary));
+            Generator.addTermInVocabularyRelationship(term, vocabulary.getUri(), em);
+            Generator.addTermInVocabularyRelationship(inverseExactMatch, childVocabulary.getUri(), em);
+            generateRelatedInverse(term, inverseExactMatch, SKOS.EXACT_MATCH);
+        });
+
+        term.setExactMatchTerms(Collections.emptySet());
+        sut.update(term);
+        final Term inverseResult = em.find(Term.class, inverseExactMatch.getUri());
+        assertThat(inverseResult.getExactMatchTerms(), anyOf(emptyCollectionOf(TermInfo.class), nullValue()));
     }
 }

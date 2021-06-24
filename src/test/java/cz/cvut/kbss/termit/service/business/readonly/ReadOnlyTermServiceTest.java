@@ -1,6 +1,6 @@
 package cz.cvut.kbss.termit.service.business.readonly;
 
-import cz.cvut.kbss.termit.dto.TermDto;
+import cz.cvut.kbss.termit.dto.listing.TermDto;
 import cz.cvut.kbss.termit.dto.TermInfo;
 import cz.cvut.kbss.termit.dto.readonly.ReadOnlyTerm;
 import cz.cvut.kbss.termit.environment.Generator;
@@ -50,7 +50,7 @@ class ReadOnlyTermServiceTest {
     void findAllRetrievesAllTermsFromServiceAndTransformsThemToReadOnlyVersion() {
         final Vocabulary vocabulary = Generator.generateVocabularyWithId();
         final List<Term> terms = Generator.generateTermsWithIds(5);
-        when(termService.findAll(any())).thenReturn(terms);
+        when(termService.findAll(any(Vocabulary.class))).thenReturn(terms);
 
         final List<TermDto> result = sut.findAll(vocabulary);
         assertEquals(termsToDtos(terms), result);

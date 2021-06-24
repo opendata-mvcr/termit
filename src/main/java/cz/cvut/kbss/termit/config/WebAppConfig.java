@@ -20,12 +20,14 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.module.SimpleModule;
 import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule;
 import cz.cvut.kbss.jopa.model.MultilingualString;
+import cz.cvut.kbss.jopa.sessions.UnitOfWorkImpl;
 import cz.cvut.kbss.jsonld.JsonLd;
 import cz.cvut.kbss.jsonld.jackson.JsonLdModule;
 import cz.cvut.kbss.termit.rest.servlet.DiagnosticsContextFilter;
 import cz.cvut.kbss.termit.util.AdjustedUriTemplateProxyServlet;
 import cz.cvut.kbss.termit.util.ConfigParam;
 import cz.cvut.kbss.termit.util.Constants;
+import cz.cvut.kbss.termit.util.json.ManageableIgnoreMixin;
 import cz.cvut.kbss.termit.util.json.MultilingualStringDeserializer;
 import cz.cvut.kbss.termit.util.json.MultilingualStringSerializer;
 import org.springframework.boot.web.servlet.FilterRegistrationBean;
@@ -51,17 +53,15 @@ import java.util.Collections;
 import java.util.List;
 import java.util.Properties;
 
-import static cz.cvut.kbss.termit.util.ConfigParam.REPOSITORY_URL;
-
 @Configuration
 @EnableWebMvc
 @EnableAsync
 public class WebAppConfig implements WebMvcConfigurer {
 
-    private final cz.cvut.kbss.termit.util.Configuration config;
+    private final cz.cvut.kbss.termit.util.Configuration.Repository config;
 
     public WebAppConfig(cz.cvut.kbss.termit.util.Configuration config) {
-        this.config = config;
+        this.config = config.getRepository();
     }
 
     @Bean(name = "objectMapper")
@@ -79,12 +79,14 @@ public class WebAppConfig implements WebMvcConfigurer {
      */
     public static ObjectMapper createJsonObjectMapper() {
         final ObjectMapper objectMapper = new ObjectMapper();
-        objectMapper.setSerializationInclusion(JsonInclude.Include.NON_NULL);
+        objectMapper.setSerializationInclusion(JsonInclude.Include.ALWAYS);
         objectMapper.configure(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES, false);
         final SimpleModule multilingualStringModule = new SimpleModule();
         multilingualStringModule.addSerializer(MultilingualString.class, new MultilingualStringSerializer());
         multilingualStringModule.addDeserializer(MultilingualString.class, new MultilingualStringDeserializer());
         objectMapper.registerModule(multilingualStringModule);
+        // Ignore UoW references injected into entities
+        objectMapper.addMixIn(UnitOfWorkImpl.class, ManageableIgnoreMixin.class);
         // JSR 310 (Java 8 DateTime API)
         objectMapper.registerModule(new JavaTimeModule());
         return objectMapper;
@@ -123,10 +125,10 @@ public class WebAppConfig implements WebMvcConfigurer {
         controller.setServletClass(AdjustedUriTemplateProxyServlet.class);
         controller.setBeanName("sparqlEndpointProxyServlet");
         final Properties p = new Properties();
-        p.setProperty("targetUri", config.get(REPOSITORY_URL));
+        p.setProperty("targetUri", config.getUrl());
         p.setProperty("log", "false");
-        p.setProperty(ConfigParam.REPO_USERNAME.toString(), config.get(ConfigParam.REPO_USERNAME, ""));
-        p.setProperty(ConfigParam.REPO_PASSWORD.toString(), config.get(ConfigParam.REPO_PASSWORD, ""));
+        p.setProperty(ConfigParam.REPO_USERNAME.toString(), config.getUsername() != null ? config.getUsername() : "");
+        p.setProperty(ConfigParam.REPO_PASSWORD.toString(), config.getPassword()  != null ? config.getPassword() : "");
         controller.setInitParameters(p);
         controller.afterPropertiesSet();
         return controller;

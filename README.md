@@ -115,7 +115,8 @@ used by TermIt.
 ## Monitoring
 
 We are using [JavaMelody](https://github.com/javamelody/javamelody) for monitoring the application and its usage. The data are available
-on the `/monitoring` endpoint and are secured using _basic_ authentication, see `SecurityConstants` for credentials.
+on the `/monitoring` endpoint and are secured using _basic_ authentication. Credentials are configured using the `javamelody.init-parameters.authorized-users`
+parameter in `application.yml` (see the [JavaMelody Spring Boot Starter docs](https://github.com/javamelody/javamelody/wiki/SpringBootStarter)).
 
 ## Documentation
 
@@ -126,11 +127,13 @@ Build configuration and deployment is described in [setup.md](doc/setup.md).
 ## Dockerization
 
 The docker image of TermIt backend can be built by 
-`docker build -t kbss-cvut:termit .` 
-An optional argument is `REPOSITORY_URL` pointing to the RDF4J/GraphDB repository.
+`docker build -t termit-server .` 
 
 Then, TermIt can be run and exposed at the port 8080 as 
-`sudo docker run -p 8080:8080 kbss-cvut:termit`
+`sudo docker run -e REPOSITORY_URL=<GRAPHDB_REPOSITORY_URL> -p 8080:8080 termit-server`
+
+An optional argument is `<GRAPHDB_REPOSITORY_URL>` pointing to the RDF4J/GraphDB repository.
+
 
 ## License
 

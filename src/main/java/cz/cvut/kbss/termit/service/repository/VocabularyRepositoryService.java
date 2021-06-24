@@ -11,9 +11,12 @@ import cz.cvut.kbss.termit.service.IdentifierResolver;
 import cz.cvut.kbss.termit.service.business.TermService;
 import cz.cvut.kbss.termit.service.business.VocabularyService;
 import cz.cvut.kbss.termit.service.importer.VocabularyImportService;
-import cz.cvut.kbss.termit.util.ConfigParam;
+import cz.cvut.kbss.termit.util.Configuration;
 import cz.cvut.kbss.termit.util.Utils;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.cache.annotation.CacheConfig;
+import org.springframework.cache.annotation.CacheEvict;
+import org.springframework.cache.annotation.Cacheable;
 import org.springframework.context.annotation.Lazy;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -24,6 +27,7 @@ import java.net.URI;
 import java.util.*;
 import java.util.stream.Collectors;
 
+@CacheConfig(cacheNames = "vocabularies")
 @Service
 public class VocabularyRepositoryService extends BaseAssetRepositoryService<Vocabulary> implements VocabularyService {
 
@@ -39,11 +43,14 @@ public class VocabularyRepositoryService extends BaseAssetRepositoryService<Voca
 
     final ResourceRepositoryService resourceService;
 
+    private final Configuration.Namespace config;
+
     @Autowired
     public VocabularyRepositoryService(VocabularyDao vocabularyDao, IdentifierResolver idResolver,
                                        Validator validator, ChangeRecordService changeRecordService,
                                        @Lazy TermService termService, VocabularyImportService importService,
-                                       @Lazy ResourceRepositoryService resourceService) {
+                                       @Lazy ResourceRepositoryService resourceService,
+                                       final Configuration config) {
         super(validator);
         this.vocabularyDao = vocabularyDao;
         this.idResolver = idResolver;
@@ -51,6 +58,7 @@ public class VocabularyRepositoryService extends BaseAssetRepositoryService<Voca
         this.changeRecordService = changeRecordService;
         this.importService = importService;
         this.resourceService = resourceService;
+        this.config = config.getNamespace();
     }
 
     @Override
@@ -58,11 +66,23 @@ public class VocabularyRepositoryService extends BaseAssetRepositoryService<Voca
         return vocabularyDao;
     }
 
+    @Cacheable
+    @Override
+    public List<Vocabulary> findAll() {
+        return super.findAll();
+    }
+
+    @CacheEvict(allEntries = true)
+    @Override
+    public void persist(Vocabulary instance) {
+        super.persist(instance);
+    }
+
     @Override
     protected void prePersist(Vocabulary instance) {
         super.prePersist(instance);
         if (instance.getUri() == null) {
-            instance.setUri(idResolver.generateIdentifier(ConfigParam.NAMESPACE_VOCABULARY,
+            instance.setUri(idResolver.generateIdentifier(config.getVocabulary(),
                 instance.getLabel()));
         }
         verifyIdentifierUnique(instance);
@@ -83,6 +103,7 @@ public class VocabularyRepositoryService extends BaseAssetRepositoryService<Voca
         verifyVocabularyImports(instance);
     }
 
+    @CacheEvict(allEntries = true)
     @Override
     @Transactional
     public Vocabulary update(Vocabulary vNew) {
@@ -127,9 +148,9 @@ public class VocabularyRepositoryService extends BaseAssetRepositoryService<Voca
     }
 
     @Override
-    public Vocabulary importVocabulary(MultipartFile file) {
+    public Vocabulary importVocabulary(boolean rename, URI vocabularyIri, MultipartFile file) {
         Objects.requireNonNull(file);
-        return importService.importVocabulary(file);
+        return importService.importVocabulary(rename, vocabularyIri, file);
     }
 
     @Override
@@ -137,6 +158,7 @@ public class VocabularyRepositoryService extends BaseAssetRepositoryService<Voca
         return vocabularyDao.getLastModified();
     }
 
+    @CacheEvict(allEntries = true)
     @Override
     public void remove(Vocabulary instance) {
         if (instance.getDocument() != null) {
@@ -162,5 +184,10 @@ public class VocabularyRepositoryService extends BaseAssetRepositoryService<Voca
     @Override
     public List<ValidationResult> validateContents(Vocabulary instance) {
         return vocabularyDao.validateContents(instance);
+    }
+
+    @Override
+    public Integer getTermCount(Vocabulary vocabulary) {
+        return vocabularyDao.getTermCount(vocabulary);
     }
 }

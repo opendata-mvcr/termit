@@ -15,6 +15,7 @@ package cz.cvut.kbss.termit.environment;
 import cz.cvut.kbss.jopa.model.EntityManager;
 import cz.cvut.kbss.jopa.model.MultilingualString;
 import cz.cvut.kbss.jopa.vocabulary.RDFS;
+import cz.cvut.kbss.termit.dto.TermInfo;
 import cz.cvut.kbss.termit.model.*;
 import cz.cvut.kbss.termit.model.assignment.Target;
 import cz.cvut.kbss.termit.model.assignment.TermAssignment;
@@ -25,7 +26,6 @@ import cz.cvut.kbss.termit.model.comment.Comment;
 import cz.cvut.kbss.termit.model.resource.Document;
 import cz.cvut.kbss.termit.model.resource.File;
 import cz.cvut.kbss.termit.model.resource.Resource;
-import cz.cvut.kbss.termit.util.Constants;
 import org.eclipse.rdf4j.model.ValueFactory;
 import org.eclipse.rdf4j.repository.Repository;
 import org.eclipse.rdf4j.repository.RepositoryConnection;
@@ -221,17 +221,24 @@ public class Generator {
 
     public static Term generateTerm() {
         final Term term = new Term();
-        term.setLabel(MultilingualString.create("Term" + randomInt(), Constants.DEFAULT_LANGUAGE));
+        term.setLabel(MultilingualString.create("Term" + randomInt(), Environment.LANGUAGE));
         term.setDefinition(MultilingualString
                 .create("Normative definition of term " + term.getLabel().get(),
-                        Constants.DEFAULT_LANGUAGE));
-        term.setDescription(MultilingualString.create("Comment" + randomInt(), Constants.DEFAULT_LANGUAGE));
+                        Environment.LANGUAGE));
+        term.setDescription(MultilingualString.create("Comment" + randomInt(), Environment.LANGUAGE));
         return term;
     }
 
     public static Term generateTermWithId() {
         final Term term = generateTerm();
         term.setUri(Generator.generateUri());
+        return term;
+    }
+
+    public static TermInfo generateTermInfoWithId() {
+        final TermInfo term = new TermInfo();
+        term.setUri(Generator.generateUri());
+        term.setLabel(MultilingualString.create("Term" + randomInt(), Environment.LANGUAGE));
         return term;
     }
 

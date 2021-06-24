@@ -12,8 +12,6 @@ import cz.cvut.kbss.termit.model.Term;
 import cz.cvut.kbss.termit.model.util.HasTypes;
 
 import java.util.HashSet;
-import java.util.LinkedHashSet;
-import java.util.Objects;
 import java.util.Set;
 import java.util.stream.Collectors;
 
@@ -26,7 +24,7 @@ public class ReadOnlyTerm extends AbstractTerm implements HasTypes {
     @OWLAnnotationProperty(iri = SKOS.PREF_LABEL)
     private Set<MultilingualString> hiddenLabels;
 
-    @OWLAnnotationProperty(iri = DC.Terms.DESCRIPTION)
+    @OWLAnnotationProperty(iri = SKOS.SCOPE_NOTE)
     private MultilingualString description;
 
     @OWLAnnotationProperty(iri = DC.Terms.SOURCE, simpleLiteral = true)
@@ -35,6 +33,9 @@ public class ReadOnlyTerm extends AbstractTerm implements HasTypes {
     @OWLObjectProperty(iri = SKOS.BROADER)
     private Set<ReadOnlyTerm> parentTerms;
 
+    @OWLObjectProperty(iri = SKOS.NOTATION)
+    private String notation;
+
     @Types
     private Set<String> types;
 
@@ -42,30 +43,27 @@ public class ReadOnlyTerm extends AbstractTerm implements HasTypes {
     }
 
     public ReadOnlyTerm(Term term) {
-        Objects.requireNonNull(term);
-        setUri(term.getUri());
-        setLabel(new MultilingualString(term.getLabel().getValue()));
+        super(term);
         if (term.getAltLabels() != null) {
             this.altLabels = new HashSet<>(term.getAltLabels());
         }
         if (term.getHiddenLabels() != null) {
             this.hiddenLabels = new HashSet<>(term.getHiddenLabels());
         }
-        if (term.getDefinition() != null) {
-            setDefinition(new MultilingualString(term.getDefinition().getValue()));
-        }
         if (term.getDescription() != null) {
             this.description = new MultilingualString(term.getDescription().getValue());
         }
-        setVocabulary(term.getVocabulary());
         if (term.getSources() != null) {
             this.sources = new HashSet<>(term.getSources());
         }
         if (term.getParentTerms() != null) {
             this.parentTerms = term.getParentTerms().stream().map(ReadOnlyTerm::new).collect(Collectors.toSet());
         }
-        if (term.getSubTerms() != null) {
-            setSubTerms(new LinkedHashSet<>(term.getSubTerms()));
+        if (term.getProperties() != null && term.getProperties().containsKey(SKOS.NOTATION)) {
+            final Set<String> set = term.getProperties().get(SKOS.NOTATION);
+            if ( set.size() == 1 ) {
+                this.notation = set.iterator().next();
+            }
         }
         if (term.getTypes() != null) {
             this.types = new HashSet<>(term.getTypes());
@@ -110,6 +108,14 @@ public class ReadOnlyTerm extends AbstractTerm implements HasTypes {
 
     public void setParentTerms(Set<ReadOnlyTerm> parentTerms) {
         this.parentTerms = parentTerms;
+    }
+
+    public String getNotation() {
+        return notation;
+    }
+
+    public void setNotation(String notation) {
+        this.notation = notation;
     }
 
     @Override

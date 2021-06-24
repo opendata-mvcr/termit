@@ -1,19 +1,19 @@
 package cz.cvut.kbss.termit.persistence.dao.skos;
 
 import cz.cvut.kbss.jopa.model.EntityManager;
-import cz.cvut.kbss.termit.exception.DataImportException;
 import cz.cvut.kbss.termit.exception.UnsupportedImportMediaTypeException;
+import cz.cvut.kbss.termit.exception.VocabularyImportException;
+import cz.cvut.kbss.termit.model.Glossary;
 import cz.cvut.kbss.termit.model.Vocabulary;
-import cz.cvut.kbss.termit.model.changetracking.AbstractChangeRecord;
-import cz.cvut.kbss.termit.model.changetracking.PersistChangeRecord;
-import cz.cvut.kbss.termit.persistence.dao.changetracking.ChangeRecordDao;
-import cz.cvut.kbss.termit.service.security.SecurityUtils;
+import cz.cvut.kbss.termit.persistence.dao.TermDao;
+import cz.cvut.kbss.termit.persistence.dao.VocabularyDao;
 import cz.cvut.kbss.termit.util.ConfigParam;
 import cz.cvut.kbss.termit.util.Configuration;
+import cz.cvut.kbss.termit.util.Utils;
 import org.eclipse.rdf4j.model.*;
 import org.eclipse.rdf4j.model.impl.LinkedHashModel;
+import org.eclipse.rdf4j.model.util.Values;
 import org.eclipse.rdf4j.model.vocabulary.DCTERMS;
-import org.eclipse.rdf4j.model.vocabulary.OWL;
 import org.eclipse.rdf4j.model.vocabulary.RDF;
 import org.eclipse.rdf4j.model.vocabulary.SKOS;
 import org.eclipse.rdf4j.repository.Repository;
@@ -32,63 +32,137 @@ import org.springframework.stereotype.Component;
 import java.io.IOException;
 import java.io.InputStream;
 import java.net.URI;
-import java.text.ParseException;
-import java.text.SimpleDateFormat;
-import java.time.Instant;
 import java.util.List;
 import java.util.Objects;
 import java.util.Optional;
 import java.util.Set;
 import java.util.stream.Collectors;
 
+import static cz.cvut.kbss.termit.util.Utils.getUniqueIriFromBase;
+
+/**
+ * The tool to import plain SKOS thesauri.
+ * <p>
+ * It takes the thesauri as a TermIt glossary and 1) creates the necessary metadata (vocabulary, model) 2) generates the
+ * necessary hasTopConcept relationships based on the broader/narrower hierarchy.
+ */
 @Component
 @Scope(ConfigurableBeanFactory.SCOPE_PROTOTYPE)
 public class SKOSImporter {
 
-    private static final String VOCABULARY_TYPE = cz.cvut.kbss.termit.util.Vocabulary.s_c_slovnik;
-
     private static final Logger LOG = LoggerFactory.getLogger(SKOSImporter.class);
 
-    private final SimpleDateFormat createdFormat = new SimpleDateFormat("yyyy-MM-dd");
-
     private final Configuration config;
-    private final ChangeRecordDao changeRecordDao;
+    private final VocabularyDao vocabularyDao;
+    private final TermDao termDao;
+
+    private final EntityManager em;
 
     private final Repository repository;
     private final ValueFactory vf;
 
     private final Model model = new LinkedHashModel();
 
-    private String vocabularyIri;
+    private IRI glossaryIri;
 
     @Autowired
     public SKOSImporter(Configuration config,
-                        ChangeRecordDao changeRecordDao, EntityManager em) {
+                        VocabularyDao vocabularyDao,
+                        TermDao termDao,
+                        EntityManager em) {
         this.config = config;
-        this.changeRecordDao = changeRecordDao;
+        this.vocabularyDao = vocabularyDao;
+        this.termDao = termDao;
         this.repository = em.unwrap(org.eclipse.rdf4j.repository.Repository.class);
         vf = repository.getValueFactory();
+        this.em = em;
     }
 
-    public Vocabulary importVocabulary(String mediaType, InputStream... inputStreams) {
+    /**
+     * Imports a SKOS vocabulary from file.
+     *
+     * @param vocabularyIri (Optional) IRI of the vocabulary to import. If not supplied, the IRI is inferred from the data.
+     * @param mediaType     media type of the imported input streams
+     * @param inputStreams  input streams with the SKOS data
+     * @return
+     */
+    public Vocabulary importVocabulary(final boolean rename,
+                                       final URI vocabularyIri,
+                                       final String mediaType,
+                                       final InputStream... inputStreams) {
         if (inputStreams.length == 0) {
             throw new IllegalArgumentException("No input provided for importing vocabulary.");
         }
         LOG.debug("Vocabulary import started.");
         parseDataFromStreams(mediaType, inputStreams);
-        resolveVocabularyIri();
-        LOG.trace("Vocabulary identifier resolved to {}.", vocabularyIri);
-        insertTermGlossaryMembership();
+        glossaryIri = resolveGlossaryIriFromImportedData(model);
+        LOG.trace("Importing glossary {}.", glossaryIri);
         insertTopConceptAssertions();
-        addDataIntoRepository();
-        generatePersistChangeRecord();
+
+        final Vocabulary vocabulary = createVocabulary(rename, vocabularyIri);
+        ensureConceptIrisAreCompatibleWithTermIt();
+
+        LOG.trace("New vocabulary {} with new glossary.", vocabulary.getUri(), vocabulary.getGlossary().getUri());
+
+        final Optional<Glossary> glossary = vocabularyDao.findGlossary(vocabulary.getGlossary().getUri());
+        if (glossary.isPresent()) {
+            throw new IllegalArgumentException("The glossary '" + vocabulary.getGlossary().getUri() + "' already exists.");
+        }
+
+        if ( vocabularyIri == null ) {
+            final Optional<Vocabulary> possiblyVocabulary = vocabularyDao.find(vocabulary.getUri());
+            if (possiblyVocabulary.isPresent()) {
+                throw new IllegalArgumentException("The vocabulary IRI '" + vocabulary.getUri() + "' already exists.");
+            }
+        } else {
+            clearVocabulary(vocabularyIri);
+        }
+
+        em.flush();
+        vocabularyDao.persist(vocabulary);
+        addDataIntoRepository(vocabulary.getUri());
         LOG.debug("Vocabulary import successfully finished.");
-        return constructVocabularyInstance();
+        return vocabulary;
+    }
+
+    private void clearVocabulary(final URI vocabularyIri) {
+        final Optional<Vocabulary> possibleVocabulary = vocabularyDao.find(vocabularyIri);
+        if ( possibleVocabulary.isPresent() ) {
+            Vocabulary vocabulary = possibleVocabulary.get();
+            termDao.findAll(vocabulary).forEach(t -> {
+                termDao.remove(t);
+                vocabulary.getGlossary().removeRootTerm(t);
+            });
+            vocabularyDao.remove(vocabulary);
+            em.getEntityManagerFactory().getCache().evict(vocabulary.getUri());
+            em.getEntityManagerFactory().getCache().evict(vocabulary.getGlossary().getUri());
+        }
+    }
+
+    private void ensureConceptIrisAreCompatibleWithTermIt() {
+        final Statement[] statements = model.filter(null, RDF.TYPE, SKOS.CONCEPT).toArray(new Statement[]{});
+        for ( final Statement c : statements ) {
+            String separator = config.getNamespace().getTerm().getSeparator();
+            if ( c.getSubject().stringValue().contains(separator) ) {
+                continue;
+            }
+            separator = "#";
+            if ( !c.getSubject().stringValue().contains(separator) ) {
+                separator = "/";
+            }
+                final String sIri = c.getSubject().stringValue();
+                final int lastSeparator = sIri.lastIndexOf(separator);
+                final String newIri = sIri.substring(0,lastSeparator)
+                    + config.getNamespace().getTerm().getSeparator() + "/"
+                    + sIri.substring(lastSeparator + 1);
+                Utils.changeIri(c.getSubject().stringValue(), newIri, model);
+        }
     }
 
     private void parseDataFromStreams(String mediaType, InputStream... inputStreams) {
         final RDFFormat rdfFormat = Rio.getParserFormatForMIMEType(mediaType).orElseThrow(
-                () -> new UnsupportedImportMediaTypeException("Media type" + mediaType + "not supported."));
+            () -> new UnsupportedImportMediaTypeException(
+                "Media type" + mediaType + "not supported."));
         final RDFParser p = Rio.createParser(rdfFormat);
         final StatementCollector collector = new StatementCollector(model);
         p.setRDFHandler(collector);
@@ -96,124 +170,124 @@ public class SKOSImporter {
             try {
                 p.parse(is, "");
             } catch (IOException e) {
-                throw new DataImportException("Unable to parse data for import.", e);
+                throw new VocabularyImportException("Unable to parse data for import.");
             }
         }
     }
 
-    private void addDataIntoRepository() {
-        try (final RepositoryConnection conn = repository.getConnection()) {
-            conn.begin();
-            final String targetContext = vocabularyIri;
-            LOG.debug("Importing vocabulary into context <{}>.", targetContext);
-            conn.add(model, vf.createIRI(targetContext));
-            conn.commit();
+    private IRI resolveGlossaryIriFromImportedData(final Model model) {
+        final Model glossaryRes = model.filter(null, RDF.TYPE, SKOS.CONCEPT_SCHEME);
+        if (glossaryRes.size() == 1) {
+            final Resource glossary = glossaryRes.iterator().next().getSubject();
+            if (glossary.isIRI()) {
+                return (IRI) glossary;
+            } else {
+                throw new VocabularyImportException(
+                    "Blank node skos:ConceptScheme not supported.");
+            }
+        } else {
+            throw new VocabularyImportException(
+                "No unique skos:ConceptScheme found in the provided data.");
         }
     }
 
-    private void resolveVocabularyIri() {
-        final Model resVocabulary = model.filter(null, RDF.TYPE, vf.createIRI(VOCABULARY_TYPE));
-        if (resVocabulary.size() == 1) {
-            this.vocabularyIri = resVocabulary.iterator().next().getSubject().stringValue();
-            return;
-        }
-        final Model res = model.filter(null, RDF.TYPE, OWL.ONTOLOGY);
-        if (res.size() == 1) {
-            this.vocabularyIri = res.iterator().next().getSubject().stringValue();
-            return;
-        }
-        throw new IllegalArgumentException(
-                "No vocabulary or ontology found in the provided data. This means target storage context cannot be determined.");
-    }
-
-    private Vocabulary constructVocabularyInstance() {
-        final Vocabulary instance = new Vocabulary();
-        instance.setUri(URI.create(vocabularyIri));
-        final Set<Statement> labels = model.filter(vf.createIRI(vocabularyIri), DCTERMS.TITLE, null);
-        labels.stream().filter(s -> {
-            assert s.getObject() instanceof Literal;
-            return Objects.equals(config.get(ConfigParam.LANGUAGE),
-                    ((Literal) s.getObject()).getLanguage().orElse(config.get(ConfigParam.LANGUAGE)));
-        }).findAny().ifPresent(s -> instance.setLabel(s.getObject().stringValue()));
-        return instance;
-    }
-
-    private void insertTermGlossaryMembership() {
-        LOG.trace("Ensuring glossary membership statements (skos:inScheme) exist for terms.");
-        final Optional<IRI> glossary = resolveGlossary();
-        if (!glossary.isPresent()) {
-            LOG.warn("No glossary found. Will not be able to ensure terms are in a SKOS scheme.");
-            return;
-        }
-        model.addAll(model.filter(null, RDF.TYPE, SKOS.CONCEPT).stream()
-                          .map(s -> vf.createStatement(s.getSubject(), SKOS.IN_SCHEME, glossary.get()))
-                          .collect(Collectors.toList()));
-    }
-
-    private Optional<IRI> resolveGlossary() {
-        final IRI vocabularyId = vf.createIRI(vocabularyIri);
-        final List<Value> glossary = model
-                .filter(vocabularyId, vf.createIRI(cz.cvut.kbss.termit.util.Vocabulary.s_p_ma_glosar), null).stream()
-                .map(Statement::getObject).collect(Collectors.toList());
-        return glossary.size() != 0 ? Optional.of((IRI) glossary.get(0)) : Optional.empty();
+    private String resolveVocabularyIriFromImportedData(final Model model) {
+        return Utils
+            .getVocabularyIri(
+                model.filter(null, RDF.TYPE, SKOS.CONCEPT)
+                    .stream()
+                    .map(s -> s.getSubject().stringValue()).collect(Collectors.toSet()),
+                config.getNamespace().getTerm().getSeparator());
     }
 
     private void insertTopConceptAssertions() {
         LOG.trace("Generating top concept assertions.");
-        final Optional<IRI> glossary = resolveGlossary();
-        if (!glossary.isPresent()) {
-            LOG.debug("No glossary found for imported vocabulary {}, top concepts will not be identified.",
-                    vocabularyIri);
-            return;
-        }
-        final List<Resource> terms = model.filter(null, RDF.TYPE, SKOS.CONCEPT).stream().map(Statement::getSubject)
-                                          .collect(Collectors.toList());
+        final List<Resource> terms = model.filter(null, RDF.TYPE, SKOS.CONCEPT).stream().map
+            (Statement::getSubject)
+            .collect(Collectors.toList());
         terms.forEach(t -> {
-            final List<Value> broader = model.filter(t, SKOS.BROADER, null).stream().map(Statement::getObject)
-                                             .collect(Collectors.toList());
+            final List<Value> broader = model.filter(t, SKOS.BROADER, null).stream().map
+                (Statement::getObject)
+                .collect(Collectors.toList());
             final boolean hasBroader = broader.stream()
-                                              .anyMatch(p -> model.contains((Resource) p, RDF.TYPE, SKOS.CONCEPT));
-            final List<Value> narrower = model.filter(null, SKOS.NARROWER, t).stream().map(Statement::getObject)
-                                              .collect(Collectors.toList());
+                .anyMatch(p -> model.contains((Resource) p, RDF
+                    .TYPE, SKOS.CONCEPT));
+            final List<Value> narrower = model.filter(null, SKOS.NARROWER, t).stream().map
+                (Statement::getObject)
+                .collect(Collectors.toList());
             final boolean isNarrower = narrower.stream()
-                                               .anyMatch(p -> model.contains((Resource) p, RDF.TYPE, SKOS.CONCEPT));
+                .anyMatch(p -> model.contains((Resource) p, RDF
+                    .TYPE, SKOS.CONCEPT));
             if (!hasBroader && !isNarrower) {
-                model.add(glossary.get(), SKOS.HAS_TOP_CONCEPT, t);
+                model.add(glossaryIri, SKOS.HAS_TOP_CONCEPT, t);
             }
         });
     }
 
-    private void generatePersistChangeRecord() {
-        final List<Value> created = model.filter(vf.createIRI(vocabularyIri), DCTERMS.CREATED, null).stream()
-                                         .map(Statement::getObject).collect(Collectors.toList());
-        if (created.isEmpty()) {
-            LOG.trace("No vocabulary creation date available.");
-            return;
-        }
-        final Vocabulary asset = constructVocabularyInstance();
-        try {
-            final Instant timestamp = createdFormat.parse(created.get(0).stringValue()).toInstant();
-            final AbstractChangeRecord changeRecord = new PersistChangeRecord(asset);
-            changeRecord.setAuthor(SecurityUtils.currentUser().toUser());
-            changeRecord.setTimestamp(timestamp);
-            LOG.debug("Saving persist record for imported vocabulary. {}", changeRecord);
-            changeRecordDao.persist(changeRecord, asset);
-        } catch (ParseException e) {
-            LOG.warn("Unable to parse vocabulary creation date. Is it in ISO format?", e);
+    private void addDataIntoRepository(URI vocabularyIri) {
+        try (final RepositoryConnection conn = repository.getConnection()) {
+            conn.begin();
+            final IRI targetContext = vf.createIRI(vocabularyIri.toString());
+            LOG.debug("Importing vocabulary into context <{}>.", targetContext);
+            conn.add(model, targetContext);
+            conn.commit();
         }
     }
 
-    /**
-     * Guesses media type from the specified file name. E.g., if the file ends with ".ttl", the result will be {@link
-     * cz.cvut.kbss.termit.util.Constants.Turtle#MEDIA_TYPE}.
-     *
-     * @param fileName File name used to guess media type
-     * @return Guessed media type
-     * @throws UnsupportedImportMediaTypeException If the media type could not be determined
-     */
-    public static String guessMediaType(String fileName) {
-        return Rio.getParserFormatForFileName(fileName)
-                  .orElseThrow(() -> new UnsupportedImportMediaTypeException("Unsupported type of file " + fileName))
-                  .getDefaultMIMEType();
+    private void setVocabularyLabelFromGlossary(final Vocabulary vocabulary, final String newGlossaryIri) {
+        final Set<Statement> labels = model.filter(Values.iri(newGlossaryIri), DCTERMS.TITLE, null);
+        labels.stream().filter(s -> {
+            assert s.getObject() instanceof Literal;
+            return Objects.equals(config.getPersistence().getLanguage(),
+                ((Literal) s.getObject()).getLanguage().orElse(config.getPersistence().getLanguage()));
+        }).findAny().ifPresent(s -> vocabulary.setLabel(s.getObject().stringValue()));
+    }
+
+    private Vocabulary createVocabulary(boolean rename, final URI vocabularyIri) {
+        URI newVocabularyIri;
+        if ( vocabularyIri == null ) {
+            final String newVocabularyIriBase = resolveVocabularyIriFromImportedData(model);
+            newVocabularyIri = URI.create(getFreshVocabularyIri(rename, newVocabularyIriBase));
+        } else {
+            newVocabularyIri = vocabularyIri;
+        }
+        final Vocabulary vocabulary = new Vocabulary();
+        vocabulary.setUri(newVocabularyIri);
+
+        String newGlossaryIri = getFreshGlossaryIri(rename, newVocabularyIri.toString());
+        final Glossary glossary = new Glossary();
+        glossary.setUri(URI.create(newGlossaryIri));
+        vocabulary.setGlossary(glossary);
+        vocabulary.setModel(new cz.cvut.kbss.termit.model.Model());
+        setVocabularyLabelFromGlossary(vocabulary, newGlossaryIri);
+        return vocabulary;
+    }
+
+    private String getFreshVocabularyIri(final boolean rename, final String newVocabularyIriBase) {
+        final String newVocabularyIri;
+        if (rename) {
+            newVocabularyIri = getUniqueIriFromBase(newVocabularyIriBase, (r) -> vocabularyDao.find(URI.create(r)));
+            if (!newVocabularyIri.equals(newVocabularyIriBase)) {
+                Utils.changeNamespace(newVocabularyIriBase, newVocabularyIri, model);
+            }
+        } else {
+            newVocabularyIri = newVocabularyIriBase;
+        }
+
+        return newVocabularyIri;
+    }
+
+    private String getFreshGlossaryIri(final boolean rename, final String newVocabularyIri) {
+        final String newGlossaryIri;
+        if (rename) {
+            newGlossaryIri = getUniqueIriFromBase(newVocabularyIri + "/" + config.getGlossary().getFragment(), (r) -> vocabularyDao.findGlossary(URI.create(r)));
+            if (!newGlossaryIri.equals(glossaryIri)) {
+                Utils.changeIri(glossaryIri.toString(), newGlossaryIri, model);
+            }
+        } else {
+            newGlossaryIri = glossaryIri.stringValue();
+        }
+
+        return newGlossaryIri;
     }
 }

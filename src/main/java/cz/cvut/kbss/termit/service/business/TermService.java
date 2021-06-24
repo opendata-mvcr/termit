@@ -1,7 +1,7 @@
 package cz.cvut.kbss.termit.service.business;
 
-import cz.cvut.kbss.termit.dto.TermDto;
 import cz.cvut.kbss.termit.dto.assignment.TermAssignments;
+import cz.cvut.kbss.termit.dto.listing.TermDto;
 import cz.cvut.kbss.termit.exception.NotFoundException;
 import cz.cvut.kbss.termit.model.Term;
 import cz.cvut.kbss.termit.model.Vocabulary;
@@ -14,7 +14,6 @@ import cz.cvut.kbss.termit.service.comment.CommentService;
 import cz.cvut.kbss.termit.service.export.VocabularyExporters;
 import cz.cvut.kbss.termit.service.repository.ChangeRecordService;
 import cz.cvut.kbss.termit.service.repository.TermRepositoryService;
-import cz.cvut.kbss.termit.util.ConfigParam;
 import cz.cvut.kbss.termit.util.Configuration;
 import cz.cvut.kbss.termit.util.TypeAwareResource;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -86,6 +85,16 @@ public class TermService implements RudService<Term>, ChangeRecordProvider<Term>
     }
 
     /**
+     * Gets the total number of terms in the specified vocabulary.
+     *
+     * @param vocabulary Vocabulary reference
+     * @return Number of terms in the specified vocabulary
+     */
+    public Integer getTermCount(Vocabulary vocabulary) {
+        return vocabularyService.getTermCount(vocabulary);
+    }
+
+    /**
      * Retrieves all terms from the specified vocabulary and its imports (transitive).
      *
      * @param vocabulary Base vocabulary for the vocabulary import closure
@@ -113,6 +122,20 @@ public class TermService implements RudService<Term>, ChangeRecordProvider<Term>
     }
 
     /**
+     * Retrieves root terms (terms without parent).
+     * <p>
+     * The page specification parameter allows configuration of the number of results and their offset.
+     *
+     * @param pageSpec     Paging specification
+     * @param includeTerms Identifiers of terms which should be a part of the result. Optional
+     * @return Matching terms
+     */
+    public List<TermDto> findAllRoots(Pageable pageSpec, Collection<URI> includeTerms) {
+        Objects.requireNonNull(pageSpec);
+        return repositoryService.findAllRoots(pageSpec, includeTerms);
+    }
+
+    /**
      * Finds all root terms (terms without parent term) in the specified vocabulary or any of its imported
      * vocabularies.
      * <p>
@@ -126,7 +149,7 @@ public class TermService implements RudService<Term>, ChangeRecordProvider<Term>
      * @see #findAllRoots(Vocabulary, Pageable, Collection)
      */
     public List<TermDto> findAllRootsIncludingImported(Vocabulary vocabulary, Pageable pageSpec,
-                                                    Collection<URI> includeTerms) {
+                                                       Collection<URI> includeTerms) {
         Objects.requireNonNull(vocabulary);
         Objects.requireNonNull(pageSpec);
         return repositoryService.findAllRootsIncludingImported(vocabulary, pageSpec, includeTerms);
@@ -157,6 +180,17 @@ public class TermService implements RudService<Term>, ChangeRecordProvider<Term>
     }
 
     /**
+     * Finds all terms label of which is matching the searchString.
+     *
+     * @param searchString string to search the label by
+     * @return Matching terms
+     */
+    public List<TermDto> findAll(String searchString) {
+        Objects.requireNonNull(searchString);
+        return repositoryService.findAll(searchString);
+    }
+
+    /**
      * Finds all terms which match the specified search string in the specified vocabulary and any vocabularies it
      * (transitively) imports.
      *
@@ -178,9 +212,18 @@ public class TermService implements RudService<Term>, ChangeRecordProvider<Term>
      * @throws NotFoundException When vocabulary with the specified identifier does not exist
      */
     public Vocabulary findVocabularyRequired(URI id) {
-        Objects.requireNonNull(id);
-        return vocabularyService.find(id)
-                                .orElseThrow(() -> NotFoundException.create(Vocabulary.class.getSimpleName(), id));
+        return vocabularyService.findRequired(id);
+    }
+
+    /**
+     * Gets a reference to the vocabulary with the specified identifier.
+     *
+     * @param id Vocabulary identifier
+     * @return Matching vocabulary reference
+     * @throws NotFoundException When vocabulary with the specified identifier does not exist
+     */
+    public Vocabulary getRequiredVocabularyReference(URI id) {
+        return vocabularyService.getRequiredReference(id);
     }
 
     /**
@@ -234,11 +277,11 @@ public class TermService implements RudService<Term>, ChangeRecordProvider<Term>
     public List<Term> findSubTerms(Term parent) {
         Objects.requireNonNull(parent);
         return parent.getSubTerms() == null ? Collections.emptyList() :
-               parent.getSubTerms().stream().map(u -> repositoryService.find(u.getUri()).orElseThrow(
-                       () -> new NotFoundException(
-                               "Child of term " + parent + " with id " + u.getUri() + " not found!")))
-                     .sorted(Comparator.comparing((Term t) -> t.getLabel().get(config.get(ConfigParam.LANGUAGE))))
-                     .collect(Collectors.toList());
+                parent.getSubTerms().stream().map(u -> repositoryService.find(u.getUri()).orElseThrow(
+                        () -> new NotFoundException(
+                                "Child of term " + parent + " with id " + u.getUri() + " not found!")))
+                      .sorted(Comparator.comparing((Term t) -> t.getLabel().get(config.getPersistence().getLanguage())))
+                      .collect(Collectors.toList());
     }
 
     /**

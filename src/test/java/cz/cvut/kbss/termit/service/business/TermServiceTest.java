@@ -1,28 +1,28 @@
 package cz.cvut.kbss.termit.service.business;
 
-import cz.cvut.kbss.termit.dto.TermDto;
 import cz.cvut.kbss.termit.dto.TermInfo;
 import cz.cvut.kbss.termit.dto.assignment.TermAssignments;
+import cz.cvut.kbss.termit.dto.listing.TermDto;
+import cz.cvut.kbss.termit.environment.Environment;
 import cz.cvut.kbss.termit.environment.Generator;
-import cz.cvut.kbss.termit.exception.NotFoundException;
 import cz.cvut.kbss.termit.model.Term;
 import cz.cvut.kbss.termit.model.Vocabulary;
 import cz.cvut.kbss.termit.model.assignment.FileOccurrenceTarget;
 import cz.cvut.kbss.termit.model.assignment.TermDefinitionSource;
 import cz.cvut.kbss.termit.model.comment.Comment;
-import cz.cvut.kbss.termit.service.BaseServiceTestRunner;
 import cz.cvut.kbss.termit.service.comment.CommentService;
 import cz.cvut.kbss.termit.service.export.VocabularyExporters;
 import cz.cvut.kbss.termit.service.export.util.TypeAwareByteArrayResource;
 import cz.cvut.kbss.termit.service.repository.ChangeRecordService;
 import cz.cvut.kbss.termit.service.repository.TermRepositoryService;
-import cz.cvut.kbss.termit.util.*;
-import org.junit.jupiter.api.BeforeEach;
+import cz.cvut.kbss.termit.util.Configuration;
+import cz.cvut.kbss.termit.util.Constants;
+import cz.cvut.kbss.termit.util.CsvUtils;
+import cz.cvut.kbss.termit.util.TypeAwareResource;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
-import org.mockito.MockitoAnnotations;
 import org.mockito.junit.jupiter.MockitoExtension;
 
 import java.net.URI;
@@ -32,7 +32,8 @@ import java.util.stream.IntStream;
 
 import static cz.cvut.kbss.termit.environment.Generator.generateTermWithId;
 import static cz.cvut.kbss.termit.environment.Generator.generateVocabulary;
-import static org.junit.jupiter.api.Assertions.*;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.Mockito.*;
 
 @ExtendWith(MockitoExtension.class)
@@ -62,7 +63,7 @@ class TermServiceTest {
     @InjectMocks
     private TermService sut;
 
-    private Vocabulary vocabulary = Generator.generateVocabularyWithId();
+    private final Vocabulary vocabulary = Generator.generateVocabularyWithId();
 
     @Test
     void exportGlossaryGetsGlossaryExportForSpecifiedVocabularyFromExporters() {
@@ -77,16 +78,10 @@ class TermServiceTest {
 
     @Test
     void findVocabularyLoadsVocabularyFromRepositoryService() {
-        when(vocabularyService.find(vocabulary.getUri())).thenReturn(Optional.of(vocabulary));
+        when(vocabularyService.findRequired(vocabulary.getUri())).thenReturn(vocabulary);
         final Vocabulary result = sut.findVocabularyRequired(vocabulary.getUri());
         assertEquals(vocabulary, result);
-        verify(vocabularyService).find(vocabulary.getUri());
-    }
-
-    @Test
-    void findVocabularyThrowsNotFoundExceptionWhenVocabularyIsNotFound() {
-        when(vocabularyService.find(any())).thenReturn(Optional.empty());
-        assertThrows(NotFoundException.class, () -> sut.findVocabularyRequired(vocabulary.getUri()));
+        verify(vocabularyService).findRequired(vocabulary.getUri());
     }
 
     @Test
@@ -107,6 +102,16 @@ class TermServiceTest {
         final List<TermDto> result = sut.findAllRoots(vocabulary, Constants.DEFAULT_PAGE_SPEC, Collections.emptyList());
         assertEquals(terms, result);
         verify(termRepositoryService).findAllRoots(vocabulary, Constants.DEFAULT_PAGE_SPEC, Collections.emptyList());
+    }
+
+    @Test
+    void findAllRootsWithPagingRetrievesRootTermsUsingRepositoryService() {
+        final List<TermDto> terms = Collections.singletonList(new TermDto(Generator.generateTermWithId()));
+        when(termRepositoryService.findAllRoots(eq(Constants.DEFAULT_PAGE_SPEC), anyCollection()))
+            .thenReturn(terms);
+        final List<TermDto> result = sut.findAllRoots(Constants.DEFAULT_PAGE_SPEC, Collections.emptyList());
+        assertEquals(terms, result);
+        verify(termRepositoryService).findAllRoots(Constants.DEFAULT_PAGE_SPEC, Collections.emptyList());
     }
 
     @Test
@@ -162,6 +167,9 @@ class TermServiceTest {
     @Test
     void findSubTermsLoadsChildTermsOfTermUsingRepositoryService() {
         final Term parent = generateTermWithId();
+        final Configuration.Persistence p = new Configuration.Persistence();
+        p.setLanguage("en");
+        when(configuration.getPersistence()).thenReturn(p);
         final List<Term> children = IntStream.range(0, 5).mapToObj(i -> {
             final Term child = generateTermWithId();
             when(termRepositoryService.find(child.getUri())).thenReturn(Optional.of(child));
@@ -177,9 +185,9 @@ class TermServiceTest {
     @Test
     void existsInVocabularyChecksForLabelExistenceInVocabularyViaRepositoryService() {
         final String label = "test";
-        when(termRepositoryService.existsInVocabulary(label, vocabulary, Constants.DEFAULT_LANGUAGE)).thenReturn(true);
-        assertTrue(sut.existsInVocabulary(label, vocabulary, Constants.DEFAULT_LANGUAGE));
-        verify(termRepositoryService).existsInVocabulary(label, vocabulary, Constants.DEFAULT_LANGUAGE);
+        when(termRepositoryService.existsInVocabulary(label, vocabulary, Environment.LANGUAGE)).thenReturn(true);
+        assertTrue(sut.existsInVocabulary(label, vocabulary, Environment.LANGUAGE));
+        verify(termRepositoryService).existsInVocabulary(label, vocabulary, Environment.LANGUAGE);
     }
 
     @Test
@@ -189,6 +197,16 @@ class TermServiceTest {
         final List<Term> result = sut.findAll(vocabulary);
         assertEquals(terms, result);
         verify(termRepositoryService).findAll(vocabulary);
+    }
+
+    @Test
+    void findAllCallsFindAllInRepositoryService() {
+        final List<TermDto> terms = Collections.singletonList(new TermDto(Generator.generateTermWithId()));
+        final String searchString = "test";
+        when(termRepositoryService.findAll(searchString)).thenReturn(terms);
+        final List<TermDto> result = sut.findAll(searchString);
+        assertEquals(terms, result);
+        verify(termRepositoryService).findAll(searchString);
     }
 
     @Test
@@ -314,6 +332,10 @@ class TermServiceTest {
     @Test
     void findSubTermsReturnsSubTermsSortedByLabel() {
         final Term parent = generateTermWithId();
+        final Configuration.Persistence p = new Configuration.Persistence();
+        p.setLanguage("en");
+        when(configuration.getPersistence()).thenReturn(p);
+
         final List<Term> children = IntStream.range(0, 5).mapToObj(i -> {
             final Term child = generateTermWithId();
             when(termRepositoryService.find(child.getUri())).thenReturn(Optional.of(child));
@@ -322,7 +344,18 @@ class TermServiceTest {
         parent.setSubTerms(children.stream().map(TermInfo::new).collect(Collectors.toSet()));
 
         final List<Term> result = sut.findSubTerms(parent);
-        children.sort(Comparator.comparing((Term t) -> t.getLabel().get(Constants.DEFAULT_LANGUAGE)));
+        children.sort(Comparator.comparing((Term t) -> t.getLabel().get(Environment.LANGUAGE)));
         assertEquals(children, result);
+    }
+
+    @Test
+    void getTermCountRetrievesTermCountFromVocabularyService() {
+        final Integer count = 117;
+        when(vocabularyService.getTermCount(any(Vocabulary.class))).thenReturn(count);
+        final Vocabulary voc = new Vocabulary();
+        voc.setUri(Generator.generateUri());
+        final Integer result = sut.getTermCount(voc);
+        assertEquals(count, result);
+        verify(vocabularyService).getTermCount(voc);
     }
 }

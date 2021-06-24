@@ -18,7 +18,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import cz.cvut.kbss.jopa.model.EntityManager;
 import cz.cvut.kbss.jsonld.JsonLd;
 import cz.cvut.kbss.termit.config.WebAppConfig;
-import cz.cvut.kbss.termit.dto.TermDto;
+import cz.cvut.kbss.termit.dto.listing.TermDto;
 import cz.cvut.kbss.termit.model.Term;
 import cz.cvut.kbss.termit.model.User;
 import cz.cvut.kbss.termit.model.UserAccount;
@@ -52,6 +52,8 @@ import java.util.stream.Collectors;
 public class Environment {
 
     public static final String BASE_URI = Vocabulary.ONTOLOGY_IRI_termit;
+
+    public static final String LANGUAGE = "en";
 
     private static UserAccount currentUser;
 
