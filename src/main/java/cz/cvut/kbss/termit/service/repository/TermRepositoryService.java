@@ -28,7 +28,6 @@ import cz.cvut.kbss.termit.persistence.dao.TermDao;
 import cz.cvut.kbss.termit.service.IdentifierResolver;
 import cz.cvut.kbss.termit.service.term.AssertedInferredValueDifferentiator;
 import cz.cvut.kbss.termit.service.term.OrphanedInverseTermRelationshipRemover;
-import cz.cvut.kbss.termit.util.ConfigParam;
 import cz.cvut.kbss.termit.util.Configuration;
 import cz.cvut.kbss.termit.util.PageAndSearchSpecification;
 import org.apache.jena.vocabulary.SKOS;
@@ -132,8 +131,8 @@ public class TermRepositoryService extends BaseAssetRepositoryService<Term> {
     }
 
     private URI generateIdentifier(URI vocabularyUri, MultilingualString multilingualString) {
-        return idResolver.generateDerivedIdentifier(vocabularyUri, ConfigParam.TERM_NAMESPACE_SEPARATOR,
-            multilingualString.get(config.get(ConfigParam.LANGUAGE)));
+        return idResolver.generateDerivedIdentifier(vocabularyUri, config.getNamespace().getTerm().getSeparator(),
+            multilingualString.get(config.getPersistence().getLanguage()));
     }
 
     private void addTermAsRootToGlossary(Term instance, URI vocabularyIri) {

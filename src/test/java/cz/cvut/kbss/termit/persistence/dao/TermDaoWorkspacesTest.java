@@ -9,6 +9,7 @@ import cz.cvut.kbss.termit.dto.TermInfo;
 import cz.cvut.kbss.termit.dto.listing.TermDto;
 import cz.cvut.kbss.termit.dto.workspace.VocabularyInfo;
 import cz.cvut.kbss.termit.dto.workspace.WorkspaceMetadata;
+import cz.cvut.kbss.termit.environment.Environment;
 import cz.cvut.kbss.termit.environment.Generator;
 import cz.cvut.kbss.termit.environment.WorkspaceGenerator;
 import cz.cvut.kbss.termit.model.Term;
@@ -104,7 +105,7 @@ public class TermDaoWorkspacesTest extends BaseDaoTestRunner {
         final URI anotherWorkspaceCtx = Generator.generateUri();
         final Term copy = new Term();
         copy.setUri(term.getUri());
-        copy.setLabel(MultilingualString.create(LABEL_IN_DIFFERENT_WORKSPACE, Constants.DEFAULT_LANGUAGE));
+        copy.setLabel(MultilingualString.create(LABEL_IN_DIFFERENT_WORKSPACE, Environment.LANGUAGE));
 
         transactional(() -> {
             em.persist(anotherWorkspaceVocabulary, new EntityDescriptor(anotherWorkspaceCtx));
@@ -228,7 +229,7 @@ public class TermDaoWorkspacesTest extends BaseDaoTestRunner {
     @Test
     void findAllBySearchStringRetrievesTermsInCurrentVocabulary() {
         final Term term = Generator.generateTermWithId();
-        term.getLabel().set(Constants.DEFAULT_LANGUAGE, "searched label");
+        term.getLabel().set(Environment.LANGUAGE, "searched label");
         term.setGlossary(vocabulary.getGlossary().getUri());
         transactional(() -> {
             vocabulary.getGlossary().addRootTerm(term);
@@ -279,7 +280,7 @@ public class TermDaoWorkspacesTest extends BaseDaoTestRunner {
         });
         addTermToVocabularyInAnotherWorkspace(term);
 
-        assertFalse(sut.existsInVocabulary(LABEL_IN_DIFFERENT_WORKSPACE, vocabulary, Constants.DEFAULT_LANGUAGE));
+        assertFalse(sut.existsInVocabulary(LABEL_IN_DIFFERENT_WORKSPACE, vocabulary, Environment.LANGUAGE));
     }
 
     @Test
@@ -348,7 +349,7 @@ public class TermDaoWorkspacesTest extends BaseDaoTestRunner {
     void findAllInWorkspaceBySearchStringRetrievesMatchingTermsInCurrentWorkspace() {
         final String searchString = "match";
         final Term term = Generator.generateTermWithId();
-        term.getLabel().set(Constants.DEFAULT_LANGUAGE, "matching label");
+        term.getLabel().set(Environment.LANGUAGE, "matching label");
         term.setGlossary(vocabulary.getGlossary().getUri());
         final Term parent = Generator.generateTermWithId();
         parent.setGlossary(vocabulary.getGlossary().getUri());
@@ -371,10 +372,10 @@ public class TermDaoWorkspacesTest extends BaseDaoTestRunner {
     void findAllBySearchStringRetrievesMatchingTermsInCurrentWorkspaceAndCanonicalContainer() {
         final String searchString = "match";
         final Term term = Generator.generateTermWithId();
-        term.getLabel().set(Constants.DEFAULT_LANGUAGE, "matching label");
+        term.getLabel().set(Environment.LANGUAGE, "matching label");
         term.setGlossary(vocabulary.getGlossary().getUri());
         final Term canonical = Generator.generateTermWithId();
-        canonical.getLabel().set(Constants.DEFAULT_LANGUAGE, "matching label as well");
+        canonical.getLabel().set(Environment.LANGUAGE, "matching label as well");
         transactional(() -> {
             em.persist(term, descriptorFactory.termDescriptor(vocabulary));
             em.merge(vocabulary.getGlossary(), descriptorFactory.glossaryDescriptor(vocabulary));
@@ -401,7 +402,7 @@ public class TermDaoWorkspacesTest extends BaseDaoTestRunner {
 
     private URI persistTermIntoCanonicalContainer(Term term) {
         final Collection<Statement> canonical = WorkspaceGenerator
-                .generateCanonicalCacheContainer(config.get(ConfigParam.CANONICAL_CACHE_CONTAINER_IRI));
+                .generateCanonicalCacheContainer(config.getRepository().getCanonicalContainer());
         final List<String> ids = canonical.stream().map(s -> s.getObject().stringValue()).sorted().collect(Collectors.toList());
         final URI selectedVocabulary = URI.create(ids.get(0));
         transactional(() -> {
@@ -475,7 +476,7 @@ public class TermDaoWorkspacesTest extends BaseDaoTestRunner {
         final Term parent = Generator.generateTermWithId();
         final Term parentCopy = new Term();
         parentCopy.setUri(parent.getUri());
-        parentCopy.setLabel(MultilingualString.create("different parent label", Constants.DEFAULT_LANGUAGE));
+        parentCopy.setLabel(MultilingualString.create("different parent label", Environment.LANGUAGE));
         parentCopy.setDefinition(parent.getDefinition());
         parentCopy.setDescription(parent.getDescription());
         term.addParentTerm(parentCopy);
@@ -624,10 +625,10 @@ public class TermDaoWorkspacesTest extends BaseDaoTestRunner {
     void findAllBySearchStringRetrievesMatchingTermsFromCurrentWorkspaceAndCanonicalContainer() {
         final String searchString = "search";
         final Term term = Generator.generateTermWithId();
-        term.getLabel().set(Constants.DEFAULT_LANGUAGE, searchString + " string label");
+        term.getLabel().set(Environment.LANGUAGE, searchString + " string label");
         term.setGlossary(vocabulary.getGlossary().getUri());
         final Term canonical = Generator.generateTermWithId();
-        canonical.getLabel().set(Constants.DEFAULT_LANGUAGE, searchString + " canonical label");
+        canonical.getLabel().set(Environment.LANGUAGE, searchString + " canonical label");
         persistTermIntoCanonicalContainer(canonical);
         final Term anotherCanonical = Generator.generateTermWithId();
         persistTermIntoCanonicalContainer(anotherCanonical);
@@ -648,10 +649,10 @@ public class TermDaoWorkspacesTest extends BaseDaoTestRunner {
     void findAllInCanonicalBySearchStringRetrievesMatchingTermsFromCanonicalContainer() {
         final String searchString = "search";
         final Term term = Generator.generateTermWithId();
-        term.getLabel().set(Constants.DEFAULT_LANGUAGE, searchString + " string label");
+        term.getLabel().set(Environment.LANGUAGE, searchString + " string label");
         term.setGlossary(vocabulary.getGlossary().getUri());
         final Term canonical = Generator.generateTermWithId();
-        canonical.getLabel().set(Constants.DEFAULT_LANGUAGE, searchString + " canonical label");
+        canonical.getLabel().set(Environment.LANGUAGE, searchString + " canonical label");
         persistTermIntoCanonicalContainer(canonical);
         final Term anotherCanonical = Generator.generateTermWithId();
         persistTermIntoCanonicalContainer(anotherCanonical);
@@ -741,7 +742,8 @@ public class TermDaoWorkspacesTest extends BaseDaoTestRunner {
         final Term term = Generator.generateTermWithId();
         term.setGlossary(vocabulary.getGlossary().getUri());
         final Collection<Statement> canonical = WorkspaceGenerator
-                .generateCanonicalCacheContainer(config.get(ConfigParam.CANONICAL_CACHE_CONTAINER_IRI));
+                .generateCanonicalCacheContainer(config.getRepository()
+                                                       .getCanonicalContainer());
         transactional(() -> {
             em.persist(term, new EntityDescriptor(vocabulary.getUri()));
             Generator.addTermInVocabularyRelationship(term, vocabulary.getUri(), em);
@@ -873,7 +875,7 @@ public class TermDaoWorkspacesTest extends BaseDaoTestRunner {
         final String searchString = "search";
         final Term term = Generator.generateTermWithId();
         final Term parent = Generator.generateTermWithId();
-        term.getLabel().set(Constants.DEFAULT_LANGUAGE, searchString + " string label");
+        term.getLabel().set(Environment.LANGUAGE, searchString + " string label");
         term.setGlossary(vocabulary.getGlossary().getUri());
         final Vocabulary anotherVocabularyInWs = Generator.generateVocabularyWithId();
         saveVocabulary(anotherVocabularyInWs);

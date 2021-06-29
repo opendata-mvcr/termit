@@ -27,7 +27,6 @@ import cz.cvut.kbss.termit.model.resource.Document;
 import cz.cvut.kbss.termit.model.resource.File;
 import cz.cvut.kbss.termit.persistence.dao.BaseDaoTestRunner;
 import cz.cvut.kbss.termit.persistence.dao.workspace.WorkspaceMetadataProvider;
-import cz.cvut.kbss.termit.util.ConfigParam;
 import cz.cvut.kbss.termit.util.Configuration;
 import org.eclipse.rdf4j.model.Statement;
 import org.eclipse.rdf4j.repository.Repository;
@@ -165,7 +164,8 @@ class DescriptorFactoryTest extends BaseDaoTestRunner {
     }
 
     private Set<URI> generateCanonicalContainer() {
-        final Collection<Statement> statements = WorkspaceGenerator.generateCanonicalCacheContainer(config.get(ConfigParam.CANONICAL_CACHE_CONTAINER_IRI));
+        final Collection<Statement> statements = WorkspaceGenerator.generateCanonicalCacheContainer(config.getRepository()
+                                                                                                          .getCanonicalContainer());
         transactional(() -> {
             final Repository repo = em.unwrap(Repository.class);
             try (final RepositoryConnection conn = repo.getConnection()) {

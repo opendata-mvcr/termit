@@ -23,7 +23,9 @@ import cz.cvut.kbss.termit.environment.Environment;
 import cz.cvut.kbss.termit.environment.Generator;
 import cz.cvut.kbss.termit.environment.WorkspaceGenerator;
 import cz.cvut.kbss.termit.exception.ResourceExistsException;
+import cz.cvut.kbss.termit.exception.TermItException;
 import cz.cvut.kbss.termit.exception.ValidationException;
+import cz.cvut.kbss.termit.model.Term;
 import cz.cvut.kbss.termit.model.UserAccount;
 import cz.cvut.kbss.termit.model.Vocabulary;
 import cz.cvut.kbss.termit.model.Workspace;
@@ -33,13 +35,17 @@ import cz.cvut.kbss.termit.persistence.DescriptorFactory;
 import cz.cvut.kbss.termit.persistence.dao.workspace.WorkspaceMetadataProvider;
 import cz.cvut.kbss.termit.service.BaseServiceTestRunner;
 import cz.cvut.kbss.termit.service.IdentifierResolver;
+import org.junit.jupiter.api.Assertions;
 import org.eclipse.rdf4j.repository.Repository;
 import org.eclipse.rdf4j.repository.RepositoryConnection;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.mock.web.MockMultipartFile;
+import org.springframework.web.multipart.MultipartFile;
 
 import java.net.URI;
+import java.nio.charset.StandardCharsets;
 import java.util.Collection;
 import java.util.Comparator;
 import java.util.List;
@@ -200,6 +206,58 @@ class VocabularyRepositoryServiceTest extends BaseServiceTestRunner {
         final List<AbstractChangeRecord> changes = sut.getChanges(vocabulary);
         assertTrue(changes.isEmpty());
     }
+
+    @Test
+    void importVocabularyImportsAValidVocabulary() {
+        final String skos =
+                "@prefix skos : <http://www.w3.org/2004/02/skos/core#> . " +
+                        "@prefix dc : <http://purl.org/dc/terms/> . " +
+                        "<https://example.org/cs> a skos:ConceptScheme ; dc:title \"Test\"@en . " +
+                        "<https://example.org/pojem/a> a skos:Concept ; skos:inScheme <https://example.org/cs> . ";
+
+
+        final MultipartFile mf = new MockMultipartFile(
+                "test",
+                "test",
+                "text/turtle",
+                skos.getBytes(StandardCharsets.UTF_8)
+        );
+
+        final Vocabulary v = sut.importVocabulary(false, null, mf);
+        assertEquals(v.getLabel(), "Test");
+    }
+
+    @Test
+    void importVocabularyThrowsExceptionOnMissingConceptScheme() {
+        final String skos =
+                "@prefix skos : <http://www.w3.org/2004/02/skos/core#> . " +
+                        "@prefix dc : <http://purl.org/dc/terms/> . " +
+                        "<https://example.org/pojem/a> a skos:Concept ; skos:inScheme <https://example.org/cs> . ";
+
+        Assertions.assertThrows(TermItException.class, () -> {
+            final MultipartFile mf = new MockMultipartFile(
+                    "test",
+                    "test",
+                    "text/turtle",
+                    skos.getBytes(StandardCharsets.UTF_8)
+            );
+            final Vocabulary v = sut.importVocabulary(false, null, mf);
+            assertEquals(v.getLabel(), "Test");
+        });
+    }
+
+    @Test
+    void getTermCountRetrievesNumberOfTermsInVocabulary() {
+        final Vocabulary vocabulary = Generator.generateVocabularyWithId();
+        final Term term = Generator.generateTermWithId(vocabulary.getUri());
+        transactional(() -> {
+            em.persist(vocabulary, descriptorFactory.vocabularyDescriptor(vocabulary));
+            em.persist(term, descriptorFactory.termDescriptor(term));
+            Generator.addTermInVocabularyRelationship(term, vocabulary.getUri(), em);
+        });
+        assertEquals(1, sut.getTermCount(vocabulary));
+    }
+
 
     @Test
     void findAllRetrievesVocabulariesFromCurrentWorkspace() {

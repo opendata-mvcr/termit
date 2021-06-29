@@ -1,7 +1,7 @@
 package cz.cvut.kbss.termit.service.business;
 
-import cz.cvut.kbss.termit.dto.listing.TermDto;
 import cz.cvut.kbss.termit.dto.assignment.TermAssignments;
+import cz.cvut.kbss.termit.dto.listing.TermDto;
 import cz.cvut.kbss.termit.exception.NotFoundException;
 import cz.cvut.kbss.termit.model.Term;
 import cz.cvut.kbss.termit.model.Vocabulary;
@@ -155,6 +155,16 @@ public class TermService implements RudService<Term>, ChangeRecordProvider<Term>
     }
 
     /**
+     * Gets the total number of terms in the specified vocabulary.
+     *
+     * @param vocabulary Vocabulary reference
+     * @return Number of terms in the specified vocabulary
+     */
+    public Integer getTermCount(Vocabulary vocabulary) {
+        return vocabularyService.getTermCount(vocabulary);
+    }
+
+    /**
      * Retrieves root terms (terms without parent) from the specified vocabulary.
      * <p>
      * The page specification parameter allows configuration of the number of results and their offset.
@@ -205,6 +215,17 @@ public class TermService implements RudService<Term>, ChangeRecordProvider<Term>
         Objects.requireNonNull(id);
         return vocabularyService.find(id)
                 .orElseThrow(() -> NotFoundException.create(Vocabulary.class.getSimpleName(), id));
+    }
+
+    /**
+     * Gets a reference to the vocabulary with the specified identifier.
+     *
+     * @param id Vocabulary identifier
+     * @return Matching vocabulary reference
+     * @throws NotFoundException When vocabulary with the specified identifier does not exist
+     */
+    public Vocabulary getRequiredVocabularyReference(URI id) {
+        return vocabularyService.getRequiredReference(id);
     }
 
     /**

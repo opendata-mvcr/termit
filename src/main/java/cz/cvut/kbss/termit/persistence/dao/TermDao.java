@@ -31,9 +31,9 @@ import cz.cvut.kbss.termit.persistence.dao.util.SparqlResultToTermInfoMapper;
 import cz.cvut.kbss.termit.persistence.dao.workspace.WorkspaceBasedAssetDao;
 import cz.cvut.kbss.termit.util.ConfigParam;
 import cz.cvut.kbss.termit.util.Configuration;
+import org.springframework.beans.factory.annotation.Autowired;
 import cz.cvut.kbss.termit.util.Constants;
 import cz.cvut.kbss.termit.util.PageAndSearchSpecification;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Repository;
@@ -52,7 +52,7 @@ public class TermDao extends WorkspaceBasedAssetDao<Term> {
     @Autowired
     public TermDao(EntityManager em, Configuration config, DescriptorFactory descriptorFactory, PersistenceUtils persistenceUtils) {
         super(Term.class, em, config, descriptorFactory, persistenceUtils);
-        this.termInfoComparator = Comparator.comparing(t -> t.getLabel().get(config.get(ConfigParam.LANGUAGE)));
+        this.termInfoComparator = Comparator.comparing(t -> t.getLabel().get(config.getPersistence().getLanguage()));
     }
 
     @Override
@@ -308,7 +308,7 @@ public class TermDao extends WorkspaceBasedAssetDao<Term> {
                 "?vocabulary ?hasGlossary/?hasTerm ?term ." +
                 "FILTER (lang(?label) = ?labelLang)" +
                 "} ORDER BY LCASE(?label)", TermDto.class)
-                .setParameter("labelLang", config.get(ConfigParam.LANGUAGE));
+                .setParameter("labelLang", config.getLanguage());
             query = setCommonFindAllRootsQueryParams(query);
             query.setMaxResults(pageSpec.getPageSize()).setFirstResult((int) pageSpec.getOffset());
             query.setDescriptor(createDescriptor(resolveWorkspaceAndCanonicalContexts()));
@@ -385,7 +385,7 @@ public class TermDao extends WorkspaceBasedAssetDao<Term> {
                 "} ORDER BY LCASE(?label)", resultType)
                 .setParameter("type", typeUri)
                 .setParameter("hasLabel", LABEL_PROP)
-                .setParameter("labelLang", config.get(ConfigParam.LANGUAGE));
+                .setParameter("labelLang", config.getLanguage());
             query.setMaxResults(pageSpec.getPageSize()).setFirstResult((int) pageSpec.getOffset());
             query.setDescriptor(createDescriptor(resolveWorkspaceAndCanonicalContexts()));
             final List<T> result = executeQueryAndLoadSubTerms(query, contexts);
@@ -426,7 +426,7 @@ public class TermDao extends WorkspaceBasedAssetDao<Term> {
                 .setParameter("hasLabel", LABEL_PROP)
                 .setParameter("inVocabulary",
                     URI.create(cz.cvut.kbss.termit.util.Vocabulary.s_p_je_pojmem_ze_slovniku))
-                .setParameter("labelLang", config.get(ConfigParam.LANGUAGE));
+                .setParameter("labelLang", config.getLanguage());
             query.setDescriptor(descriptorFactory.termDescriptor(vocabulary));
             return executeQueryAndLoadSubTerms(query, Collections.singleton(vocabularyCtx));
         } catch (RuntimeException e) {
@@ -474,7 +474,7 @@ public class TermDao extends WorkspaceBasedAssetDao<Term> {
                 "} ORDER BY LCASE(?label)", TermDto.class)
                 .setParameter("type", typeUri)
                 .setParameter("hasLabel", LABEL_PROP)
-                .setParameter("searchString", searchString, config.get(ConfigParam.LANGUAGE))
+                .setParameter("searchString", searchString, config.getLanguage())
                 .setFirstResult((int) pageSpec.getOffset())
                 .setMaxResults(pageSpec.getPageSize());
             query.setDescriptor(createDescriptor(contexts));
@@ -616,7 +616,7 @@ public class TermDao extends WorkspaceBasedAssetDao<Term> {
             final URI vocabularyCtx = persistenceUtils.resolveVocabularyContext(vocabularyIri);
             final List<TermDto> result = executeQueryAndLoadSubTerms(query.setParameter("vocabulary", vocabularyIri)
                 .setParameter("g", vocabularyCtx)
-                .setParameter("labelLang", config.get(ConfigParam.LANGUAGE))
+                .setParameter("labelLang", config.getLanguage())
                 .setMaxResults(pageSpec.getPageSize())
                 .setFirstResult((int) pageSpec.getOffset()), Collections.singleton(vocabularyCtx));
             result.addAll(loadIncludedTerms(includeTerms));
@@ -671,7 +671,7 @@ public class TermDao extends WorkspaceBasedAssetDao<Term> {
                 .setParameter("inVocabulary", URI.create(cz.cvut.kbss.termit.util.Vocabulary.s_p_je_pojmem_ze_slovniku))
                 .setParameter("vocabulary", vocabularyIri)
                 .setParameter("g", vocabularyCtx)
-                .setParameter("searchString", searchString, config.get(ConfigParam.LANGUAGE));
+                .setParameter("searchString", searchString, config.getLanguage());
             query.setDescriptor(descriptorFactory.termDescriptor(vocabularyIri));
             final List<TermDto> terms = executeQueryAndLoadSubTerms(query, Collections.singleton(vocabularyCtx));
             terms.forEach(t -> {
@@ -716,7 +716,7 @@ public class TermDao extends WorkspaceBasedAssetDao<Term> {
                 .setParameter("inVocabulary", URI.create(cz.cvut.kbss.termit.util.Vocabulary.s_p_je_pojmem_ze_slovniku))
                 .setParameter("vocabulary", vocabulary)
                 .setParameter("g", persistenceUtils.resolveVocabularyContext(vocabulary.getUri()))
-                .setParameter("searchString", label, languageTag != null ? languageTag : config.get(ConfigParam.LANGUAGE))
+                .setParameter("searchString", label, languageTag != null ? languageTag : config.getLanguage())
                 .getSingleResult();
         } catch (RuntimeException e) {
             throw new PersistenceException(e);
@@ -746,7 +746,7 @@ public class TermDao extends WorkspaceBasedAssetDao<Term> {
             .setParameter("graphs", graphs)
             .setDescriptor(descriptor);
         final List<Term> terms = executeQueryAndLoadSubTerms(query, graphs);
-        terms.sort(Comparator.comparing(t -> t.getLabel().get(config.get(ConfigParam.LANGUAGE))));
+        terms.sort(Comparator.comparing(t -> t.getLabel().get(config.getLanguage())));
         return terms;
     }
 }

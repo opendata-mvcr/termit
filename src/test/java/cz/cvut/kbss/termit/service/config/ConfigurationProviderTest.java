@@ -1,35 +1,36 @@
 package cz.cvut.kbss.termit.service.config;
 
 import cz.cvut.kbss.termit.dto.ConfigurationDto;
-import cz.cvut.kbss.termit.util.ConfigParam;
 import cz.cvut.kbss.termit.util.Configuration;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
-import org.mockito.InjectMocks;
-import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.boot.context.properties.EnableConfigurationProperties;
+import org.springframework.test.context.junit.jupiter.SpringExtension;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
-import static org.mockito.Mockito.verify;
-import static org.mockito.Mockito.when;
 
-@ExtendWith(MockitoExtension.class)
+@ExtendWith({MockitoExtension.class, SpringExtension.class})
+@EnableConfigurationProperties({Configuration.class})
 class ConfigurationProviderTest {
 
-    @Mock
+    @Autowired
     private Configuration config;
 
-    @InjectMocks
     private ConfigurationProvider sut;
+
+    @BeforeEach
+    void setUp() {
+        this.sut = new ConfigurationProvider(config);
+    }
 
     @Test
     void getConfigurationReturnsConfigurationDtoWithRelevantConfigurationValues() {
-        final String lang = "cs";
-        when(config.get(ConfigParam.LANGUAGE)).thenReturn(lang);
         final ConfigurationDto result = sut.getConfiguration();
         assertNotNull(result);
-        assertEquals(lang, result.getLanguage());
-        verify(config).get(ConfigParam.LANGUAGE);
+        assertEquals(config.getPersistence().getLanguage(), result.getLanguage());
     }
 }

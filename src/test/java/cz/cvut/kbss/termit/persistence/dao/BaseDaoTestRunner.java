@@ -18,9 +18,12 @@ import cz.cvut.kbss.termit.environment.TransactionalTestRunner;
 import cz.cvut.kbss.termit.environment.config.TestConfig;
 import cz.cvut.kbss.termit.environment.config.TestPersistenceAspectsConfig;
 import cz.cvut.kbss.termit.environment.config.TestPersistenceConfig;
+import cz.cvut.kbss.termit.util.Configuration;
 import cz.cvut.kbss.termit.environment.config.WorkspaceTestConfig;
 import org.junit.jupiter.api.extension.ExtendWith;
+import org.springframework.boot.context.properties.EnableConfigurationProperties;
 import org.springframework.boot.test.context.ConfigDataApplicationContextInitializer;
+import org.springframework.context.annotation.aspectj.EnableSpringConfigured;
 import org.springframework.test.annotation.DirtiesContext;
 import org.springframework.test.context.ActiveProfiles;
 import org.springframework.test.context.ContextConfiguration;
@@ -28,10 +31,10 @@ import org.springframework.test.context.junit.jupiter.SpringExtension;
 
 
 @ExtendWith(SpringExtension.class)
-@ContextConfiguration(classes = {TestConfig.class,
-        TestPersistenceConfig.class,
-        TestPersistenceAspectsConfig.class,
-        WorkspaceTestConfig.class}, initializers = {ConfigDataApplicationContextInitializer.class})
+@ContextConfiguration(classes = {TestConfig.class, TestPersistenceConfig.class,
+                                 TestPersistenceAspectsConfig.class,
+                                 WorkspaceTestConfig.class},
+                      initializers = {ConfigDataApplicationContextInitializer.class})
 @DirtiesContext(classMode = DirtiesContext.ClassMode.AFTER_EACH_TEST_METHOD)
 @ActiveProfiles("test")
 public abstract class BaseDaoTestRunner extends TransactionalTestRunner {

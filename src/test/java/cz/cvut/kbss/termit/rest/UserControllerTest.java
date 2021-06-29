@@ -17,8 +17,10 @@ import cz.cvut.kbss.termit.environment.Generator;
 import cz.cvut.kbss.termit.model.UserAccount;
 import cz.cvut.kbss.termit.service.business.UserService;
 import org.junit.jupiter.api.BeforeEach;
+import cz.cvut.kbss.termit.util.Configuration;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
+import org.mockito.Answers;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
@@ -38,6 +40,9 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 class UserControllerTest extends BaseControllerTestRunner {
 
     private static final String BASE_URL = "/users";
+
+    @Mock(answer = Answers.RETURNS_DEEP_STUBS)
+    private Configuration configuration;
 
     @Mock
     private UserService userService;

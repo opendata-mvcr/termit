@@ -43,7 +43,7 @@ public class StatisticsDao {
         String query = Utils.loadQuery("statistics" + File.separator + "termFrequency.rq");
         return em.createNativeQuery(query, "TermFrequencyDto")
                  .setParameter("contexts", persistenceUtils.getWorkspaceVocabularyContexts(workspace))
-                 .setParameter("lang", config.get(ConfigParam.LANGUAGE))
+                 .setParameter("lang", config.getPersistence().getLanguage())
                  .getResultList();
     }
 
@@ -61,7 +61,7 @@ public class StatisticsDao {
         return em.createNativeQuery(query, "TermFrequencyDto")
                  .setParameter("g", persistenceUtils.resolveVocabularyContext(workspace, vocabulary.getUri()))
                  .setParameter("vocabulary", vocabulary)
-                 .setParameter("lang", config.get(ConfigParam.LANGUAGE))
+                 .setParameter("lang", config.getPersistence().getLanguage())
                  .getResultList();
     }
 }

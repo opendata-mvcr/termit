@@ -42,14 +42,14 @@ public interface VocabularyService
     /**
      * Imports vocabulary from the specified file.
      * <p>
-     * The file could be a text file containing RDF, or it could be a ZIP file containing separate vocabulary, glossary
-     * and model files.
+     * The file could be a text file containing RDF.
      *
+     * @param rename true, if the IRIs should be modified in order to prevent clashes with existing data.
      * @param vocabularyIri IRI of the vocabulary to be created.
-     * @param file File from which to import the vocabulary
+     * @param file          File from which to import the vocabulary
      * @return The imported vocabulary metadata
      */
-    Vocabulary importVocabulary(String vocabularyIri, MultipartFile file);
+    Vocabulary importVocabulary(boolean rename, URI vocabularyIri, MultipartFile file);
 
     /**
      * Gets change records of the listed assets.
@@ -77,4 +77,14 @@ public interface VocabularyService
      * @param validate Vocabulary to validate
      */
     List<ValidationResult> validateContents(Vocabulary validate);
+
+    /**
+     * Gets the number of terms in the specified vocabulary.
+     * <p>
+     * Note that this methods counts the terms regardless of their hierarchical position.
+     *
+     * @param vocabulary Vocabulary whose terms should be counted
+     * @return Number of terms in the vocabulary, 0 for empty or unknown vocabulary
+     */
+    Integer getTermCount(Vocabulary vocabulary);
 }

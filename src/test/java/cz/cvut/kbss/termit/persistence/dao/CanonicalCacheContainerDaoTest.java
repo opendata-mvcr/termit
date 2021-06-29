@@ -5,7 +5,6 @@ import cz.cvut.kbss.jopa.model.descriptors.EntityDescriptor;
 import cz.cvut.kbss.termit.environment.Generator;
 import cz.cvut.kbss.termit.environment.WorkspaceGenerator;
 import cz.cvut.kbss.termit.model.Workspace;
-import cz.cvut.kbss.termit.util.ConfigParam;
 import cz.cvut.kbss.termit.util.Configuration;
 import cz.cvut.kbss.termit.util.Vocabulary;
 import org.eclipse.rdf4j.model.IRI;
@@ -43,7 +42,8 @@ class CanonicalCacheContainerDaoTest extends BaseDaoTestRunner {
     }
 
     private Set<URI> generateCanonicalContainer() {
-        final Collection<Statement> statements = WorkspaceGenerator.generateCanonicalCacheContainer(config.get(ConfigParam.CANONICAL_CACHE_CONTAINER_IRI));
+        final Collection<Statement> statements = WorkspaceGenerator.generateCanonicalCacheContainer(config.getRepository()
+                                                                                                          .getCanonicalContainer());
         transactional(() -> {
             final Repository repo = em.unwrap(Repository.class);
             try (final RepositoryConnection conn = repo.getConnection()) {

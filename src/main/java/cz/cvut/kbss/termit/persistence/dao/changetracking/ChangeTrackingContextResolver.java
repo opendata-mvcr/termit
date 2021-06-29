@@ -6,14 +6,13 @@ import cz.cvut.kbss.termit.model.Term;
 import cz.cvut.kbss.termit.model.Vocabulary;
 import cz.cvut.kbss.termit.persistence.dao.VocabularyDao;
 import cz.cvut.kbss.termit.persistence.dao.workspace.WorkspaceMetadataProvider;
+import cz.cvut.kbss.termit.util.Configuration;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
 
 import java.net.URI;
 import java.util.Objects;
 import java.util.Optional;
-
-import static cz.cvut.kbss.termit.util.Constants.DEFAULT_CHANGE_TRACKING_CONTEXT_EXTENSION;
 
 /**
  * Determines repository context into which change tracking records are stored.
@@ -25,11 +24,15 @@ public class ChangeTrackingContextResolver {
 
     private final VocabularyDao vocabularyDao;
 
+    private final String contextExtension;
+
     @Autowired
     public ChangeTrackingContextResolver(WorkspaceMetadataProvider workspaceMetadataProvider,
-                                         VocabularyDao vocabularyDao) {
+                                         VocabularyDao vocabularyDao,
+                                         Configuration config) {
         this.workspaceMetadataProvider = workspaceMetadataProvider;
         this.vocabularyDao = vocabularyDao;
+        this.contextExtension = config.getChangetracking().getContext().getExtension();
     }
 
     /**
@@ -54,6 +57,6 @@ public class ChangeTrackingContextResolver {
             return workspaceMetadataProvider.getCurrentWorkspaceMetadata().getVocabularyInfo(vocabularyUri)
                                             .getChangeTrackingContext();
         }
-        return URI.create(changedAsset.getUri().toString().concat(DEFAULT_CHANGE_TRACKING_CONTEXT_EXTENSION));
+        return URI.create(changedAsset.getUri().toString().concat(contextExtension));
     }
 }

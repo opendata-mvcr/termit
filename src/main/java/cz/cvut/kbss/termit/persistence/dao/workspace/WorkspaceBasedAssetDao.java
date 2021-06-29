@@ -25,7 +25,7 @@ public abstract class WorkspaceBasedAssetDao<T extends Asset<?>> extends AssetDa
     protected WorkspaceBasedAssetDao(Class<T> type, EntityManager em, Configuration config,
                                      DescriptorFactory descriptorFactory,
                                      PersistenceUtils persistenceUtils) {
-        super(type, em, config, descriptorFactory);
+        super(type, em, config.getPersistence(), descriptorFactory);
         this.persistenceUtils = persistenceUtils;
     }
 
@@ -71,7 +71,7 @@ public abstract class WorkspaceBasedAssetDao<T extends Asset<?>> extends AssetDa
                         .setParameter("update", URI.create(Vocabulary.s_c_uprava_entity))
                         .setParameter("changeTrackingContexts",
                                 persistenceUtils.getCurrentWorkspaceChangeTrackingContexts())
-                        .setParameter("language", config.get(ConfigParam.LANGUAGE)).setMaxResults(1);
+                        .setParameter("language", config.getLanguage()).setMaxResults(1);
                 if (author != null) {
                     q.setParameter("author", author);
                 }

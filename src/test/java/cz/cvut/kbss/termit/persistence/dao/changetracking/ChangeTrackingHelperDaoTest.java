@@ -95,7 +95,7 @@ class ChangeTrackingHelperDaoTest extends BaseDaoTestRunner {
         final URI anotherWorkspaceCtx = Generator.generateUri();
         final Term copy = new Term();
         copy.setUri(term.getUri());
-        copy.setLabel(MultilingualString.create("Different label", Constants.DEFAULT_LANGUAGE));
+        copy.setLabel(MultilingualString.create("Different label", Environment.LANGUAGE));
 
         transactional(() -> {
             em.persist(anotherWorkspaceVocabulary, new EntityDescriptor(anotherWorkspaceCtx));

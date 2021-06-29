@@ -18,23 +18,15 @@ import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.context.annotation.EnableAspectJAutoProxy;
 import org.springframework.context.annotation.EnableMBeanExport;
-import org.springframework.context.annotation.aspectj.EnableSpringConfigured;
 import cz.cvut.kbss.termit.workspace.WorkspaceStore;
-import org.springframework.core.env.Environment;
 import org.springframework.web.context.annotation.SessionScope;
 
 import javax.servlet.http.HttpSession;
 
 @Configuration
 @EnableMBeanExport
-@EnableSpringConfigured
 @EnableAspectJAutoProxy(proxyTargetClass = true)
 public class AppConfig {
-
-    @Bean
-    public cz.cvut.kbss.termit.util.Configuration configuration(Environment environment) {
-        return new cz.cvut.kbss.termit.util.Configuration(environment);
-    }
 
     @Bean(name = "workspaceStore")
     @SessionScope

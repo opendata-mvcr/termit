@@ -11,7 +11,7 @@
  */
 package cz.cvut.kbss.termit.config;
 
-import cz.cvut.kbss.termit.util.ConfigParam;
+import cz.cvut.kbss.termit.util.Constants;
 import org.keycloak.adapters.KeycloakConfigResolver;
 import org.keycloak.adapters.springboot.KeycloakSpringBootConfigResolver;
 import org.keycloak.adapters.springsecurity.KeycloakConfiguration;
@@ -80,10 +80,11 @@ public class SecurityConfig extends KeycloakWebSecurityConfigurerAdapter {
         // This behavior can be restricted later.
         final CorsConfiguration corsConfiguration = new CorsConfiguration().applyPermitDefaultValues();
         corsConfiguration.setAllowedMethods(Collections.singletonList("*"));
-        corsConfiguration.setAllowedOrigins(Arrays.asList(config.get(ConfigParam.CORS_ALLOWED_ORIGIN).split(",")));
+        corsConfiguration.setAllowedOrigins(Arrays.asList(config.getCors().getAllowedOrigin().split(",")));
         corsConfiguration.addExposedHeader(HttpHeaders.AUTHORIZATION);
         corsConfiguration.addExposedHeader(HttpHeaders.LOCATION);
         corsConfiguration.addExposedHeader(HttpHeaders.CONTENT_DISPOSITION);
+        corsConfiguration.addExposedHeader(Constants.X_TOTAL_COUNT_HEADER);
         corsConfiguration.setAllowCredentials(false);
         final UrlBasedCorsConfigurationSource source = new UrlBasedCorsConfigurationSource();
         source.registerCorsConfiguration("/**", corsConfiguration);

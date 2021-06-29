@@ -2,14 +2,11 @@ package cz.cvut.kbss.termit.rest;
 
 import cz.cvut.kbss.termit.environment.Environment;
 import cz.cvut.kbss.termit.environment.Generator;
-import cz.cvut.kbss.termit.environment.config.TestConfig;
 import cz.cvut.kbss.termit.environment.config.TestRestSecurityConfig;
 import cz.cvut.kbss.termit.model.Term;
 import cz.cvut.kbss.termit.service.IdentifierResolver;
 import cz.cvut.kbss.termit.service.business.TermService;
-import cz.cvut.kbss.termit.util.ConfigParam;
 import cz.cvut.kbss.termit.util.Configuration;
-import cz.cvut.kbss.termit.util.Constants;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -22,7 +19,6 @@ import org.springframework.test.web.servlet.MockMvc;
 
 import java.net.URI;
 
-import static cz.cvut.kbss.termit.util.Constants.DEFAULT_TERM_NAMESPACE_SEPARATOR;
 import static cz.cvut.kbss.termit.util.Constants.REST_MAPPING_PATH;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.*;
@@ -30,7 +26,7 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 @WebMvcTest(TermController.class)
-@Import({TestConfig.class, TestRestSecurityConfig.class})
+@Import({TestRestSecurityConfig.class})
 @ActiveProfiles("test")
 class TermControllerSecurityTest extends BaseControllerTestRunner {
 
@@ -39,7 +35,7 @@ class TermControllerSecurityTest extends BaseControllerTestRunner {
     private static final String TERM_NAME = "locality";
     private static final String VOCABULARY_URI = Environment.BASE_URI + "/" + VOCABULARY_NAME;
     private static final String NAMESPACE =
-            VOCABULARY_URI + Constants.DEFAULT_TERM_NAMESPACE_SEPARATOR + "/";
+            VOCABULARY_URI + "/pojem/";
 
 
     @MockBean
@@ -56,14 +52,13 @@ class TermControllerSecurityTest extends BaseControllerTestRunner {
 
     @BeforeEach
     void setUp() {
-        when(configuration.get(ConfigParam.NAMESPACE_VOCABULARY)).thenReturn(Environment.BASE_URI + "/");
-        when(configuration.get(ConfigParam.TERM_NAMESPACE_SEPARATOR)).thenReturn(DEFAULT_TERM_NAMESPACE_SEPARATOR);
+        configuration.getNamespace().setVocabulary(Environment.BASE_URI + "/");
     }
 
     private URI initTermUriResolution() {
         final URI termUri = URI.create(Environment.BASE_URI + "/" + VOCABULARY_NAME +
-                Constants.DEFAULT_TERM_NAMESPACE_SEPARATOR + "/" + TERM_NAME);
-        when(idResolverMock.resolveIdentifier(ConfigParam.NAMESPACE_VOCABULARY, VOCABULARY_NAME))
+                configuration.getNamespace().getTerm().getSeparator() + "/" + TERM_NAME);
+        when(idResolverMock.resolveIdentifier(configuration.getNamespace().getVocabulary(), VOCABULARY_NAME))
                 .thenReturn(URI.create(VOCABULARY_URI));
         when(idResolverMock.buildNamespace(eq(VOCABULARY_URI), any())).thenReturn(NAMESPACE);
         when(idResolverMock.resolveIdentifier(NAMESPACE, TERM_NAME)).thenReturn(termUri);

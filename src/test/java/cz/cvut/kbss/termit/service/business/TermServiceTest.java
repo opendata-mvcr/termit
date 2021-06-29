@@ -1,8 +1,9 @@
 package cz.cvut.kbss.termit.service.business;
 
-import cz.cvut.kbss.termit.dto.listing.TermDto;
 import cz.cvut.kbss.termit.dto.TermInfo;
 import cz.cvut.kbss.termit.dto.assignment.TermAssignments;
+import cz.cvut.kbss.termit.dto.listing.TermDto;
+import cz.cvut.kbss.termit.environment.Environment;
 import cz.cvut.kbss.termit.environment.Generator;
 import cz.cvut.kbss.termit.exception.NotFoundException;
 import cz.cvut.kbss.termit.model.Term;
@@ -19,8 +20,10 @@ import cz.cvut.kbss.termit.service.repository.TermRepositoryService;
 import cz.cvut.kbss.termit.util.Constants;
 import cz.cvut.kbss.termit.util.CsvUtils;
 import cz.cvut.kbss.termit.util.TypeAwareResource;
+import cz.cvut.kbss.termit.util.Configuration;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
+import org.mockito.Answers;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
@@ -28,10 +31,7 @@ import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
 
 import java.net.URI;
-import java.util.Collections;
-import java.util.Date;
-import java.util.List;
-import java.util.Optional;
+import java.util.*;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 
@@ -60,6 +60,9 @@ class TermServiceTest {
 
     @Mock
     private CommentService commentService;
+
+    @Mock(answer = Answers.RETURNS_DEEP_STUBS)
+    private Configuration configuration;
 
     @InjectMocks
     private TermService sut;
@@ -166,7 +169,7 @@ class TermServiceTest {
     void findSubTermsLoadsChildTermsOfTermUsingRepositoryService() {
         final Term parent = generateTermWithId();
         final List<Term> children = IntStream.range(0, 5).mapToObj(i -> generateTermWithId())
-                .collect(Collectors.toList());
+                                             .collect(Collectors.toList());
         parent.setSubTerms(children.stream().map(TermInfo::new).collect(Collectors.toSet()));
         when(termRepositoryService.findSubTerms(parent)).thenReturn(children);
 
@@ -179,9 +182,9 @@ class TermServiceTest {
     @Test
     void existsInVocabularyChecksForLabelExistenceInVocabularyViaRepositoryService() {
         final String label = "test";
-        when(termRepositoryService.existsInVocabulary(label, vocabulary, Constants.DEFAULT_LANGUAGE)).thenReturn(true);
-        assertTrue(sut.existsInVocabulary(label, vocabulary, Constants.DEFAULT_LANGUAGE));
-        verify(termRepositoryService).existsInVocabulary(label, vocabulary, Constants.DEFAULT_LANGUAGE);
+        when(termRepositoryService.existsInVocabulary(label, vocabulary, Environment.LANGUAGE)).thenReturn(true);
+        assertTrue(sut.existsInVocabulary(label, vocabulary, Environment.LANGUAGE));
+        verify(termRepositoryService).existsInVocabulary(label, vocabulary, Environment.LANGUAGE);
     }
 
     @Test
@@ -333,4 +336,28 @@ class TermServiceTest {
         assertEquals(terms, result);
         verify(termRepositoryService).findAll(searchString);
     }
+
+    @Test
+    void findSubTermsReturnsSubTermsSortedByLabel() {
+        final Term parent = generateTermWithId();
+        final List<Term> children = IntStream.range(0, 5).mapToObj(i ->  generateTermWithId()).collect(Collectors.toList());
+        when(termRepositoryService.findSubTerms(parent)).thenReturn(children);
+        parent.setSubTerms(children.stream().map(TermInfo::new).collect(Collectors.toSet()));
+
+        final List<Term> result = sut.findSubTerms(parent);
+        children.sort(Comparator.comparing((Term t) -> t.getLabel().get(Environment.LANGUAGE)));
+        assertEquals(children, result);
+    }
+
+    @Test
+    void getTermCountRetrievesTermCountFromVocabularyService() {
+        final Integer count = 117;
+        when(vocabularyService.getTermCount(any(Vocabulary.class))).thenReturn(count);
+        final Vocabulary voc = new Vocabulary();
+        voc.setUri(Generator.generateUri());
+        final Integer result = sut.getTermCount(voc);
+        assertEquals(count, result);
+        verify(vocabularyService).getTermCount(voc);
+    }
+
 }

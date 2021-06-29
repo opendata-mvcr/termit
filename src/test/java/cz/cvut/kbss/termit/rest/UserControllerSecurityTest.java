@@ -13,7 +13,6 @@ package cz.cvut.kbss.termit.rest;
 
 import cz.cvut.kbss.termit.environment.Environment;
 import cz.cvut.kbss.termit.environment.Generator;
-import cz.cvut.kbss.termit.environment.config.TestConfig;
 import cz.cvut.kbss.termit.environment.config.TestRestSecurityConfig;
 import cz.cvut.kbss.termit.model.UserAccount;
 import cz.cvut.kbss.termit.service.IdentifierResolver;
@@ -40,7 +39,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
  * This tests only the security aspect of {@link UserController}. Functionality is tested in {@link UserControllerTest}.
  */
 @WebMvcTest(UserController.class)
-@Import({TestConfig.class, TestRestSecurityConfig.class})
+@Import({TestRestSecurityConfig.class})
 @ActiveProfiles("test")
 class UserControllerSecurityTest extends BaseControllerTestRunner {
 

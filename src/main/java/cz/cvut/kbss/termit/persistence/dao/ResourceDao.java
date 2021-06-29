@@ -53,7 +53,7 @@ public class ResourceDao extends AssetDao<Resource> implements SupportsLastModif
 
     public ResourceDao(EntityManager em, Configuration config, DescriptorFactory descriptorFactory,
                        PersistenceUtils persistenceUtils) {
-        super(Resource.class, em, config, descriptorFactory);
+        super(Resource.class, em, config.getPersistence(), descriptorFactory);
         this.persistenceUtils = persistenceUtils;
         refreshLastModified();
     }

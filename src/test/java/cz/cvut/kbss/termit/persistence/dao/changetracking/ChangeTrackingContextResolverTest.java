@@ -4,6 +4,9 @@ import cz.cvut.kbss.termit.dto.workspace.VocabularyInfo;
 import cz.cvut.kbss.termit.dto.workspace.WorkspaceMetadata;
 import cz.cvut.kbss.termit.environment.Generator;
 import cz.cvut.kbss.termit.environment.WorkspaceGenerator;
+import cz.cvut.kbss.termit.environment.config.TestPersistenceAspectsConfig;
+import cz.cvut.kbss.termit.environment.config.TestPersistenceConfig;
+import cz.cvut.kbss.termit.environment.config.WorkspaceTestConfig;
 import cz.cvut.kbss.termit.exception.NotFoundException;
 import cz.cvut.kbss.termit.model.Term;
 import cz.cvut.kbss.termit.model.Vocabulary;
@@ -11,28 +14,40 @@ import cz.cvut.kbss.termit.model.Workspace;
 import cz.cvut.kbss.termit.model.resource.Resource;
 import cz.cvut.kbss.termit.persistence.dao.VocabularyDao;
 import cz.cvut.kbss.termit.persistence.dao.workspace.WorkspaceMetadataProvider;
+import cz.cvut.kbss.termit.util.Configuration;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
-import org.mockito.InjectMocks;
 import org.mockito.Mock;
-import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.boot.context.properties.EnableConfigurationProperties;
+import org.springframework.boot.test.context.ConfigDataApplicationContextInitializer;
+import org.springframework.test.context.ContextConfiguration;
+import org.springframework.test.context.junit.jupiter.SpringExtension;
 
 import java.net.URI;
 import java.util.Collections;
 import java.util.Optional;
 
-import static cz.cvut.kbss.termit.util.Constants.DEFAULT_CHANGE_TRACKING_CONTEXT_EXTENSION;
+import static cz.cvut.kbss.termit.environment.config.WorkspaceTestConfig.DEFAULT_CHANGE_TRACKING_CONTEXT;
 import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.when;
 
-@ExtendWith(MockitoExtension.class)
+@EnableConfigurationProperties({Configuration.class})
+@ExtendWith(SpringExtension.class)
+@ContextConfiguration(classes = {TestPersistenceConfig.class,
+                                 TestPersistenceAspectsConfig.class,
+                                 WorkspaceTestConfig.class},
+                      initializers = {ConfigDataApplicationContextInitializer.class})
 class ChangeTrackingContextResolverTest {
 
     public static final URI CHANGE_TRACKING_CTX = Generator.generateUri();
 
     private WorkspaceMetadata metadata;
+
+    @Autowired
+    private Configuration configuration;
 
     @Mock
     private WorkspaceMetadataProvider workspaceMetadataProvider;
@@ -40,13 +55,13 @@ class ChangeTrackingContextResolverTest {
     @Mock
     private VocabularyDao vocabularyDao;
 
-    @InjectMocks
     private ChangeTrackingContextResolver sut;
 
     @BeforeEach
     void setUp() {
         final Workspace ws = WorkspaceGenerator.generateWorkspace();
         this.metadata = new WorkspaceMetadata(ws);
+        this.sut = new ChangeTrackingContextResolver(workspaceMetadataProvider,vocabularyDao,configuration);
     }
 
     @Test
@@ -91,6 +106,6 @@ class ChangeTrackingContextResolverTest {
         final Resource resource = Generator.generateResourceWithId();
         final URI result = sut.resolveChangeTrackingContext(resource);
         assertNotNull(result);
-        assertEquals(resource.getUri().toString().concat(DEFAULT_CHANGE_TRACKING_CONTEXT_EXTENSION), result.toString());
+        assertEquals(resource.getUri().toString().concat(DEFAULT_CHANGE_TRACKING_CONTEXT), result.toString());
     }
 }

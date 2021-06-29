@@ -23,7 +23,6 @@ import cz.cvut.kbss.termit.model.Term;
 import cz.cvut.kbss.termit.model.User;
 import cz.cvut.kbss.termit.model.Vocabulary;
 import cz.cvut.kbss.termit.persistence.DescriptorFactory;
-import cz.cvut.kbss.termit.util.Constants;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -153,7 +152,7 @@ class SearchDaoTest extends BaseDaoTestRunner {
         final Vocabulary otherVocabulary = Generator.generateVocabularyWithId();
         final List<Term> otherMatchingTerms = Arrays.asList(Generator.generateTermWithId(otherVocabulary.getUri()),
                 Generator.generateTermWithId(otherVocabulary.getUri()));
-        otherMatchingTerms.forEach(t -> t.getLabel().set(Constants.DEFAULT_LANGUAGE, "matching"));
+        otherMatchingTerms.forEach(t -> t.getLabel().set(Environment.LANGUAGE, "matching"));
         transactional(() -> {
             em.persist(vocabulary, descriptorFactory.vocabularyDescriptor(vocabulary));
             terms.forEach(t -> {
@@ -163,7 +162,7 @@ class SearchDaoTest extends BaseDaoTestRunner {
             otherMatchingTerms.forEach(em::persist);
 
         });
-        final Collection<Term> matchingTerms = terms.stream().filter(t -> t.getLabel().get(Constants.DEFAULT_LANGUAGE)
+        final Collection<Term> matchingTerms = terms.stream().filter(t -> t.getLabel().get(Environment.LANGUAGE)
                                                                            .contains("Matching"))
                                                     .collect(Collectors.toList());
 

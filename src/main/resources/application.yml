@@ -1,54 +1,78 @@
 application.version: @project.version@
 
 management:
-  endpoints:
-    enabled-by-default: false
-  endpoint:
-    health:
-      enabled: true
+    endpoints:
+        enabled-by-default: false
+    endpoint:
+        health:
+            enabled: true
 
 server:
-  servlet:
-    encoding:
-      charset: UTF-8
-      enabled: true
-      force: true
-    context-path: /termit
+    servlet:
+        encoding:
+            charset: UTF-8
+            enabled: true
+            force: true
+        context-path: /termit
+
 spring:
-  servlet:
-    multipart:
-      max-file-size: 10MB
-      max-request-size: 20MB
-      file-size-threshold: 0B
-      location: ${java.io.tmpdir}
-  profiles:
-    active: @spring.profiles.active@
+    servlet:
+        multipart:
+            max-file-size: 10MB
+            max-request-size: 20MB
+            file-size-threshold: 0B
+            location: ${java.io.tmpdir}
+    cache:
+        jcache:
+            config: classpath:ehcache.xml
+    profiles:
+        active: @spring.profiles.active@
 
 keycloak:
-  realm: kodi
-  resource: termit
-  realm-key: "MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEArr54p7YsfjCKwPnKDXhIhOGJYds6rp3O02lc8fJyzguaXkhy3Mq1ywZT3gjYvPrfMz+wqck8A6F2I2VEGxsUJ+SC9cgX1TTEMPUQh3BWDf45DCZfvvShGZ+t1nxsVfEw7J7xndRSy0LFJo5G/lU3impSvyxV/ZX9PgdrbKeVnuKfL3DesqCc1bBsbBf4xRHKL2pIK3BFyRnsWQcGkZcl7p0wpn9uF4dzk1zZ+CTGCNp34CYo1dN3Az2n/pJfOF2gH1rYjjdAeiFZmzf83KJgcjBRZXfORrf6zO3pkMHR0JrexhbS/PJDr3HvlpLC+/ss/HCCCkFLyefykNadUZ+XOwIDAQAB"
-  auth-server-url: "http://localhost:8080/auth"
-  use-resource-role-mappings: true
-  credentials:
-    secret: "f40a1a08-f0b7-40c1-9786-863c108566fe"
+    realm: kodi
+    resource: termit
+    realm-key: "MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEArr54p7YsfjCKwPnKDXhIhOGJYds6rp3O02lc8fJyzguaXkhy3Mq1ywZT3gjYvPrfMz+wqck8A6F2I2VEGxsUJ+SC9cgX1TTEMPUQh3BWDf45DCZfvvShGZ+t1nxsVfEw7J7xndRSy0LFJo5G/lU3impSvyxV/ZX9PgdrbKeVnuKfL3DesqCc1bBsbBf4xRHKL2pIK3BFyRnsWQcGkZcl7p0wpn9uF4dzk1zZ+CTGCNp34CYo1dN3Az2n/pJfOF2gH1rYjjdAeiFZmzf83KJgcjBRZXfORrf6zO3pkMHR0JrexhbS/PJDr3HvlpLC+/ss/HCCCkFLyefykNadUZ+XOwIDAQAB"
+    auth-server-url: "http://localhost:8080/auth"
+    use-resource-role-mappings: true
+    credentials:
+        secret: "f40a1a08-f0b7-40c1-9786-863c108566fe"
 
-repository:
-  url: http://localhost:7200/repositories/termit
-  # if empty, repository.url will be used
-  publicUrl:
-persistence:
-  driver: cz.cvut.kbss.ontodriver.sesame.SesameDataSource
-  language: cs
-jwt:
-  secretKey: TermItSecretKey
-namespace:
-  vocabulary: http://onto.fel.cvut.cz/ontologies/slovnik/
-  user: http://onto.fel.cvut.cz/ontologies/uzivatel/
-  resource: http://onto.fel.cvut.cz/ontologies/zdroj/
-file:
-  storage: /tmp/termit
-textAnalysis:
-  url: http://localhost/annotace/annotate
-cors:
-  allowedOrigin: http://localhost:3000
+# javamelody:
+#    init-parameters:
+#        authorized-users: admin:kral0vnat3rm1t1st3
+termit:
+    repository:
+        url: http://localhost:7200/repositories/termit
+        # if empty, repository.url will be used
+        publicUrl:
+        canonicalContainer: https://slovník.gov.cz
+
+    persistence:
+        driver: cz.cvut.kbss.ontodriver.sesame.SesameDataSource
+        language: cs
+    jwt:
+        secretKey: TermItSecretKey
+    namespace:
+        vocabulary: http://onto.fel.cvut.cz/ontologies/slovnik/
+        user: http://onto.fel.cvut.cz/ontologies/uzivatel/
+        resource: http://onto.fel.cvut.cz/ontologies/zdroj/
+        term:
+            separator: /pojem
+        file:
+            separator: /soubor
+    file:
+        storage: /tmp/termit
+    textAnalysis:
+        url: http://localhost/annotace/annotate
+    changetracking:
+        context:
+            extension: /zmeny
+    comments:
+        context: http://onto.fel.cvut.cz/ontologies/komentare
+    glossary:
+        fragment: glosář
+    admin:
+        credentialsLocation: ${user.home}
+        credentialsFile: .termit-admin
+    cors:
+        allowedOrigin: http://localhost:3000

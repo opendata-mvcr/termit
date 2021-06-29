@@ -26,6 +26,7 @@ public class WorkspaceTestConfig {
 
     public static URI DEFAULT_WORKSPACE = Generator.generateUri();
     public static URI DEFAULT_VOCABULARY_CTX = Generator.generateUri();
+    public static String DEFAULT_CHANGE_TRACKING_CONTEXT = "/zmeny";
 
     @Bean(name = "workspaceStore")
     public WorkspaceStore workspaceStore() {
@@ -44,8 +45,7 @@ public class WorkspaceTestConfig {
         doReturn(wsMetadata).when(cache).getCurrentWorkspaceMetadata();
         doReturn(ws).when(cache).getCurrentWorkspace();
         final VocabularyInfo info = new VocabularyInfo(DEFAULT_VOCABULARY_CTX, DEFAULT_VOCABULARY_CTX,
-                URI.create(DEFAULT_VOCABULARY_CTX.toString() +
-                        Constants.DEFAULT_CHANGE_TRACKING_CONTEXT_EXTENSION));
+                URI.create(DEFAULT_VOCABULARY_CTX.toString() + DEFAULT_CHANGE_TRACKING_CONTEXT));
         doReturn(info).when(wsMetadata).getVocabularyInfo(any());
         return cache;
     }

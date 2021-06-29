@@ -19,9 +19,9 @@ import cz.cvut.kbss.jopa.model.query.Query;
 import cz.cvut.kbss.termit.dto.FullTextSearchResult;
 import cz.cvut.kbss.termit.model.Term;
 import cz.cvut.kbss.termit.persistence.dao.SearchDao;
-import cz.cvut.kbss.termit.util.ConfigParam;
 import cz.cvut.kbss.termit.util.Configuration;
 import cz.cvut.kbss.termit.util.Vocabulary;
+import cz.cvut.kbss.termit.util.Configuration.Persistence;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.context.annotation.Profile;
@@ -49,11 +49,11 @@ public class LuceneSearchDao extends SearchDao {
 
     static final char LUCENE_WILDCARD = '*';
 
-    private final Configuration config;
+    private final Persistence config;
 
     public LuceneSearchDao(EntityManager em, Configuration config) {
         super(em);
-        this.config = config;
+        this.config = config.getPersistence();
     }
 
     @Override
@@ -70,10 +70,10 @@ public class LuceneSearchDao extends SearchDao {
                                                       cz.cvut.kbss.termit.model.Vocabulary.class)))
                               .setParameter("inVocabulary",
                                                       URI.create(Vocabulary.s_p_je_pojmem_ze_slovniku))
-                              .setParameter("searchString", searchString, null)
-                              .setParameter("wildCardSearchString", wildcardString, null)
-                              .setParameter("splitExactMatch", exactMatch, null)
-                              .setParameter("langTag", config.get(ConfigParam.LANGUAGE), null);
+                                              .setParameter("searchString", searchString, null)
+                                              .setParameter("wildCardSearchString", wildcardString, null)
+                                              .setParameter("splitExactMatch", exactMatch, null)
+                                              .setParameter("langTag", config.getLanguage(), null);
         if (contexts.isEmpty()) {
             query.setUntypedParameter("contexts", "?g");
         } else {

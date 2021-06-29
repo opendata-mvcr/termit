@@ -37,6 +37,7 @@ import cz.cvut.kbss.termit.persistence.dao.changetracking.ChangeRecordDao;
 import cz.cvut.kbss.termit.persistence.dao.workspace.WorkspaceBasedAssetDao;
 import cz.cvut.kbss.termit.persistence.validation.VocabularyContentValidator;
 import cz.cvut.kbss.termit.util.Configuration;
+import cz.cvut.kbss.termit.util.Configuration.Persistence;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.context.ApplicationContext;
 import org.springframework.context.annotation.Lazy;
@@ -222,6 +223,17 @@ public class VocabularyDao extends WorkspaceBasedAssetDao<Vocabulary> implements
     }
 
     /**
+     * Finds a glossary given its URI.
+     *
+     * @param uri glossary URI to find
+     * @return Glossary, if found
+     */
+    public Optional<Glossary> findGlossary(URI uri) {
+        Objects.requireNonNull(uri);
+        return Optional.ofNullable(em.find(Glossary.class, uri));
+    }
+
+    /**
      * Checks whether terms from the {@code subjectVocabulary} reference (as parent terms) any terms from the {@code
      * targetVocabulary}.
      *
@@ -323,6 +335,18 @@ public class VocabularyDao extends WorkspaceBasedAssetDao<Vocabulary> implements
             t.setUri(tUri);
             return changeRecordDao.findAll(t).stream();
         }).collect(Collectors.toList());
+    }
+
+    /**
+     * Returns the number of all terms in the specified vocabulary.
+     *
+     * @param vocabulary Vocabulary whose terms should be counted
+     * @return Number of terms in a vocabulary, 0 if the vocabulary is empty or does not exist.
+     */
+    public Integer getTermCount(Vocabulary vocabulary) {
+        Objects.requireNonNull(vocabulary);
+        return em.createQuery("SELECT DISTINCT COUNT(t) FROM Term t WHERE t.vocabulary = :vocabulary", Integer.class)
+                 .setParameter("vocabulary", vocabulary).getSingleResult();
     }
 
     /**

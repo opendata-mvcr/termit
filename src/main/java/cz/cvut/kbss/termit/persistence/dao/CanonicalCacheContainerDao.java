@@ -38,7 +38,7 @@ public class CanonicalCacheContainerDao {
                 "?workspace ?referencesContext ?wsCtx ." +
                 "?wsCtx ?versionOf ?ctx ." +
                 "}}", URI.class)
-                .setParameter("canonicalCache", URI.create(config.get(ConfigParam.CANONICAL_CACHE_CONTAINER_IRI)))
+                .setParameter("canonicalCache", URI.create(config.getRepository().getCanonicalContainer()))
                 .setParameter("referencesContext", URI.create(Vocabulary.s_p_odkazuje_na_kontext))
                 .setParameter("workspace", workspace)
                 .setParameter("versionOf", URI.create(Vocabulary.s_p_vychazi_z_verze)).getResultStream().collect(Collectors.toSet());

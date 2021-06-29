@@ -16,7 +16,7 @@ import cz.cvut.kbss.termit.security.model.AuthenticationToken;
 import cz.cvut.kbss.termit.security.model.TermItUserDetails;
 import cz.cvut.kbss.termit.security.model.UserRole;
 import cz.cvut.kbss.termit.service.IdentifierResolver;
-import cz.cvut.kbss.termit.util.ConfigParam;
+import cz.cvut.kbss.termit.util.Configuration;
 import org.keycloak.KeycloakPrincipal;
 import org.keycloak.representations.AccessToken;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -32,9 +32,12 @@ public class SecurityUtils {
 
     private final IdentifierResolver idResolver;
 
+    private final Configuration.Namespace configuration;
+
     @Autowired
-    public SecurityUtils(IdentifierResolver idResolver) {
+    public SecurityUtils(IdentifierResolver idResolver, Configuration configuration) {
         this.idResolver = idResolver;
+        this.configuration = configuration.getNamespace();
         // Ensures security context is propagated to additionally spun threads, e.g., used by @Async methods
         SecurityContextHolder.setStrategyName(SecurityContextHolder.MODE_INHERITABLETHREADLOCAL);
     }
@@ -65,7 +68,7 @@ public class SecurityUtils {
         context.getAuthentication().getAuthorities().stream().filter(ga -> UserRole.doesRoleExist(ga.getAuthority()))
                 .map(ga -> UserRole.fromRoleName(ga.getAuthority()))
                 .filter(r -> !r.getType().isEmpty()).forEach(r -> account.addType(r.getType()));
-        account.setUri(idResolver.generateIdentifier(ConfigParam.NAMESPACE_USER, keycloakToken.getSubject()));
+        account.setUri(idResolver.generateIdentifier(configuration.getUser(), keycloakToken.getSubject()));
         return account;
     }
 
