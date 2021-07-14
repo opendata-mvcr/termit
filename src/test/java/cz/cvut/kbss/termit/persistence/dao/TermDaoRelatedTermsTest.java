@@ -16,6 +16,7 @@ import org.eclipse.rdf4j.model.ValueFactory;
 import org.eclipse.rdf4j.repository.Repository;
 import org.eclipse.rdf4j.repository.RepositoryConnection;
 import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Disabled;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 
@@ -169,6 +170,7 @@ public class TermDaoRelatedTermsTest extends BaseDaoTestRunner {
     }
 
     @Test
+    @Disabled
     void findAllLoadsInferredInverseRelatedAndRelatedMatchTerms() {
         final Term term = Generator.generateTermWithId(vocabulary.getUri());
         term.setGlossary(vocabulary.getGlossary().getUri());
@@ -207,9 +209,6 @@ public class TermDaoRelatedTermsTest extends BaseDaoTestRunner {
         term.setRelated(related.stream().map(TermInfo::new).collect(Collectors.toSet()));
         term.setRelatedMatch(relatedMatch.stream().map(TermInfo::new).collect(Collectors.toSet()));
         transactional(() -> em.merge(term, descriptorFactory.termDescriptor(term)));
-
-        transactional(() -> em.flush());
-        em.clear();
 
         final List<Term> result = sut.findAll(vocabulary);
 
