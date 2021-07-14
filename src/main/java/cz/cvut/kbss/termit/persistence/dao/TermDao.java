@@ -29,7 +29,6 @@ import cz.cvut.kbss.termit.persistence.DescriptorFactory;
 import cz.cvut.kbss.termit.persistence.PersistenceUtils;
 import cz.cvut.kbss.termit.persistence.dao.util.SparqlResultToTermInfoMapper;
 import cz.cvut.kbss.termit.persistence.dao.workspace.WorkspaceBasedAssetDao;
-import cz.cvut.kbss.termit.util.ConfigParam;
 import cz.cvut.kbss.termit.util.Configuration;
 import org.springframework.beans.factory.annotation.Autowired;
 import cz.cvut.kbss.termit.util.Constants;
@@ -419,7 +418,8 @@ public class TermDao extends WorkspaceBasedAssetDao<Term> {
                 "?hasLabel ?label ." +
                 "FILTER (lang(?label) = ?labelLang) ." +
                 "}" +
-                "?term ?inVocabulary ?vocabulary. } ORDER BY LCASE(?label)", Term.class)
+                "?term ?inVocabulary ?vocabulary ." +
+                " } ORDER BY " + orderSentence(config.getLanguage(), "?label" ), Term.class)
                 .setParameter("type", typeUri)
                 .setParameter("vocabulary", vocabulary.getUri())
                 .setParameter("g", vocabularyCtx)
@@ -609,7 +609,7 @@ public class TermDao extends WorkspaceBasedAssetDao<Term> {
             "?hasLabel ?label ." +
             "?vocabulary ?hasGlossary/?hasTerm ?term ." +
             "FILTER (lang(?label) = ?labelLang) ." +
-            "}} ORDER BY LCASE(?label)", TermDto.class);
+                "}} ORDER BY " + orderSentence(config.getLanguage(), "?label"), TermDto.class);
         query = setCommonFindAllRootsQueryParams(query);
         query.setDescriptor(descriptorFactory.termDescriptor(vocabularyIri));
         try {
@@ -624,6 +624,34 @@ public class TermDao extends WorkspaceBasedAssetDao<Term> {
         } catch (RuntimeException e) {
             throw new PersistenceException(e);
         }
+    }
+
+    private String orderSentence(String lang, String var) {
+        switch (lang) {
+            case "cs":
+                return
+                        r(r(r(r(r(r(r(r(r(r(r(r(r(r("lcase(" + var + ")",
+                                "'á'", "'azz'"),
+                                "'č'", "'czz'"),
+                                "'ď'", "'dzz'"),
+                                "'é'", "'ezz'"),
+                                "'ě'", "'ezz'"),
+                                "'í'", "'izz'"),
+                                "'ň'", "'nzz'"),
+                                "'ó'", "'ozz'"),
+                                "'ř'", "'rzz'"),
+                                "'š'", "'szz'"),
+                                "'ť'", "'tzz'"),
+                                "'ú'", "'uzz'"),
+                                "'ý'", "'yzz'"),
+                                "'ž'", "'zzz'");
+            default:
+                return "lcase(" + var + ")";
+        }
+    }
+
+    private String r(String string, String from, String to) {
+        return "replace(" + string + ", " + from + ", " + to + ")";
     }
 
     private <T> TypedQuery<T> setCommonFindAllRootsQueryParams(TypedQuery<T> query) {
@@ -665,7 +693,7 @@ public class TermDao extends WorkspaceBasedAssetDao<Term> {
                 "FILTER CONTAINS(LCASE(?label), LCASE(?searchString)) ." +
                 "}" +
                 "?term ?inVocabulary ?vocabulary ." +
-                "} ORDER BY LCASE(?label)", TermDto.class)
+                "} ORDER BY " + orderSentence(config.getLanguage(), "?label" ), TermDto.class)
                 .setParameter("type", typeUri)
                 .setParameter("hasLabel", LABEL_PROP)
                 .setParameter("inVocabulary", URI.create(cz.cvut.kbss.termit.util.Vocabulary.s_p_je_pojmem_ze_slovniku))
